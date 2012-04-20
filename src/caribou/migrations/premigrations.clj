@@ -391,6 +391,7 @@
                           {:name "Path" :type "string"}
                           {:name "Controller" :type "string"}
                           {:name "Action" :type "string"}
+                          {:name "Method" :type "string"}
                           {:name "Template" :type "string"}])})
 
 (def account {:name "Account"
