@@ -15,7 +15,3 @@
                  ;; -------------------------------------------------
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   :aot [caribou.model])
-  ;; :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"})
-                 ;; "battlecat" "http://battlecat:8080/nexus/content/groups/public"
-                 ;; "snapshots" "http://battlecat:8080/nexus/content/repositories/snapshots"
-                 ;; "releases" "http://battlecat:8080/nexus/content/repositories/releases"})
