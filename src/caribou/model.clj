@@ -888,7 +888,7 @@
   [connection]
   ;FIXME using a wrapper for this smells a little bit, but it allows us
   ;to build an invoke-models function without hard-coding to @config/db
-  (def invoke_models #(sql/with-connection connection invoke-models)))
+  (def invoke-models #(sql/with-connection connection (_invoke-models))))
 
 (defn create
   "slug represents the model to be updated.
@@ -1046,4 +1046,6 @@
     (throw (Exception. "You must set :use-database in the app config")))
 
   (if (@config/app :use-database)
-    (create-invoke-models-wrapper @config/db)))
+    (create-invoke-models-wrapper @config/db))
+
+  (invoke-models))
