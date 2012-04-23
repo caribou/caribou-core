@@ -215,8 +215,11 @@
 
 (defn wrap-db
   [handler db & [opts]]
-  (fn [request]
-    (sql/with-connection db (handler request))))
+  (if (@config/app :use-database)
+    (fn [request]
+      (sql/with-connection db (handler request)))
+    (fn [request]
+      (handler request))))
 
 (defn tally
   "return how many total records are in this table"
