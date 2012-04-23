@@ -7,11 +7,12 @@
                  [clj-yaml "0.3.1"]
                  [geocoder-clj "0.0.3"]
                  [org.freemarker/freemarker "2.3.18"]
-                 [org.clojure/tools.logging "0.2.3"]]
+                 [org.clojure/tools.logging "0.2.3"]
+                 [org.imgscalr/imgscalr-lib "4.2"]]
                  ;; [antler/clojure-solr "0.3.0-SNAPSHOT"]
                  ;; --------- THESE DEPS ARE NOT ON 1.3 -------------
                  ;; [aleph "0.2.0-rc2"]
-                 ;; [org.clojars.serabe/rinzelight "0.0.3"]
+                 ;; [org.clojars.serabe/rinzelight "0.0.4"]]
                  ;; -------------------------------------------------
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   :aot [caribou.model])
