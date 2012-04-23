@@ -1034,9 +1034,10 @@
 (defn model-slug [this]
   (.state this))
 
-;; (defmacro 
+(defn init
+  []
+  (if (nil? (@config/app :use-database))
+    (throw (Exception. "You must set :use-database in the app config")))
 
-(try
-  (sql/with-connection @config/db
-    (invoke-models))
-  (catch Exception e (str (.toString e) " -- models table does not exist yet")))
+  (if (@config/app :use-database)
+    (invoke-models)))
