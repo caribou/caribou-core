@@ -868,7 +868,7 @@
         env)
       (catch Exception e env)))))
 
-(defn invoke-models
+(defn _invoke-models
   "call to populate the application model cache in model/models.
   (otherwise we hit the db all the time with model and field selects)
   this also means if a model or field is changed in any way that model will
@@ -883,6 +883,12 @@
         (fn [in-ref new-models] new-models)
         (merge (seq-to-map #(keyword (% :slug)) invoked)
                (seq-to-map #(% :id) invoked))))))
+
+(defn create-invoke-models-wrapper
+  [connection]
+  ;FIXME using a wrapper for this smells a little bit, but it allows us
+  ;to build an invoke-models function without hard-coding to @config/db
+  (def invoke_models #(sql/with-connection connection invoke-models)))
 
 (defn create
   "slug represents the model to be updated.
@@ -1040,4 +1046,4 @@
     (throw (Exception. "You must set :use-database in the app config")))
 
   (if (@config/app :use-database)
-    (invoke-models)))
+    (create-invoke-models-wrapper @config/db)))
