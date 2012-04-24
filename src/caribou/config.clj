@@ -6,6 +6,9 @@
   (:require [clojure.java.io :as io]
             [caribou.util :as util]))
 
+(declare config-file)
+(def get-config)
+
 (def app (ref {}))
 (def db (ref {}))
 
@@ -43,3 +46,19 @@
 (defn caribou-home
   []
   (pathify [(System/getProperty "user.home") ".caribou"]))
+
+(defn init
+  []
+  (let [config-file-name "caribou.clj"
+        project-level-config-file config-file-name
+        parent-level-config-file (util/pathify (concat [".."] config-file-name))]
+    (def config-file
+      (cond
+        (file-exists? project-level-config-file) project-level-config-file
+        (file-exists? parent-level-config-file) parent-level-config-file
+        :else nil))
+   
+    (if (nil? config-file)
+      (throw (Exception. (format "Could not find %s at project or parent level" config-file-name))))
+
+    (load-file config-file)))
