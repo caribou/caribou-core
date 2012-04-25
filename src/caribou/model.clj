@@ -747,10 +747,29 @@
 (defn add-hook
   "add a hook for the given model slug for the given timing.
   each hook must have a unique id, or it overwrites the previous hook at that id."
-  [slug timing id hook]
-  (dosync
-   (alter ((lifecycle-hooks (keyword slug)) (keyword timing))
-          merge {id hook})))
+  [slug timings id func]
+  (let [timings (if (keyword? timings) [timings] timings)]
+    (doseq [timing timings]
+      (if-let [model-hooks (lifecycle-hooks (keyword slug))]
+        (if-let [hook (model-hooks (keyword timing))]
+          (let [hook-name (keyword id)]
+            (dosync
+             (alter hook merge {hook-name func})))
+            (throw (Exception. (format "No model lifecycle hook called %s" timing))))
+        (throw (Exception. (format "No model called %s" slug)))))))
+
+(comment
+(defn add-hook
+  "add a hook for the given model slug for the given timing.
+  each hook must have a unique id, or it overwrites the previous hook at that id."
+  [slug timings id hook]
+  (let [timings (if (keyword? timings) (list timings) timings)]
+    (doseq [timing timings]
+      (dosync
+       (alter ((lifecycle-hooks (keyword slug)) (keyword timing))
+              merge {id hook})))))
+)              
+        
 
 (defn invoke-model
   "translates a row from the model table into a nested hash with references
@@ -868,7 +887,7 @@
         env)
       (catch Exception e env)))))
 
-(defn invoke-models
+(defn _invoke-models
   "call to populate the application model cache in model/models.
   (otherwise we hit the db all the time with model and field selects)
   this also means if a model or field is changed in any way that model will
@@ -883,6 +902,12 @@
         (fn [in-ref new-models] new-models)
         (merge (seq-to-map #(keyword (% :slug)) invoked)
                (seq-to-map #(% :id) invoked))))))
+
+(defn create-invoke-models-wrapper
+  [connection]
+  ;FIXME using a wrapper for this smells a little bit, but it allows us
+  ;to build an invoke-models function without hard-coding to @config/db
+  (def invoke-models #(sql/with-connection connection (_invoke-models))))
 
 (defn create
   "slug represents the model to be updated.
@@ -1034,9 +1059,12 @@
 (defn model-slug [this]
   (.state this))
 
-;; (defmacro 
+(defn init
+  []
+  (if (nil? (@config/app :use-database))
+    (throw (Exception. "You must set :use-database in the app config")))
 
-(try
-  (sql/with-connection @config/db
-    (invoke-models))
-  (catch Exception e (str (.toString e) " -- models table does not exist yet")))
+  (if (@config/app :use-database)
+    (create-invoke-models-wrapper @config/db))
+
+  (invoke-models))
