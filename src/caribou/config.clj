@@ -43,10 +43,6 @@
     (alter db merge (assoc-subname (config-map :database))))
   config-map)
 
-(defn caribou-home
-  []
-  (pathify [(System/getProperty "user.home") ".caribou"]))
-
 (defn init
   []
   (let [config-file-name "caribou.clj"
