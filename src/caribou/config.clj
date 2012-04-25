@@ -47,7 +47,8 @@
   []
   (let [config-file-name "caribou.clj"
         project-level-config-file config-file-name
-        parent-level-config-file (util/pathify (concat [".."] config-file-name))]
+        parent-level-config-file (util/pathify [".." config-file-name])]
+    (log :config parent-level-config-file)        
     (def config-file
       (cond
         (file-exists? project-level-config-file) project-level-config-file
