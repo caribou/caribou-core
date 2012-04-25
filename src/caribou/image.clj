@@ -56,14 +56,6 @@
          (.dispose))
        buf-img)))
 
-(defn create-new-canvas-for-image
-  "Creates a new canvas an copies the image to it"
-  [img]
-  (let [buf-img (create-empty-canvas (:width img) (:height img))]
-    (doto (.getGraphics buf-img)
-      (.drawImage (:image img) 0 0 nil))
-    buf-img))
-
 (defstruct image :image :format :width :height)
 
 (defmulti create-image
@@ -102,11 +94,11 @@
   (when origin
     (let [stream (ImageIO/createImageInputStream origin)]
       (when stream
-	(with-open [s stream]
-	  (let [r (last (iterator-seq (ImageIO/getImageReaders s)))]
-	    (when r
-	      (.setInput r stream)
-	      (create-image r))))))))
+        (with-open [s stream]
+          (let [r (last (iterator-seq (ImageIO/getImageReaders s)))]
+            (when r
+              (.setInput r stream)
+              (create-image r))))))))
 
 (defn write-buffered-image
   [buf-img uri]
@@ -124,22 +116,23 @@
       (write-buffered-image i uri)
       true
       (catch Exception e (println (str e))))))
-        ;; false))))
 
 (defn resize
   "Resizes the image specified by filename according to the supplied options
   (:width or :height), saving to file new-filename.  This function retains
   the aspect ratio of the original image."
-  [filename new-filename opts]
-  (let [img (read-image filename)
-        width (img :width)
-        height (img :height)
+  [original opts]
+  (let [width (original :width)
+        height (original :height)
         ratio (/ (float width) (float height))
         target-width (or (opts :width) (* (opts :height) ratio))
         target-height (or (opts :height) (/ (opts :width) ratio))
         larger (max target-width target-height)
-        scaled (Scalr/resize (img :image) Scalr$Method/ULTRA_QUALITY (int larger) (into-array BufferedImageOp []))]
+        scaled (Scalr/resize (original :image) Scalr$Method/ULTRA_QUALITY (int larger) (into-array BufferedImageOp []))]
     (write-image {:image scaled} new-filename)))
 
-
-
+(defn resize-file
+  [filename new-filename opts]
+  (let [original (read-image filename)
+        sized (resize original opts)]
+    (write-image {:image sized} new-filename)))
