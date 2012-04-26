@@ -6,7 +6,7 @@
   (:require [clojure.java.io :as io]
             [caribou.util :as util]))
 
-(declare config-file)
+(declare boot-file)
 (def get-config)
 
 (def app (ref {}))
@@ -34,6 +34,12 @@
   (dosync
     (alter db merge (assoc-subname db-map))))
 
+(defn read-config
+  [config-file]
+  (with-open [fd (java.io.PushbackReader.
+                  (io/reader (io/file config-file)))]
+    (read fd)))
+
 (defn configure
   [config-map]
   (dosync
@@ -45,17 +51,17 @@
 
 (defn init
   []
-  (let [config-file-name "caribou.clj"
-        project-level-config-file config-file-name
-        parent-level-config-file (util/pathify [".." config-file-name])]
-    (log :config parent-level-config-file)        
-    (def config-file
+  (let [boot-file-name "config/boot.clj"
+        project-level-boot-file boot-file-name
+        parent-level-boot-file (util/pathify [".." boot-file-name])]
+    (log :config parent-level-boot-file)
+    (def boot-file
       (cond
-        (file-exists? project-level-config-file) project-level-config-file
-        (file-exists? parent-level-config-file) parent-level-config-file
+        (file-exists? project-level-boot-file) project-level-boot-file
+        (file-exists? parent-level-boot-file) parent-level-boot-file
         :else nil))
    
-    (if (nil? config-file)
-      (throw (Exception. (format "Could not find %s at project or parent level" config-file-name))))
+    (if (nil? boot-file)
+      (throw (Exception. (format "Could not find %s at project or parent level" boot-file-name))))
 
-    (load-file config-file)))
+    (load-file boot-file)))

@@ -270,12 +270,11 @@
     path))
 
 (defn asset-dir [asset]
-  (str "assets/" (pad-break-id (asset :id))))
+  (pathify ["assets/" (pad-break-id (asset :id))]))
 
 (defn asset-path [asset]
   (if (and asset (asset :filename))
-    (str (asset-dir asset) "/"
-         (asset :filename))
+    (pathify [(asset-dir asset) (asset :filename)])
     ""))
 
 (defrecord AssetField [row env]
