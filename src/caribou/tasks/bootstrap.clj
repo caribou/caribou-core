@@ -4,10 +4,9 @@
             [caribou.config :as config]
             [caribou.migration :as mm]))
 
-(defn bootstrap [name]
-  (db/rebuild-database name)
-  (sql/with-connection @config/db
-    (mm/run-migrations name)))
+(defn bootstrap [config]
+  (db/rebuild-database config)
+  (mm/run-migrations config))
 
-(defn -main [name]
-  (bootstrap name))
+(defn -main [config-file]
+  (bootstrap (config/read-config config-file)))

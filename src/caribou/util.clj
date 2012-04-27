@@ -54,13 +54,12 @@
     after))
 
 (defn render-exception [e]
-  (let [cause (.getCause e)]
-    (if cause
-      (if (isa? cause SQLException)
-        (let [next (.getNextException cause)]
-          (str next (.printStackTrace next)))
-        (str cause (.printStackTrace cause)))
-      (str e (.printStackTrace e)))))
+  (if-let [cause (.getCause e)]
+    (if (isa? cause SQLException)
+      (let [next (.getNextException cause)]
+        (str next (.printStackTrace next)))
+      (str cause (.printStackTrace cause)))
+    (str e (.printStackTrace e))))
 
 (defn get-file-extension [file]
   (let [filename (.getName file)]

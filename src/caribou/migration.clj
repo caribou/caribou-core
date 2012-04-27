@@ -35,9 +35,9 @@
   (load-file (str "caribou/migrations/" migration ".clj"))
   (db/insert :migration {:name migration}))
 
-(defn run-migrations [db-name]
+(defn run-migrations [config]
   (try
-    (sql/with-connection (merge @config/db {:subname (str "//localhost/" db-name)})
+    (sql/with-connection config ;; (merge config {:subname (str "//localhost/" db-name)})
       (if (not (db/table? "migration"))
         (premigrations/migrate))
         ;; (doall (map run-migration premigration-list)))

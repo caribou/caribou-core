@@ -722,17 +722,18 @@
     :before_destroy    -- only called on destruction, record has not yet been removed
     :after_destroy     -- only called on destruction, now the db has no record of it"
   [slug]
-  (let [hooks {(keyword slug)
-               {:before_create  (ref {})
-                :after_create   (ref {})
-                :before_update  (ref {})
-                :after_update   (ref {})
-                :before_save    (ref {})
-                :after_save     (ref {})
-                :before_destroy (ref {})
-                :after_destroy  (ref {})}}]
-    (dosync
-     (alter lifecycle-hooks merge hooks))))
+  (if (not (@lifecycle-hooks (keyword slug)))
+    (let [hooks {(keyword slug)
+                 {:before_create  (ref {})
+                  :after_create   (ref {})
+                  :before_update  (ref {})
+                  :after_update   (ref {})
+                  :before_save    (ref {})
+                  :after_save     (ref {})
+                  :before_destroy (ref {})
+                  :after_destroy  (ref {})}}]
+      (dosync
+       (alter lifecycle-hooks merge hooks)))))
 
 (defn run-hook
   "run the hooks for the given model slug given by timing.
@@ -886,7 +887,7 @@
         env)
       (catch Exception e env)))))
 
-(defn _invoke-models
+(defn invoke-models
   "call to populate the application model cache in model/models.
   (otherwise we hit the db all the time with model and field selects)
   this also means if a model or field is changed in any way that model will
@@ -901,12 +902,6 @@
         (fn [in-ref new-models] new-models)
         (merge (seq-to-map #(keyword (% :slug)) invoked)
                (seq-to-map #(% :id) invoked))))))
-
-(defn create-invoke-models-wrapper
-  [connection]
-  ;FIXME using a wrapper for this smells a little bit, but it allows us
-  ;to build an invoke-models function without hard-coding to @config/db
-  (def invoke-models #(sql/with-connection connection (_invoke-models))))
 
 (defn create
   "slug represents the model to be updated.
@@ -1063,7 +1058,5 @@
   (if (nil? (@config/app :use-database))
     (throw (Exception. "You must set :use-database in the app config")))
 
-  (if (@config/app :use-database)
-    (create-invoke-models-wrapper @config/db))
-
-  (invoke-models))
+  (sql/with-connection @config/db
+    (invoke-models)))

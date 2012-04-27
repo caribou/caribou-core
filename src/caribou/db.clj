@@ -3,6 +3,7 @@
   (:use [clojure.string :only (join split)])
   (:require [clojure.string :as string]
             [clojure.java.jdbc :as sql]
+            [caribou.util :as util]
             [caribou.config :as config]))
 
 (import java.util.regex.Matcher)
@@ -181,33 +182,34 @@
 ;; (str "//" (first (split (replace (db-config :subname) "//" "") #"/")) "/" new-db)))
 
 (defn drop-database
-  "drop a database of the given name"
-  [name]
-  (try
-    (sql/with-connection (change-db-keep-host @config/db "template1")
-      (with-open [s (.createStatement (sql/connection))]
-        (.addBatch s (str "drop database " (zap name)))
-        (seq (.executeBatch s))))
-    (catch Exception e
-      (try
-        (println (str "database " name " doesn't exist: " (.getNextException (.getCause (debug e)))))
-        (catch Exception e (println e))))))
+  "drop a database of the given config"
+  [config]
+  (let [db-name (config :database)]
+    (println "dropping database: " db-name)
+    (try
+      (sql/with-connection (change-db-keep-host config "template1")
+        (with-open [s (.createStatement (sql/connection))]
+          (.addBatch s (str "drop database " (zap db-name)))
+          (seq (.executeBatch s))))
+      (catch Exception e (util/render-exception e)))))
 
 (defn create-database
   "create a database of the given name"
-  [name]
-  (try
-    (sql/with-connection (change-db-keep-host @config/db "template1") 
-      (with-open [s (.createStatement (sql/connection))]
-        (.addBatch s (str "create database " (zap name)))
-        (seq (.executeBatch s))))
-    (catch Exception e (println (str "database " name " already exists: " (.getNextException (.getCause e)))))))
+  [config]
+  (let [db-name (config :database)]
+    (println "creating database: " db-name)
+    (try
+      (sql/with-connection (change-db-keep-host config "template1") 
+        (with-open [s (.createStatement (sql/connection))]
+          (.addBatch s (str "create database " (zap db-name)))
+          (seq (.executeBatch s))))
+      (catch Exception e (util/render-exception e)))))
 
 (defn rebuild-database
   "drop and recreate the given database"
-  [name]
-  (drop-database name)
-  (create-database name))
+  [config]
+  (drop-database config)
+  (create-database config))
 
 (defn call
   [f]
