@@ -40,6 +40,10 @@
                   (io/reader (io/file config-file)))]
     (read fd)))
 
+(defn read-database-config
+  [config-file]
+  (assoc-subname ((read-config config-file) :database)))
+
 (defn configure
   [config-map]
   (dosync

@@ -7,14 +7,16 @@
             [caribou.util :as util]
             [caribou.config :as config]))
 
+(def test-db (config/read-database-config "config/test.clj"))
+
 (deftest invoke-model-test
-  (sql/with-connection (@config/all-db :test)
+  (sql/with-connection test-db
     (let [model (db/query "select * from model where id = 1")
           invoked (invoke-model (first model))]
       (is (= "name" (-> invoked :fields :name :row :slug))))))
 
 (deftest model-lifecycle-test
-  (sql/with-connection (@config/all-db :test)
+  (sql/with-connection test-db
     (invoke-models)
     (let [model (create :model
                         {:name "Yellow"
@@ -37,7 +39,7 @@
       (is (not (models :yellow))))))
 
 (deftest model-interaction-test
-  (sql/with-connection (debug (@config/all-db :test))
+  (sql/with-connection (debug test-db)
     (invoke-models)
     (try
       (let [yellow-row (create :model
@@ -108,7 +110,7 @@
        (if (db/table? :zap) (destroy :model (-> @models :zap :id)))))))
 
 (deftest model-link-test
-  (sql/with-connection (@config/all-db :test)
+  (sql/with-connection test-db
     (invoke-models)
     (try
       (let [chartreuse-row
@@ -147,7 +149,7 @@
        (if (db/table? :fuchsia) (destroy :model (-> @models :fuchsia :id)))))))
 
 (deftest nested-model-test
-  (sql/with-connection (@config/all-db :test)
+  (sql/with-connection test-db
     (invoke-models)
     (try
       (let [white (create :model {:name "White" :nested true :fields [{:name "Grey" :type "string"}]})
@@ -166,6 +168,5 @@
       (finally (if (db/table? :white) (destroy :model (-> @models :white :id)))))))
 
 ;; (deftest migration-test
-;;   (sql/with-connection (@config/all-db :test)
+;;   (sql/with-connection test-db
 ;;     (invoke-models)))
-    
