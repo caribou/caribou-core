@@ -143,10 +143,10 @@
 
             ]
         (println (str charfuch)))
-      (catch Exception e (util/render-exception e))
-      (finally
-       (if (db/table? :chartreuse) (destroy :model (-> @models :chartreuse :id)))
-       (if (db/table? :fuchsia) (destroy :model (-> @models :fuchsia :id)))))))
+      (catch Exception e (util/render-exception e))      )))
+      ;; (finally
+      ;;  (if (db/table? :chartreuse) (destroy :model (-> @models :chartreuse :id)))
+      ;;  (if (db/table? :fuchsia) (destroy :model (-> @models :fuchsia :id)))))))
 
 (deftest nested-model-test
   (sql/with-connection test-db
