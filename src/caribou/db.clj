@@ -172,7 +172,9 @@
 (defn do-sql
   "execute arbitrary sql.  direct proxy to sql/do-commands."
   [commands]
-  (sql/do-commands commands))
+  (try
+    (sql/do-commands commands)
+    (catch Exception e (.getNextException e))))
 
 (defn change-db-keep-host
   "given the current db config, change the database but keep the hostname"

@@ -224,7 +224,7 @@
         values)))
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (field-from [this content opts] (content (keyword (row :slug))))
+  (field-from [this content opts] (content (keyword (-> this :row :slug))))
   (render [this content opts] (field-from this content opts)))
 
 (defrecord TimestampField [row env]
@@ -355,6 +355,13 @@
     (or (db/choose :location (content (keyword (str (row :slug) "_id")))) {}))
   (render [this content opts] (model-render (models :location) (field-from this content opts) {})))
 
+(defn assoc-field
+  [content field opts]
+  (assoc
+    content
+    (keyword (-> field :row :slug))
+    (field-from field content opts)))
+
 (defn from
   "takes a model and a raw db row and converts it into a full
   content representation as specified by the supplied opts.
@@ -363,7 +370,7 @@
     the name of an association any content associated to this item through
     that association will be inserted under that key."
   [model content opts]
-  (reduce #(assoc %1 (keyword (-> %2 :row :slug)) (field-from %2 %1 opts)) content (vals (model :fields))))
+  (reduce #(assoc-field %1 %2 opts) content (vals (model :fields))))
 
 (defrecord CollectionField [row env]
   Field
@@ -544,12 +551,49 @@
   [a b]
   (join "_" (sort (map slugify [a b]))))
 
-(defn link-cleanup-field [row]
-  (let [from-name (row :name)
-        to-name ((db/choose :field (row :link_id)) :name)
-        join-name (debug (keyword (join-table-name from-name to-name)))]
-    (destroy :model (debug (-> @models join-name :id)))
-    (destroy :field (row :link_id))))
+(defn link-join-name
+  "Given a link field, return the join table name used by that link."
+  [link]
+  (let [reciprocal (-> link :env :link)
+        from-name (-> link :row :name)
+        to-name (reciprocal :slug)]
+    (keyword (join-table-name from-name to-name))))
+
+(defn link
+  "Link two rows by the given LinkField.  This function accepts its arguments
+   in order, so that 'a' is a row from the model containing the given field."
+  [field a b]
+  (let [reciprocal (-> field :env :link)
+        from-name (-> field :row :slug)
+        from-key (keyword (str from-name "_id"))
+        to-name (reciprocal :slug)
+        to-key (keyword (str to-name "_id"))
+        join-key (keyword (join-table-name from-name to-name))]
+    (create join-key {from-key (b :id) to-key (a :id)})))
+
+(defn table-columns
+  "Return a list of all columns for the table corresponding to this model."
+  [slug]
+  (let [model (models (keyword slug))]
+    (apply concat (map (fn [field] (map #(name (first %)) (table-additions field (-> field :row :slug)))) (vals (model :fields))))))
+
+(defn retrieve-links
+  "Given a link field and a row, find all target rows linked to the given row
+   by this field."
+  [field content]
+  (let [reciprocal (-> field :env :link)
+        target (models (-> field :row :target_id))
+        target-slug (target :slug)
+        from-name (-> field :row :slug)
+        from-key (str from-name "_id")
+        to-name (reciprocal :slug)
+        to-key (str to-name "_id")
+        join-name (join-table-name from-name to-name)
+        field-names (map #(str target-slug "." %) (table-columns target-slug))
+        field-select (join "," field-names)
+        query "select %1 from %2 inner join %3 on (%2.id = %3.%4) where %3.%5 = %6"
+        params [field-select target-slug join-name from-key to-key (content :id)]]
+    (apply (partial db/query query) params)))
 
 (defrecord LinkField [row env]
   Field
@@ -589,9 +633,7 @@
 
   (cleanup-field [this]
     (try
-      (let [from-name (row :name)
-            to-name ((db/choose :field (row :link_id)) :name)
-            join-name (keyword (join-table-name from-name to-name))]
+      (let [join-name (link-join-name this)]
         (destroy :model (-> @models join-name :id))
         (destroy :field (row :link_id)))
       (catch Exception e (str e))))
@@ -599,64 +641,36 @@
   (target-for [this] (models (row :target_id)))
 
   (update-values [this content values]
-    (let [removed (keyword (str "removed_" (row :slug)))]
-      (if (content removed)
-        (let [ex (map #(Integer. %) (split (content removed) #","))
-              part (env :link)
-              part-key (keyword (str (part :slug) "_id"))
-              target ((models (row :target_id)) :slug)]
-          (if (row :dependent)
-            (doall (map #(destroy target %) ex))
-            (doall (map #(update target % {part-key nil}) ex)))
-          values)
-        values)))
+    (if-let [removed (content (keyword (str "removed_" (row :slug))))]
+      (let [ex (map #(Integer. %) (split removed #","))
+            part (env :link)
+            part-key (keyword (str (part :slug) "_id"))
+            target ((models (row :target_id)) :slug)]
+        (if (row :dependent)
+          (doall (map #(destroy target %) ex))
+          (doall (map #(update target % {part-key nil}) ex)))))
+    values)
 
   (post-update [this content]
-    (let [collection (content (keyword (row :slug)))]
-      (if collection
-        (let [part (env :link)
-              part-key (keyword (str (part :slug) "_id"))
-              model (models (part :model_id))
-              updated (doall
-                       (map
-                        #(create
-                          (model :slug)
-                          (merge % {part-key (content :id)}))
-                        collection))]
-          (assoc content (keyword (row :slug)) updated))
-        content)))
+    (if-let [collection (content (keyword (row :slug)))]
+      (let [linked (doall (map #(link this content %) collection))
+            with-links (assoc content (keyword (str (row :slug) "_join")) linked)]
+        (assoc content (row :slug) (retrieve-links this content))))
+    content)
 
   (pre-destroy [this content]
-    (if (or (row :dependent) (-> env :link :dependent))
-      (let [parts (field-from this content {:include {(keyword (row :slug)) {}}})
-            target (keyword ((target-for this) :slug))]
-        (doall (map #(destroy target (% :id)) parts))))
     content)
 
   (field-from [this content opts]
-    (let [include (if (opts :include) ((opts :include) (keyword (row :slug))))]
-      (if include
-        (let [down (assoc opts :include include)
-              link (-> this :env :link :slug)
-              parts (db/fetch (-> (target-for this) :slug) (str link "_id = %1 order by %2 asc") (content :id) (str link "_position"))]
-          (map #(from (target-for this) % down) parts))
-        [])))
+    (if-let [include (if (opts :include) ((opts :include) (keyword (row :slug))))]
+      (let [down (assoc opts :include include)
+            target (target-for this)]
+        (map #(from target % down) (retrieve-links this content)))
+      []))
 
   (render [this content opts]
     (map #(model-render (target-for this) % (assoc opts :include ((opts :include) (keyword (row :slug))))) (field-from this content opts))))
 
-
-
-  ;; (table-additions [this field] [])
-  ;; (subfield-names [this field] [])
-  ;; (setup-field [this] nil)
-  ;; (cleanup-field [this] nil)
-  ;; (target-for [this] nil)
-  ;; (update-values [this content values])
-  ;; (post-update [this content] content)
-  ;; (pre-destroy [this content] content)
-  ;; (field-from [this content opts])
-  ;; (render [this content opts] ""))
 
 (def field-constructors
   {:id (fn [row] (IdField. row {}))
@@ -678,7 +692,9 @@
            (let [link (db/choose :field (row :link_id))]
              (PartField. row {:link link})))
    :tie (fn [row] (TieField. row {}))
-   :link (fn [row] (LinkField. row {}))
+   :link (fn [row]
+           (let [link (db/choose :field (row :link_id))]
+             (LinkField. row {:link link})))
    })
 
 (def base-fields [{:name "Id" :type "id" :locked true :immutable true :editable false}
@@ -757,19 +773,6 @@
              (alter hook merge {hook-name func})))
             (throw (Exception. (format "No model lifecycle hook called %s" timing))))
         (throw (Exception. (format "No model called %s" slug)))))))
-
-(comment
-(defn add-hook
-  "add a hook for the given model slug for the given timing.
-  each hook must have a unique id, or it overwrites the previous hook at that id."
-  [slug timings id hook]
-  (let [timings (if (keyword? timings) (list timings) timings)]
-    (doseq [timing timings]
-      (dosync
-       (alter ((lifecycle-hooks (keyword slug)) (keyword timing))
-              merge {id hook})))))
-)              
-        
 
 (defn invoke-model
   "translates a row from the model table into a nested hash with references
@@ -973,12 +976,6 @@
         deleted (db/delete slug "id = %1" id)
         _after (run-hook slug :after_destroy (merge _before {:content pre}))]
     (_after :content)))
-
-(defn table-columns
-  "return a list of all columns for the table corresponding to this model."
-  [slug]
-  (let [model (models (keyword slug))]
-    (apply concat (map (fn [field] (map #(name (first %)) (table-additions field (-> field :row :slug)))) (vals (model :fields))))))
 
 (defn progenitors
   "if the model given by slug is nested,
