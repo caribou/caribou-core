@@ -552,6 +552,7 @@
   (join "_" (sort (map slugify [a b]))))
 
 (defn link-join-name
+  "Given a link field, return the join table name used by that link."
   [link]
   (let [reciprocal (-> link :env :link)
         from-name (-> link :row :name)
@@ -571,12 +572,14 @@
     (create join-key {from-key (b :id) to-key (a :id)})))
 
 (defn table-columns
-  "return a list of all columns for the table corresponding to this model."
+  "Return a list of all columns for the table corresponding to this model."
   [slug]
   (let [model (models (keyword slug))]
     (apply concat (map (fn [field] (map #(name (first %)) (table-additions field (-> field :row :slug)))) (vals (model :fields))))))
 
 (defn retrieve-links
+  "Given a link field and a row, find all target rows linked to the given row
+   by this field."
   [field content]
   (let [reciprocal (-> field :env :link)
         target (models (-> field :row :target_id))
@@ -655,25 +658,8 @@
         (assoc content (row :slug) (retrieve-links this content))))
     content)
 
-      ;; (let [part (env :link)
-      ;;       part-key (keyword (str (part :slug) "_id"))
-      ;;       model (models (part :model_id))
-      ;;       updated (doall
-      ;;                (map
-      ;;                 #(create
-      ;;                   (model :slug)
-      ;;                   (merge % {part-key (content :id)}))
-      ;;                 collection))]
-      ;;   (assoc content (keyword (row :slug)) updated))
-      ;; content))
-
   (pre-destroy [this content]
     content)
-    ;; (if (or (row :dependent) (-> env :link :dependent))
-    ;;   (let [parts (field-from this content {:include {(keyword (row :slug)) {}}})
-    ;;         target (keyword ((target-for this) :slug))]
-    ;;     (doall (map #(destroy target (% :id)) parts))))
-    ;; content)
 
   (field-from [this content opts]
     (if-let [include (if (opts :include) ((opts :include) (keyword (row :slug))))]
@@ -682,26 +668,9 @@
         (map #(from target % down) (retrieve-links this content)))
       []))
 
-      ;; (let [down (assoc opts :include include)
-      ;;       link (-> this :env :link :slug)
-      ;;       parts (db/fetch (-> (target-for this) :slug) (str link "_id = %1 order by %2 asc") (content :id) (str link "_position"))]
-
-
   (render [this content opts]
     (map #(model-render (target-for this) % (assoc opts :include ((opts :include) (keyword (row :slug))))) (field-from this content opts))))
 
-
-
-  ;; (table-additions [this field] [])
-  ;; (subfield-names [this field] [])
-  ;; (setup-field [this] nil)
-  ;; (cleanup-field [this] nil)
-  ;; (target-for [this] nil)
-  ;; (update-values [this content values])
-  ;; (post-update [this content] content)
-  ;; (pre-destroy [this content] content)
-  ;; (field-from [this content opts])
-  ;; (render [this content opts] ""))
 
 (def field-constructors
   {:id (fn [row] (IdField. row {}))
