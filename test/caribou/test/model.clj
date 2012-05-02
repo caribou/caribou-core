@@ -133,6 +133,9 @@
             fuchsia (models :fuchsia)
             charfuch (models :chartreusii_fuchsia)
 
+            cf-link (-> chartreuse :fields :fuchsia)
+            fc-link (-> fuchsia :fields :chartreusii)
+
             ccc (create :chartreuse {:ondondon "obobob"})
             cdc (create :chartreuse {:ondondon "ikkik"})
             cbc (create :chartreuse {:ondondon "zozoozozoz"})
@@ -142,11 +145,19 @@
             fef (create :fuchsia {:zozoz "bluish"})
 
             ]
-        (println (str charfuch)))
-      (catch Exception e (util/render-exception e))      )))
-      ;; (finally
-      ;;  (if (db/table? :chartreuse) (destroy :model (-> @models :chartreuse :id)))
-      ;;  (if (db/table? :fuchsia) (destroy :model (-> @models :fuchsia :id)))))))
+        (link cf-link ccc fff)
+        (link cf-link cdc fff)
+        (link fc-link fgf cbc)
+        (update :fuchsia (fef :id) {:chartreusii [{:id (cbc :id)} {:id (ccc :id)}]})
+        (is (= 2 (count (retrieve-links cf-link ccc))))
+        (let [fff-X (from (models :fuchsia) fff {:include {:chartreusii {}}})]
+          (is (= 2 (count (fff-X :chartreusii))))))
+      
+      
+      (catch Exception e (util/render-exception e))
+      (finally
+       (if (db/table? :chartreuse) (destroy :model (-> @models :chartreuse :id)))
+       (if (db/table? :fuchsia) (destroy :model (-> @models :fuchsia :id)))))))
 
 (deftest nested-model-test
   (sql/with-connection test-db

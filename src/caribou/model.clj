@@ -224,7 +224,7 @@
         values)))
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (field-from [this content opts] (content (keyword (row :slug))))
+  (field-from [this content opts] (content (keyword (-> this :row :slug))))
   (render [this content opts] (field-from this content opts)))
 
 (defrecord TimestampField [row env]
@@ -370,9 +370,7 @@
     the name of an association any content associated to this item through
     that association will be inserted under that key."
   [model content opts]
-  (let [typed (merge content {:_model (keyword (model :slug))
-                              :_model_id (model :id)})]
-    (reduce #(assoc-field %1 %2 opts) typed (vals (model :fields)))))
+  (reduce #(assoc-field %1 %2 opts) content (vals (model :fields))))
 
 (defrecord CollectionField [row env]
   Field
@@ -561,16 +559,16 @@
     (keyword (join-table-name from-name to-name))))
 
 (defn link
+  "Link two rows by the given LinkField.  This function accepts its arguments
+   in order, so that 'a' is a row from the model containing the given field."
   [field a b]
   (let [reciprocal (-> field :env :link)
-        [from-link to-link]
-          (if (= (a :_model_id) (-> field :row :model_id)) [b a] [a b])
         from-name (-> field :row :slug)
         from-key (keyword (str from-name "_id"))
         to-name (reciprocal :slug)
         to-key (keyword (str to-name "_id"))
         join-key (keyword (join-table-name from-name to-name))]
-    (create join-key {from-key (from-link :id) to-key (to-link :id)})))
+    (create join-key {from-key (b :id) to-key (a :id)})))
 
 (defn table-columns
   "return a list of all columns for the table corresponding to this model."
@@ -640,46 +638,54 @@
   (target-for [this] (models (row :target_id)))
 
   (update-values [this content values]
-    (let [removed (keyword (str "removed_" (row :slug)))]
-      (if (content removed)
-        (let [ex (map #(Integer. %) (split (content removed) #","))
-              part (env :link)
-              part-key (keyword (str (part :slug) "_id"))
-              target ((models (row :target_id)) :slug)]
-          (if (row :dependent)
-            (doall (map #(destroy target %) ex))
-            (doall (map #(update target % {part-key nil}) ex)))))
-      values))
+    (if-let [removed (content (keyword (str "removed_" (row :slug))))]
+      (let [ex (map #(Integer. %) (split removed #","))
+            part (env :link)
+            part-key (keyword (str (part :slug) "_id"))
+            target ((models (row :target_id)) :slug)]
+        (if (row :dependent)
+          (doall (map #(destroy target %) ex))
+          (doall (map #(update target % {part-key nil}) ex)))))
+    values)
 
   (post-update [this content]
     (if-let [collection (content (keyword (row :slug)))]
-      (let [part (env :link)
-            part-key (keyword (str (part :slug) "_id"))
-            model (models (part :model_id))
-            updated (doall
-                     (map
-                      #(create
-                        (model :slug)
-                        (merge % {part-key (content :id)}))
-                      collection))]
-        (assoc content (keyword (row :slug)) updated))
-      content))
-
-  (pre-destroy [this content]
-    (if (or (row :dependent) (-> env :link :dependent))
-      (let [parts (field-from this content {:include {(keyword (row :slug)) {}}})
-            target (keyword ((target-for this) :slug))]
-        (doall (map #(destroy target (% :id)) parts))))
+      (let [linked (doall (map #(link this content %) collection))
+            with-links (assoc content (keyword (str (row :slug) "_join")) linked)]
+        (assoc content (row :slug) (retrieve-links this content))))
     content)
 
+      ;; (let [part (env :link)
+      ;;       part-key (keyword (str (part :slug) "_id"))
+      ;;       model (models (part :model_id))
+      ;;       updated (doall
+      ;;                (map
+      ;;                 #(create
+      ;;                   (model :slug)
+      ;;                   (merge % {part-key (content :id)}))
+      ;;                 collection))]
+      ;;   (assoc content (keyword (row :slug)) updated))
+      ;; content))
+
+  (pre-destroy [this content]
+    content)
+    ;; (if (or (row :dependent) (-> env :link :dependent))
+    ;;   (let [parts (field-from this content {:include {(keyword (row :slug)) {}}})
+    ;;         target (keyword ((target-for this) :slug))]
+    ;;     (doall (map #(destroy target (% :id)) parts))))
+    ;; content)
+
   (field-from [this content opts]
-    (let [include (if (opts :include) ((opts :include) (keyword (row :slug))))]
-      (if include
-        (let [down (assoc opts :include include)
-              link (-> this :env :link :slug)
-              parts (db/fetch (-> (target-for this) :slug) (str link "_id = %1 order by %2 asc") (content :id) (str link "_position"))]
-          (map #(from (target-for this) % down) parts))
-        [])))
+    (if-let [include (if (opts :include) ((opts :include) (keyword (row :slug))))]
+      (let [down (assoc opts :include include)
+            target (target-for this)]
+        (map #(from target % down) (retrieve-links this content)))
+      []))
+
+      ;; (let [down (assoc opts :include include)
+      ;;       link (-> this :env :link :slug)
+      ;;       parts (db/fetch (-> (target-for this) :slug) (str link "_id = %1 order by %2 asc") (content :id) (str link "_position"))]
+
 
   (render [this content opts]
     (map #(model-render (target-for this) % (assoc opts :include ((opts :include) (keyword (row :slug))))) (field-from this content opts))))
