@@ -460,8 +460,15 @@
                               {:name "Lat" :type "decimal"}
                               {:name "Lng" :type "decimal"}])})
 
+(def i18n {:name "i18n"
+           :description "strings for internationalization"
+           :position 11
+           :locked true
+           :fields (lock [{:name "Resource Key" :type "string"}
+                          {:name "Value" :type "text"}])})
+
 (def incubating
-  [page account view locale asset site domain location])
+  [page account view locale asset site domain location i18n])
 
 (defn spawn-models []
   (model/invoke-models)

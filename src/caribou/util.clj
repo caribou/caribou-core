@@ -10,7 +10,7 @@
   (reduce #(assoc %1 (f %2) %2) {} q))
 
 (defn slugify [s]
-  (.toLowerCase (string/join "_" (re-seq #"[a-zA-Z]+" s))))
+  (.toLowerCase (string/replace (string/join "_" (re-seq #"[a-zA-Z0-9]+" s)) #"^[0-9]" "_")))
 
 (defn titleize [s]
   (string/join " " (map string/capitalize (string/split s #"[^a-zA-Z]+"))))
