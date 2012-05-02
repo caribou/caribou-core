@@ -6,8 +6,7 @@
   (:require [clojure.java.io :as io]
             [caribou.util :as util]))
 
-(declare boot-file)
-(def get-config)
+(declare config-path)
 
 (def app (ref {}))
 (def db (ref {}))
@@ -57,14 +56,16 @@
   []
   (let [boot-file-name "config/boot.clj"
         project-level-boot-file boot-file-name
-        parent-level-boot-file (util/pathify [".." boot-file-name])]
-    (log :config parent-level-boot-file)
-    (def boot-file
-      (cond
-        (file-exists? project-level-boot-file) project-level-boot-file
-        (file-exists? parent-level-boot-file) parent-level-boot-file
-        :else nil))
+        parent-level-boot-file (util/pathify [".." boot-file-name])
+        boot-file (cond
+                    (file-exists? project-level-boot-file) project-level-boot-file
+                    (file-exists? parent-level-boot-file) parent-level-boot-file
+                    :else nil)]
    
+
+    (def config-path (.getParent (java.io.File. boot-file)))
+    (log :config boot-file)
+
     (if (nil? boot-file)
       (throw (Exception. (format "Could not find %s at project or parent level" boot-file-name))))
 
