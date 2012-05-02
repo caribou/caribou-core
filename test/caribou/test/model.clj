@@ -148,11 +148,11 @@
         (link cf-link ccc fff)
         (link cf-link cdc fff)
         (link fc-link fgf cbc)
-        (update :fuchsia (fef :id) {:chartreusii [{:id (cbc :id)} {:id (ccc :id)}]})
+        (update :fuchsia (fef :id) {:chartreusii [cbc ccc]})
+
         (is (= 2 (count (retrieve-links cf-link ccc))))
         (let [fff-X (from (models :fuchsia) fff {:include {:chartreusii {}}})]
           (is (= 2 (count (fff-X :chartreusii))))))
-      
       
       (catch Exception e (util/render-exception e))
       (finally
