@@ -7,7 +7,7 @@
    :migration
    [:id "SERIAL" "PRIMARY KEY"]
    [:name "varchar(55)" "NOT NULL" "UNIQUE"]
-   [:run_at "timestamp with time zone" "NOT NULL" "DEFAULT current_timestamp"]))
+   [:run_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]))
 
 (defn create-models-table []
   (db/create-table
@@ -23,8 +23,8 @@
    [:abstract :boolean "DEFAULT false"]
    [:searchable :boolean "DEFAULT false"]
    [:ancestor_id :integer "DEFAULT NULL"]
-   [:created_at "timestamp with time zone" "NOT NULL" "DEFAULT current_timestamp"]
-   [:updated_at "timestamp with time zone" "NOT NULL" "DEFAULT current_timestamp"]))
+   [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
+   [:updated_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]))
 
 (defn create-field-table []
   (db/create-table
@@ -49,8 +49,8 @@
    [:editable :boolean "DEFAULT true"]
    [:searchable :boolean "DEFAULT false"]
    [:dependent :boolean "DEFAULT false"]
-   [:created_at "timestamp with time zone" "NOT NULL" "DEFAULT current_timestamp"]
-   [:updated_at "timestamp with time zone" "NOT NULL" "DEFAULT current_timestamp"]))
+   [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
+   [:updated_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]))
 
 (defn create-model-model []
   (db/insert

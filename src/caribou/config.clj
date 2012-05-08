@@ -4,12 +4,14 @@
         [clojure.string :only (join)]
         [caribou.util :only (map-vals pathify file-exists?)])
   (:require [clojure.java.io :as io]
-            [caribou.util :as util]))
+            [caribou.util :as util]
+            [caribou.db.adapter :as adapter]))
 
 (declare config-path)
 
 (def app (ref {}))
 (def db (ref {}))
+(def db-adapter (ref nil))
 
 (defn app-value-eq
   [kw value]
@@ -31,7 +33,7 @@
     :user postgres"
   [db-map]
   (dosync
-    (alter db merge (assoc-subname db-map))))
+   (alter db merge (assoc-subname db-map))))
 
 (defn read-config
   [config-file]
@@ -46,10 +48,12 @@
 (defn configure
   [config-map]
   (dosync
-    (alter app merge config-map))
+   (alter app merge config-map))
   ; save just the DB config by itself for convenience
   (dosync
-    (alter db merge (assoc-subname (config-map :database))))
+   (alter db merge (assoc-subname (config-map :database))))
+  (dosync
+   (ref-set db-adapter (adapter/adapter-for (config-map :database))))
   config-map)
 
 (defn init
