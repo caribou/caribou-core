@@ -55,18 +55,11 @@
 (defn init
   []
   (let [boot-file-name "config/boot.clj"
-        project-level-boot-file boot-file-name
-        parent-level-boot-file (util/pathify [".." boot-file-name])
-        boot-file (cond
-                    (file-exists? project-level-boot-file) project-level-boot-file
-                    (file-exists? parent-level-boot-file) parent-level-boot-file
-                    :else nil)]
+        boot-file (io/resource "config/boot.clj")]
    
-
-    (def config-path (.getParent (java.io.File. boot-file)))
     (log :config boot-file)
 
     (if (nil? boot-file)
-      (throw (Exception. (format "Could not find %s at project or parent level" boot-file-name))))
+      (throw (Exception. (format "Could not find %s in the classpath" boot-file-name))))
 
-    (load-file boot-file)))
+    (load-reader (io/reader boot-file))))
