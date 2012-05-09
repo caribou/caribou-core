@@ -3,6 +3,7 @@
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [org.clojure/java.jdbc "0.0.6"]
                  [postgresql/postgresql "8.4-702.jdbc4"]
+                 [com.h2database/h2 "1.3.154"]
                  [clj-time "0.3.6"]
                  [clj-yaml "0.3.1"]
                  [geocoder-clj "0.0.3"]

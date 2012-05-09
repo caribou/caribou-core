@@ -4,7 +4,8 @@
   (:require [clojure.string :as string]
             [clojure.java.jdbc :as sql]
             [caribou.util :as util]
-            [caribou.config :as config]))
+            [caribou.config :as config]
+            [caribou.db.adapter.protocol :as adapter]))
 
 (import java.util.regex.Matcher)
 
@@ -75,12 +76,13 @@
   ;;     (sql/do-commands
   ;;       (log :db q)))))
   (log :db (clause "insert into %1 values %2" [(name table) (value-map values)]))
-  (sql/insert-record table values))
+  (let [result (sql/insert-record table values)]
+    (adapter/insert-result @config/db-adapter (name table) result)))
 
 (defn update
   "update the given row with the given values"
   [table where values]
-  (log :db (str "UPDATE: " values))
+  (log :db (str "UPDATE: " table " - " values))
   (if (not (empty? values))
     (try
       (sql/update-values table where values)
@@ -122,7 +124,8 @@
 (defn table?
   "check to see if a table by the given name exists"
   [table]
-  (< 0 (count (query "select true from pg_class where relname='%1'" (zap (name table))))))
+  (adapter/table? @config/db-adapter table))
+  ;; (< 0 (count (query "select true from pg_class where relname='%1'" (zap (name table))))))
 
 (defn create-table
   "create a table with the given columns, of the format

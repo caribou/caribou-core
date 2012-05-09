@@ -88,7 +88,7 @@
 
 (defrecord IdField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "SERIAL" "PRIMARY KEY"]])
+  (table-additions [this field] [[(keyword field) "SERIAL"]]) ;; "PRIMARY KEY"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (cleanup-field [this] nil)
@@ -229,7 +229,7 @@
 
 (defrecord TimestampField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "timestamp with time zone" "NOT NULL" "DEFAULT current_timestamp"]])
+  (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL" "DEFAULT current_timestamp"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (cleanup-field [this] nil)
