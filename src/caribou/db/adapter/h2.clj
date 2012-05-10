@@ -34,5 +34,6 @@
     (h2-table? table))
   (insert-result [this table result]
     (sql/with-query-results res
-      [(str "select * from " table " where id = " (result (first (keys result))))]
+      [(str "select * from " (name table)
+            " where id = " (result (first (keys result))))]
       (first (doall res)))))
