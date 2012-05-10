@@ -59,7 +59,7 @@
 (defn init
   []
   (let [boot-file-name "config/boot.clj"
-        boot-file (io/resource "config/boot.clj")]
+        boot-file (io/resource boot-file-name)]
    
     (log :config boot-file)
 
