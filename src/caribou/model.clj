@@ -805,17 +805,17 @@
   (add-hook :model :before_create :add_base_fields (fn [env]
     (assoc-in env [:spec :fields] (concat (-> env :spec :fields) base-fields))))
 
-  (add-hook :model :before_save :write_migrations (fn [env]
-    (try                                                 
-      (if (and (not (-> env :spec :locked)) (not (= (-> env :opts :op) :migration)))
-        (let [now (.getTime (Date.))
-              code (str "(use 'caribou.model)\n\n(defn migrate []\n  ("
-                        (name (-> env :op)) " :model " (list 'quote (-> env :spec)) " {:op :migration}))\n(migrate)\n")]
-          (with-open [w (io/writer (str "app/migrations/migration-" now ".clj"))]
-            (.write w code))))
-      (catch Exception e env))
-    env))
-                                                    
+  ;; (add-hook :model :before_save :write_migrations (fn [env]
+  ;;   (try                                                 
+  ;;     (if (and (not (-> env :spec :locked)) (not (= (-> env :opts :op) :migration)))
+  ;;       (let [now (.getTime (Date.))
+  ;;             code (str "(use 'caribou.model)\n\n(defn migrate []\n  ("
+  ;;                       (name (-> env :op)) " :model " (list 'quote (-> env :spec)) " {:op :migration}))\n(migrate)\n")]
+  ;;         (with-open [w (io/writer (str "app/migrations/migration-" now ".clj"))]
+  ;;           (.write w code))))
+  ;;     (catch Exception e env))
+  ;;   env))
+
   (add-hook :model :after_create :invoke (fn [env]
     (if (-> env :content :nested)
       (create :field {:name "Parent Id" :model_id (-> env :content :id) :type "integer"}))
