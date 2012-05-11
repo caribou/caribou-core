@@ -9,7 +9,8 @@
             [clojure.java.jdbc :as sql]
             [geocoder.core :as geo]
             [clojure.java.io :as io]
-            [caribou.config :as config]))
+            [caribou.config :as config]
+            [caribou.db.adapter.protocol :as adapter]))
 
 (import java.util.Date)
 (import java.text.SimpleDateFormat)
@@ -201,7 +202,7 @@
         values)))
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (field-from [this content opts] (content (keyword (row :slug))))
+  (field-from [this content opts] (adapter/text-value @config/db-adapter (content (keyword (row :slug)))))
   (render [this content opts] (field-from this content opts)))
 
 (defrecord BooleanField [row env]

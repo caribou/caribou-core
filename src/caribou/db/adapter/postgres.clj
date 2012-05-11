@@ -49,4 +49,6 @@
   (table? [this table]
     (postgres-table? table))
   (insert-result [this table result]
-    result))
+    result)
+  (text-value [this text]
+    text))

@@ -36,4 +36,6 @@
     (sql/with-query-results res
       [(str "select * from " (name table)
             " where id = " (result (first (keys result))))]
-      (first (doall res)))))
+      (first (doall res))))
+  (text-value [this text]
+    (string/replace (string/replace (str text) #"^'" "") #"'$" "")))
