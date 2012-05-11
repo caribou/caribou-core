@@ -231,5 +231,7 @@
 (defn tally
   "return how many total records are in this table"
   [table]
-  ((first (query "select count(id) from %1" (name table))) :count))
+  (let [result (first (query "select count(id) from %1" (name table)))]
+    (result (first (keys result)))))
+
 
