@@ -400,7 +400,7 @@
 
   (update-values [this content values]
     (let [removed (keyword (str "removed_" (row :slug)))]
-      (if (content removed)
+      (if (not (empty? (content removed)))
         (let [ex (map #(Integer. %) (split (content removed) #","))
               part (env :link)
               part-key (keyword (str (part :slug) "_id"))
@@ -569,8 +569,12 @@
         from-key (keyword (str from-name "_id"))
         to-name (reciprocal :slug)
         to-key (keyword (str to-name "_id"))
-        join-key (keyword (join-table-name from-name to-name))]
-    (create join-key {from-key (b :id) to-key (a :id)})))
+        join-key (keyword (join-table-name from-name to-name))
+        params [join-key from-key (b :id) to-key (a :id)]
+        preexisting (apply (partial db/query "select * from %1 where %2 = %3 and %4 = %5") params)]
+    (if preexisting
+      preexisting
+      (create join-key {from-key (b :id) to-key (a :id)}))))
 
 (defn table-columns
   "Return a list of all columns for the table corresponding to this model."
@@ -917,7 +921,7 @@
   ([slug spec]
      (create slug spec {}))
   ([slug spec opts]
-     (if (spec :id)
+     (if (not (empty? (spec :id)))
        (update slug (spec :id) spec opts)
        (let [model (models (keyword slug))
              values (reduce #(update-values %2 spec %1) {} (vals (dissoc (model :fields) :updated_at)))
