@@ -345,7 +345,6 @@
           preexisting (content idkey)
           address (if preexisting (assoc posted :id preexisting) posted)]
       (if address
-        ;; (let [location (create :location address)]
         (let [geocode (geocode-address address)
               location (create :location (merge address geocode))]
           (assoc values idkey (location :id)))
@@ -494,11 +493,12 @@
   (pre-destroy [this content] content)
 
   (field-from [this content opts]
-    (let [include (if (opts :include) ((opts :include) (keyword (row :slug))))]
-      (if include
-        (let [down (assoc opts :include include)
-              collector (db/choose (-> (target-for this) :slug) (content (keyword (str (row :slug) "_id"))))]
-          (from (target-for this) collector down)))))
+    (if-let [include (if (opts :include) ((opts :include) (keyword (row :slug))))]
+      (let [down (assoc opts :include include)
+            pointing (content (keyword (str (row :slug) "_id")))]
+        (if pointing
+          (let [collector (db/choose (-> (target-for this) :slug) pointing)]
+            (from (target-for this) collector down))))))
 
   (render [this content opts]
     (let [field (field-from this content opts)]
@@ -1022,10 +1022,8 @@
 (defn load-model-hooks
   []
   (try
-    (load-path "app/models"
-               (fn [file filename]
-                 (load-file (.toString file))))
-    (catch Exception e (println (str "No app/models dir: " e)))))
+    (io/resource (@config/app :hooks-dir))
+    (catch Exception e (println "no model hooks"))))
 
 (defn init
   "run any necessary initialization for the model environment."

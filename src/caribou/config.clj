@@ -58,12 +58,13 @@
 
 (defn init
   []
-  (let [boot-file-name "config/boot.clj"
-        boot-file (io/resource boot-file-name)]
+  (let [boot-resource "config/boot.clj"
+        boot (io/resource boot-resource)]
    
-    (log :config boot-file)
+    (log :config boot)
 
-    (if (nil? boot-file)
-      (throw (Exception. (format "Could not find %s in the classpath" boot-file-name))))
+    (if (nil? boot)
+      (throw (Exception. (format "Could not find %s in the classpath" boot-resource))))
 
-    (load-reader (io/reader boot-file))))
+    (load-reader (io/reader boot))))
+
