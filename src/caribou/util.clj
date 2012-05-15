@@ -77,3 +77,28 @@
           subname (string/replace filename (str path "/") "")]
       (if (.isFile file)
         (visit file subname)))))
+
+(defn walk
+  "A version of clojure.walk/walk that doesn't think Records are Maps"
+  [inner outer form]
+  (cond
+   (list? form) (outer (apply list (map inner form)))
+   (seq? form) (outer (doall (map inner form)))
+   (vector? form) (outer (vec (map inner form)))
+   (and (map? form) (not (instance? clojure.lang.IRecord form))) (outer (into (if (sorted? form) (sorted-map) {})
+                            (map inner form)))
+   (set? form) (outer (into (if (sorted? form) (sorted-set) #{})
+                            (map inner form)))
+   :else (outer form)))
+
+(defn postwalk
+  "clojure.walk/postwalk that uses our walk function"
+  [f form]
+  (walk (partial postwalk f) f form))
+
+(defn stringify-keys
+  "A version of clojure.walk/stringify-keys that is record-aware"
+  [m]
+  (let [f (fn [[k v]] (if (keyword? k) [(name k) v] [k v]))]
+    ;; only apply to maps (not records)
+    (postwalk (fn [x] (if (and (map? x) (not (instance? clojure.lang.IRecord x))) (into {} (map f x)) x)) m)))
