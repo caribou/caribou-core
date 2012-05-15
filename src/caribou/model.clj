@@ -865,7 +865,7 @@
           default (-> env :spec :default_value)]
       (doall (map #(db/add-column slug (name (first %)) (rest %)) (table-additions field (-> env :content :slug))))
       (setup-field field (env :spec))
-      (if default
+      (if (not (empty? default))
         (db/set-default slug (-> env :content :slug) default))
       (assoc env :content field))))
   
@@ -881,7 +881,7 @@
       (if (not (= original slug))
         (do (doall (map #(update :field (-> ((model :fields) (keyword (first %))) :row :id) {:name (last %)}) spawn))
             (doall (map #(db/rename-column (model :slug) (first %) (last %)) transition))))
-      (if (not (= odefault default))
+      (if (and (not (empty? default)) (not (= odefault default)))
         (db/set-default (model :slug) slug default)))
     (assoc env :content (make-field (env :content)))))
 
