@@ -554,22 +554,27 @@
 
 (defn link-join-name
   "Given a link field, return the join table name used by that link."
-  [link]
-  (let [reciprocal (-> link :env :link)
-        from-name (-> link :row :name)
+  [field]
+  (let [reciprocal (-> field :env :link)
+        from-name (-> field :row :name)
         to-name (reciprocal :slug)]
     (keyword (join-table-name from-name to-name))))
 
-(defn link
-  "Link two rows by the given LinkField.  This function accepts its arguments
-   in order, so that 'a' is a row from the model containing the given field."
-  [field a b]
+(defn link-keys
+  [field]
   (let [reciprocal (-> field :env :link)
         from-name (-> field :row :slug)
         from-key (keyword (str from-name "_id"))
         to-name (reciprocal :slug)
         to-key (keyword (str to-name "_id"))
-        join-key (keyword (join-table-name from-name to-name))
+        join-key (keyword (join-table-name from-name to-name))]
+    {:from from-key :to to-key :join join-key}))
+
+(defn link
+  "Link two rows by the given LinkField.  This function accepts its arguments
+   in order, so that 'a' is a row from the model containing the given field."
+  [field a b]
+  (let [{from-key :from to-key :to join-key :join} (link-keys field)
         params [join-key from-key (b :id) to-key (a :id)]
         preexisting (apply (partial db/query "select * from %1 where %2 = %3 and %4 = %5") params)]
     (if preexisting
@@ -586,19 +591,22 @@
   "Given a link field and a row, find all target rows linked to the given row
    by this field."
   [field content]
-  (let [reciprocal (-> field :env :link)
+  (let [{from-key :from to-key :to join-key :join} (link-keys field)
         target (models (-> field :row :target_id))
         target-slug (target :slug)
-        from-name (-> field :row :slug)
-        from-key (str from-name "_id")
-        to-name (reciprocal :slug)
-        to-key (str to-name "_id")
-        join-name (join-table-name from-name to-name)
         field-names (map #(str target-slug "." %) (table-columns target-slug))
         field-select (join "," field-names)
         query "select %1 from %2 inner join %3 on (%2.id = %3.%4) where %3.%5 = %6"
-        params [field-select target-slug join-name from-key to-key (content :id)]]
+        params [field-select target-slug join-key from-key to-key (content :id)]]
     (apply (partial db/query query) params)))
+
+(defn remove-link
+  [field from-id to-id]
+  (let [{from-key :from to-key :to join-key :join} (link-keys field)
+        params [join-key from-key to-id to-key from-id]
+        preexisting (first (apply (partial db/query "select * from %1 where %2 = %3 and %4 = %5") params))]
+    (if preexisting
+      (destroy join-key (preexisting :id)))))
 
 (defrecord LinkField [row env]
   Field
@@ -645,14 +653,11 @@
   (target-for [this] (models (row :target_id)))
 
   (update-values [this content values]
-    (if-let [removed (content (keyword (str "removed_" (row :slug))))]
-      (let [ex (map #(Integer. %) (split removed #","))
-            part (env :link)
-            part-key (keyword (str (part :slug) "_id"))
-            target ((models (row :target_id)) :slug)]
-        (if (row :dependent)
-          (doall (map #(destroy target %) ex))
-          (doall (map #(update target % {part-key nil}) ex)))))
+    (let [removed (content (keyword (str "removed_" (row :slug))))]
+      (debug content)
+      (if (not (empty? removed))
+        (let [ex (map #(Integer. %) (split removed #","))]
+          (doall (map #(remove-link this (content :id) %) ex)))))
     values)
 
   (post-update [this content]
@@ -957,7 +962,7 @@
   ([slug id spec opts]
      (let [model (models (keyword slug))
            original (db/choose slug id)
-           values (reduce #(update-values %2 spec %1) {} (vals (model :fields)))
+           values (reduce #(update-values %2 (assoc spec :id id) %1) {} (vals (model :fields)))
            env {:model model :values values :spec spec :original original :op :update :opts opts}
            _save (run-hook slug :before_save env)
            _update (run-hook slug :before_update _save)
