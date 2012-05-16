@@ -13,6 +13,14 @@
 (def db (ref {}))
 (def db-adapter (ref nil))
 
+(defn system-property
+  [key]
+  (.get (System/getProperties) key))
+
+(defn environment
+  []
+  (keyword (or (system-property "environment") "development")))
+
 (defn app-value-eq
   [kw value]
   (= (@app kw) value))
