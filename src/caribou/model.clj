@@ -641,7 +641,7 @@
                    :dependent true
                    :reciprocal_name (str (spec :name) " Join")
                    :target_id (row :model_id)}]} {:op :migration})
-        (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (-> link :row :id)}))))
+        (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (link :id)}))))
 
   (cleanup-field [this]
     (try
@@ -872,7 +872,7 @@
       (setup-field field (env :spec))
       (if (not (empty? default))
         (db/set-default slug (-> env :content :slug) default))
-      (assoc env :content field))))
+      env)))
   
   (add-hook :field :after_update :reify_field (fn [env]
     (let [field (make-field (env :content))
@@ -888,7 +888,7 @@
             (doall (map #(db/rename-column (model :slug) (first %) (last %)) transition))))
       (if (and (not (empty? default)) (not (= odefault default)))
         (db/set-default (model :slug) slug default)))
-    (assoc env :content (make-field (env :content)))))
+    env))
 
   (add-hook :field :after_destroy :drop_columns (fn [env]
     (try                                                  
