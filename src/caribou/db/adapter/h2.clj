@@ -44,7 +44,9 @@
     (h2-table? table))
   (build-subname [this config]
     (let [host (or (config :host) "localhost")
-          connection (str "tcp://" host "/../" (config :database))
+          pathos (or (config :db-path) "/../")
+          config (dissoc config :db-path)
+          connection (str "tcp://" host pathos (config :database))
           subname (or (config :subname) connection)] ;; ";AUTO_SERVER=TRUE"))]
       (println "build subname: " connection)
       (assoc config :subname subname)))
