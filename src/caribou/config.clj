@@ -69,10 +69,8 @@
   (let [boot-resource "config/boot.clj"
         boot (io/resource boot-resource)]
    
-    (log :config boot)
-
     (if (nil? boot)
-      (throw (Exception. (format "Could not find %s in the classpath" boot-resource))))
+      (throw (Exception. (format "Could not find %s on the classpath" boot-resource))))
 
     (load-reader (io/reader boot))))
 
