@@ -46,8 +46,13 @@
 
 (defrecord PostgresAdapter [config]
   DatabaseAdapter
+  (init [this])
   (table? [this table]
     (postgres-table? table))
+  (build-subname [this config]
+    (let [host (or (config :host) "localhost")
+          subname (or (config :subname) (str "//" host "/" (config :database)))]
+      (assoc config :subname subname)))
   (insert-result [this table result]
     result)
   (text-value [this text]

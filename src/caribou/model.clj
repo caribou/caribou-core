@@ -389,7 +389,7 @@
                     :target_id (row :model_id)
                     :link_id (row :id)
                     :dependent (row :dependent)})]
-        (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (-> part :row :id)}))))
+        (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (part :id)}))))
 
   (cleanup-field [this]
     (try
@@ -463,7 +463,7 @@
                             :model_id (row :target_id)
                             :target_id model_id
                             :link_id (row :id)})]
-          (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (-> collection :row :id)})))
+          (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (collection :id)})))
 
       (update :model model_id
         {:fields
