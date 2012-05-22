@@ -1,7 +1,7 @@
 (ns caribou.model
-  (:use caribou.debug)
   (:use caribou.util)
-  (:use [clojure.string :only (join split trim)])
+  (:use [clojure.string :only (join split trim)]
+        [clojure.tools.logging :only (info)])
   (:require [caribou.db :as db]
             [clj-time.core :as timecore]
             [clj-time.format :as format]
@@ -654,7 +654,6 @@
 
   (update-values [this content values]
     (let [removed (content (keyword (str "removed_" (row :slug))))]
-      (debug content)
       (if (not (empty? removed))
         (let [ex (map #(Integer. %) (split removed #","))]
           (doall (map #(remove-link this (content :id) %) ex)))))
@@ -796,7 +795,6 @@
 (defn alter-models
   "inserts a single model into the hash of cached model records."
   [model]
-  (debug (model :slug))
   (dosync
    (alter models merge {(model :slug) model (model :id) model})))
 
@@ -1032,7 +1030,7 @@
   []
   (try
     (io/resource (@config/app :hooks-dir))
-    (catch Exception e (println "no model hooks"))))
+    (catch Exception e (info "no model hooks"))))
 
 (defn init
   "run any necessary initialization for the model environment."

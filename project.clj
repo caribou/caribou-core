@@ -5,11 +5,9 @@
                  [postgresql/postgresql "8.4-702.jdbc4"]
                  [com.h2database/h2 "1.3.154"]
                  [clj-time "0.3.6"]
-                 [clj-yaml "0.3.1"]
                  [geocoder-clj "0.0.3"]
-                 [org.freemarker/freemarker "2.3.18"]
+                 [antler/stencil "0.3.1"]
                  [org.clojure/tools.logging "0.2.3"]]
-                 ;; [antler/clojure-solr "0.3.0-SNAPSHOT"]
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   :aot [caribou.model]
   :repositories {"snapshots" {:url "http://battlecat:8080/nexus/content/repositories/snapshots" 

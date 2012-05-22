@@ -1,5 +1,4 @@
 (ns caribou.util
-  (:use caribou.debug)
   (:require [clojure.string :as string]
             [clojure.java.io :as io]))
 

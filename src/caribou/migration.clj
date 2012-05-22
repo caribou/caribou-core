@@ -1,5 +1,5 @@
 (ns caribou.migration
-  (:use caribou.debug)
+  (:use [clojure.tools.logging :only (error)])
   (:require [clojure.set :as set]
             [clojure.java.jdbc :as sql]
             [clojure.string :as string]
@@ -45,7 +45,7 @@
       ;;             @migration-list))
       (load-user-migrations "app/migrations"))
     (catch Exception e
-      (println "Caught an exception attempting to run migrations: " (.getMessage e) (.printStackTrace e)))))
+      (error "Caught an exception attempting to run migrations: " (.getMessage e) (.printStackTrace e)))))
 
 
 

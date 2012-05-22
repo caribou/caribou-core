@@ -1,6 +1,6 @@
 (ns caribou.db
-  (:use [caribou.debug])
-  (:use [clojure.string :only (join split)])
+  (:use [clojure.string :only (join split)]
+        [clojure.tools.logging :only (debug error info)])
   (:require [clojure.string :as string]
             [clojure.java.jdbc :as sql]
             [caribou.util :as util]
@@ -38,7 +38,7 @@
   "make an arbitrary query, substituting in extra args as % parameters"
   [q & args]
   (sql/with-query-results res
-    [(log :db (clause q args))]
+    [(debug (clause q args))]
     (doall res)))
 
 (defn recursive-query [table fields base-where recur-where]
@@ -74,22 +74,19 @@
   ;;       q (clause "insert into %1 (%2) values (%3)" [(zap (name table)) keys values])]
   ;;   (sql/with-connection db
   ;;     (sql/do-commands
-  ;;       (log :db q)))))
-  (log :db (clause "insert into %1 values %2" [(name table) (value-map values)]))
+  ;;       (debug q)))))
+  (debug (clause "insert into %1 values %2" [(name table) (value-map values)]))
   (let [result (sql/insert-record table values)]
     (adapter/insert-result @config/db-adapter (name table) result)))
 
 (defn update
   "update the given row with the given values"
   [table where values]
-  (log :db (str "UPDATE: " table " - " values))
+  (debug "update " table " set " values)
   (if (not (empty? values))
     (try
       (sql/update-values table where values)
-      (catch Exception e
-        (try
-          (println (str "update " table " failed: " (.getNextException (debug e))))
-          (catch Exception e (println e)))))))
+      (catch Exception e (util/render-exception e)))))
 
 ;; (defn update
 ;;   "update the given row with the given values"
@@ -98,12 +95,12 @@
 ;;         q (clause "update %1 set %2 where " [(zap (name table)) v])
 ;;         w (clause (first where) (rest where))
 ;;         t (str q w)]
-;;     (sql/do-commands (log :db t))))
+;;     (sql/do-commands (debug t))))
 
 (defn delete
   "delete out of the given table according to the supplied where clause"
   [table & where]
-  (log :db (clause "delete from %1 values %2" [(name table) (clause (first where) (rest where))]))
+  (debug (clause "delete from %1 values %2" [(name table) (clause (first where) (rest where))]))
   (sql/delete-rows table [(if (not (empty? where)) (clause (first where) (rest where)))]))
 
 (defn fetch
@@ -131,19 +128,19 @@
   "create a table with the given columns, of the format
   [:column_name :type & :extra]"
   [table & fields]
-  (log :db (clause "create table %1 %2" [(name table) fields]))
+  (debug (clause "create table %1 %2" [(name table) fields]))
   (apply sql/create-table (cons table fields)))
 
 (defn rename-table
   "change the name of a table to new-name."
   [table new-name]
-  (let [rename (log :db (clause "alter table %1 rename to %2" [(name table) (name new-name)]))]
+  (let [rename (debug (clause "alter table %1 rename to %2" [(name table) (name new-name)]))]
     (sql/do-commands rename)))
 
 (defn drop-table
   "remove the given table from the database."
   [table]
-  (log :db (clause "drop table %1" [(name table)]))
+  (debug (clause "drop table %1" [(name table)]))
   (sql/drop-table (name table)))
 
 (defn add-column
@@ -151,26 +148,26 @@
   [table column opts]
   (let [type (join " " (map name opts))]
     (sql/do-commands
-     (log :db (clause "alter table %1 add column %2 %3" (map #(zap (name %)) [table column type]))))))
+     (debug (clause "alter table %1 add column %2 %3" (map #(zap (name %)) [table column type]))))))
 
 (defn set-default
   "sets the default for a column"
   [table column default]
   (let [value (sqlize default)]
     (sql/do-commands
-     (log :db (clause "alter table %1 alter column %2 set default %3" [(zap table) (zap column) value])))))
+     (debug (clause "alter table %1 alter column %2 set default %3" [(zap table) (zap column) value])))))
 
 (defn rename-column
   "rename a column in the given table to new-name."
   [table column new-name]
-  (let [rename (log :db (clause "alter table %1 rename column %2 to %3" (map name [table column new-name])))]
+  (let [rename (debug (clause "alter table %1 rename column %2 to %3" (map name [table column new-name])))]
     (sql/do-commands rename)))
 
 (defn drop-column
   "remove the given column from the table."
   [table column]
   (sql/do-commands
-   (log :db (clause "alter table %1 drop column %2" (map #(zap (name %)) [table column])))))
+   (debug (clause "alter table %1 drop column %2" (map #(zap (name %)) [table column])))))
 
 (defn do-sql
   "execute arbitrary sql.  direct proxy to sql/do-commands."
@@ -190,7 +187,7 @@
   "drop a database of the given config"
   [config]
   (let [db-name (config :database)]
-    (println "dropping database: " db-name)
+    (info "dropping database: " db-name)
     (try
       (sql/with-connection (change-db-keep-host config "template1")
         (with-open [s (.createStatement (sql/connection))]
@@ -202,7 +199,7 @@
   "create a database of the given name"
   [config]
   (let [db-name (config :database)]
-    (println "creating database: " db-name)
+    (info "creating database: " db-name)
     (try
       (sql/with-connection (change-db-keep-host config "template1") 
         (with-open [s (.createStatement (sql/connection))]

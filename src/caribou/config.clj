@@ -1,6 +1,5 @@
 (ns caribou.config
-  (:use [caribou.debug]
-        [clojure.walk :only (keywordize-keys)]
+  (:use [clojure.walk :only (keywordize-keys)]
         [clojure.string :only (join)]
         [caribou.util :only (map-vals pathify file-exists?)])
   (:require [clojure.java.io :as io]
@@ -29,9 +28,6 @@
 (defn assoc-subname
   [config]
   (adapter/build-subname @db-adapter config))
-  ;; (let [host (or (config :host) "localhost")
-  ;;       subname (or (config :subname) (str "//" host "/" (config :database)))]
-  ;;   (assoc config :subname subname)))
 
 (defn set-db-config
   "Accepts a map to configure the DB.  Format:
