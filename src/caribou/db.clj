@@ -125,14 +125,15 @@
   "check to see if a table by the given name exists"
   [table]
   (adapter/table? @config/db-adapter table))
-  ;; (< 0 (count (query "select true from pg_class where relname='%1'" (zap (name table))))))
 
 (defn create-table
   "create a table with the given columns, of the format
   [:column_name :type & :extra]"
   [table & fields]
   (log :db (clause "create table %1 %2" [(name table) fields]))
-  (apply sql/create-table (cons table fields)))
+  (try
+    (apply sql/create-table (cons table fields))
+    (catch Exception e (util/render-exception e))))
 
 (defn rename-table
   "change the name of a table to new-name."
@@ -163,7 +164,8 @@
 (defn rename-column
   "rename a column in the given table to new-name."
   [table column new-name]
-  (let [rename (log :db (clause "alter table %1 rename column %2 to %3" (map name [table column new-name])))]
+  (let [alter-statement (adapter/rename-clause @config/db-adapter)
+        rename (log :db (clause alter-statement (map name [table column new-name])))]
     (sql/do-commands rename)))
 
 (defn drop-column

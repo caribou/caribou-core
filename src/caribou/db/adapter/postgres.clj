@@ -55,5 +55,7 @@
       (assoc config :subname subname)))
   (insert-result [this table result]
     result)
+  (rename-clause [this]
+    "alter table %1 rename column %2 to %3")
   (text-value [this text]
     text))

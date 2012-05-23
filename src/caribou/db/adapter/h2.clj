@@ -55,5 +55,7 @@
       [(str "select * from " (name table)
             " where id = " (result (first (keys result))))]
       (first (doall res))))
+  (rename-clause [this]
+    "alter table %1 alter column %2 rename to %3")
   (text-value [this text]
     (string/replace (string/replace (str text) #"^'" "") #"'$" "")))

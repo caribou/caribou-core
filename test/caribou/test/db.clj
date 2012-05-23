@@ -3,10 +3,12 @@
         [clojure.test]
         [caribou.debug])
   (:require [clojure.java.jdbc :as sql]
+            [clojure.java.io :as io]
             [caribou.config :as config]
             [caribou.db :as db]))
 
-(def test-db (config/read-database-config "config/test.clj"))
+(def test-config (config/read-config (io/resource "config/test.clj")))
+(config/configure test-config)
 
 ;; zap
 (deftest zap-string-test
@@ -29,16 +31,16 @@
 ;; TODO: test database...
 ;; query
 (deftest query-test
-  (sql/with-connection test-db
+  (sql/with-connection @config/db
     (let [q (db/query "select * from model")]
       (is (not (empty? q))))))
 
 (deftest query2-exception-test
-  (sql/with-connection test-db
+  (sql/with-connection @config/db
     (try 
       (db/query "select * from modelz")
       (catch Exception e 
-        (is (instance? org.postgresql.util.PSQLException e))))))
+        (is (instance? java.lang.Exception e))))))
 
 (deftest sqlize-test
   (is (= (db/sqlize 1) 1))
@@ -56,17 +58,17 @@
 ;; TODO: insert / update / delete / fetch
 
 (deftest choose-test
-  (sql/with-connection test-db
+  (sql/with-connection @config/db
     (is (= (get (db/choose :model 1) :name) "Model"))
     (is (= (get (db/choose :model 0) :name) nil))))
 
 (deftest table-test
-  (sql/with-connection test-db
+  (sql/with-connection @config/db
     (is (db/table? "model"))
     (is (not (db/table? "modelzzzz")))))
 
 (deftest create-new-table-drop-table-test
-  (sql/with-connection test-db
+  (sql/with-connection @config/db
     (let [tmp-table "veggies"]
       (try
         (do
@@ -75,16 +77,9 @@
         (catch Exception e (log "create-table-test" "Attemptng to create a table that already exists"))
         (finally (db/drop-table tmp-table))))))
 
-(deftest create-existing-table-test
-  (sql/with-connection test-db
-    (try
-      (db/create-table "model")
-      (catch Exception e 
-        (is (instance? java.lang.Exception e))))))
-
-                                        ;; TODO: test to ensure options applied to column
+;; TODO: test to ensure options applied to column
 (deftest add-column-test
-  (sql/with-connection test-db
+  (sql/with-connection @config/db
     (let [tmp-table "fruit"]
       (try
         (do

@@ -3,20 +3,22 @@
         [caribou.model]
         [clojure.test])
   (:require [clojure.java.jdbc :as sql]
+            [clojure.java.io :as io]
             [caribou.db :as db]
             [caribou.util :as util]
             [caribou.config :as config]))
 
-(def test-db (config/read-database-config "config/test.clj"))
+(def test-config (config/read-config (io/resource "config/test.clj")))
+(config/configure test-config)
 
 (deftest invoke-model-test
-  (sql/with-connection test-db
+  (sql/with-connection @config/db
     (let [model (db/query "select * from model where id = 1")
           invoked (invoke-model (first model))]
       (is (= "name" (-> invoked :fields :name :row :slug))))))
 
 (deftest model-lifecycle-test
-  (sql/with-connection test-db
+  (sql/with-connection @config/db
     (invoke-models)
     (let [model (create :model
                         {:name "Yellow"
@@ -39,7 +41,7 @@
       (is (not (models :yellow))))))
 
 (deftest model-interaction-test
-  (sql/with-connection (debug test-db)
+  (sql/with-connection (debug @config/db)
     (invoke-models)
     (try
       (let [yellow-row (create :model
@@ -110,7 +112,7 @@
        (if (db/table? :zap) (destroy :model (-> @models :zap :id)))))))
 
 (deftest model-link-test
-  (sql/with-connection test-db
+  (sql/with-connection @config/db
     (invoke-models)
     (try
       (let [chartreuse-row
@@ -160,7 +162,7 @@
        (if (db/table? :fuchsia) (destroy :model (-> @models :fuchsia :id)))))))
 
 (deftest nested-model-test
-  (sql/with-connection test-db
+  (sql/with-connection @config/db
     (invoke-models)
     (try
       (let [white (create :model {:name "White" :nested true :fields [{:name "Grey" :type "string"}]})
@@ -171,13 +173,15 @@
             eee (create :white {:grey "omomom" :parent_id (ddd :id)})
             fff (create :white {:grey "mnomno" :parent_id (ddd :id)})
             ggg (create :white {:grey "jjijji" :parent_id (ccc :id)})
-            fff_path (progenitors :white (fff :id))
-            bbb_children (descendents :white (bbb :id))]
-        (is (= 4 (count fff_path)))
-        (is (= 4 (count bbb_children))))
+            tree (arrange-tree [aaa bbb ccc ddd eee fff ggg])]
+            ;; fff_path (progenitors :white (fff :id))
+            ;; bbb_children (descendents :white (bbb :id))]
+        ;; (is (= 4 (count fff_path)))
+        ;; (is (= 4 (count bbb_children))))
+        (is (= 1 (count tree))))
       (catch Exception e (util/render-exception e))
       (finally (if (db/table? :white) (destroy :model (-> @models :white :id)))))))
 
 ;; (deftest migration-test
-;;   (sql/with-connection test-db
+;;   (sql/with-connection @config/db
 ;;     (invoke-models)))

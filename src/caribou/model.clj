@@ -372,6 +372,10 @@
   [model content opts]
   (reduce #(assoc-field %1 %2 opts) content (vals (model :fields))))
 
+(defn present?
+  [x]
+  (and (not (nil? x)) (or (number? x) (not (empty? x)))))
+
 (defrecord CollectionField [row env]
   Field
   (table-additions [this field] [])
@@ -400,7 +404,7 @@
 
   (update-values [this content values]
     (let [removed (keyword (str "removed_" (row :slug)))]
-      (if (not (empty? (content removed)))
+      (if (present? (content removed))
         (let [ex (map #(Integer. %) (split (content removed) #","))
               part (env :link)
               part-key (keyword (str (part :slug) "_id"))
@@ -412,19 +416,18 @@
         values)))
 
   (post-update [this content]
-    (let [collection (content (keyword (row :slug)))]
-      (if collection
-        (let [part (env :link)
-              part-key (keyword (str (part :slug) "_id"))
-              model (models (part :model_id))
-              updated (doall
-                       (map
-                        #(create
-                          (model :slug)
-                          (merge % {part-key (content :id)}))
-                        collection))]
-          (assoc content (keyword (row :slug)) updated))
-        content)))
+    (if-let [collection (content (keyword (row :slug)))]
+      (let [part (env :link)
+            part-key (keyword (str (part :slug) "_id"))
+            model (models (part :model_id))
+            updated (doall
+                     (map
+                      #(create
+                        (model :slug)
+                        (merge % {part-key (content :id)}))
+                      collection))]
+        (assoc content (keyword (row :slug)) updated))
+      content))
 
   (pre-destroy [this content]
     (if (or (row :dependent) (-> env :link :dependent))
@@ -655,7 +658,7 @@
   (update-values [this content values]
     (let [removed (content (keyword (str "removed_" (row :slug))))]
       (debug content)
-      (if (not (empty? removed))
+      (if (present? removed)
         (let [ex (map #(Integer. %) (split removed #","))]
           (doall (map #(remove-link this (content :id) %) ex)))))
     values)
@@ -666,6 +669,20 @@
             with-links (assoc content (keyword (str (row :slug) "_join")) linked)]
         (assoc content (row :slug) (retrieve-links this content))))
     content)
+
+  ;; (post-update [this content]
+  ;;   (if-let [collection (content (keyword (row :slug)))]
+  ;;     (let [part (env :link)
+  ;;           part-key (keyword (str (part :slug) "_id"))
+  ;;           model (models (part :model_id))
+  ;;           updated (doall
+  ;;                    (map
+  ;;                     #(create
+  ;;                       (model :slug)
+  ;;                       (merge % {part-key (content :id)}))
+  ;;                     collection))]
+  ;;       (assoc content (keyword (row :slug)) updated))
+  ;;     content))
 
   (pre-destroy [this content]
     content)
@@ -870,7 +887,7 @@
           default (-> env :spec :default_value)]
       (doall (map #(db/add-column slug (name (first %)) (rest %)) (table-additions field (-> env :content :slug))))
       (setup-field field (env :spec))
-      (if (not (empty? default))
+      (if (present? default)
         (db/set-default slug (-> env :content :slug) default))
       env)))
   
@@ -926,7 +943,7 @@
   ([slug spec]
      (create slug spec {}))
   ([slug spec opts]
-     (if (not (empty? (spec :id)))
+     (if (present? (spec :id))
        (update slug (spec :id) spec opts)
        (let [model (models (keyword slug))
              values (reduce #(update-values %2 spec %1) {} (vals (dissoc (model :fields) :updated_at)))
