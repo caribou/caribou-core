@@ -578,11 +578,13 @@
    in order, so that 'a' is a row from the model containing the given field."
   [field a b]
   (let [{from-key :from to-key :to join-key :join} (link-keys field)
-        params [join-key from-key (b :id) to-key (a :id)]
+        target (models (-> field :row :target_id))
+        linkage (create (target :slug) b)
+        params [join-key from-key (linkage :id) to-key (a :id)]
         preexisting (apply (partial db/query "select * from %1 where %2 = %3 and %4 = %5") params)]
     (if preexisting
       preexisting
-      (create join-key {from-key (b :id) to-key (a :id)}))))
+      (create join-key {from-key (linkage :id) to-key (a :id)}))))
 
 (defn table-columns
   "Return a list of all columns for the table corresponding to this model."

@@ -150,11 +150,13 @@
         (link cf-link ccc fff)
         (link cf-link cdc fff)
         (link fc-link fgf cbc)
-        (update :fuchsia (fef :id) {:chartreusii [cbc ccc]})
+        (update :fuchsia (fef :id) {:chartreusii [cbc ccc {:ondondon "ikikik" :fuchsia [{:zozoz "granular"}]}]})
 
         (is (= 2 (count (retrieve-links cf-link ccc))))
-        (let [fff-X (from (models :fuchsia) fff {:include {:chartreusii {}}})]
-          (is (= 2 (count (fff-X :chartreusii))))))
+        (let [fff-X (from (models :fuchsia) fff {:include {:chartreusii {}}})
+              cec (first (rally :chartreuse {:where "ondondon = 'ikikik'" :include {:fuchsia {}}}))]
+          (is (= 2 (count (fff-X :chartreusii))))
+          (is (= "granular" (:zozoz (first (cec :fuchsia)))))))
       
       (catch Exception e (util/render-exception e))
       (finally
