@@ -12,6 +12,7 @@
                  ;; [antler/clojure-solr "0.3.0-SNAPSHOT"]
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   :aot [caribou.model]
+  ;; :resource-paths ["resources"]
   :repositories {"snapshots" {:url "http://battlecat:8080/nexus/content/repositories/snapshots" 
                               :username "deployment" :password "deployment"}
                  "releases"  {:url "http://battlecat:8080/nexus/content/repositories/releases" 
