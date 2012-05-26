@@ -15,6 +15,10 @@
 (import java.util.Date)
 (import java.text.SimpleDateFormat)
 
+(defn db
+  [f]
+  (db/call f))
+
 (def simple-date-format (java.text.SimpleDateFormat. "MMMMMMMMM dd', 'yyyy HH':'mm"))
 (defn format-date
   "given a date object, return a string representing the canonical format for that date"
@@ -83,9 +87,10 @@
     "any processing that is required after the content is created/updated")
   (pre-destroy [this content]
     "prepare this content item for destruction")
-  (build-where [this prefix where] "creates a where clause suitable to this field from the given where map, with fields prefixed by the given prefix.")
-  (join-fields [this field opts])
+  (join-fields [this prefix opts])
   (join-conditions [this prefix opts])
+  (build-where [this prefix where] "creates a where clause suitable to this field from the given where map, with fields prefixed by the given prefix.")
+  (recompose-field [this mass opts])
   (field-from [this content opts]
     "retrieves the value for this field from this content item")
   (render [this content opts] "renders out a single field from this content item"))
@@ -105,31 +110,34 @@
 
 ;; We want to enable queries of the form: 
 ;;
-;;   select model.name as model_name, model.id as model_id,
-;;     fields.name as fields_name, fields.type, fields.id as fields_id,
-;;     link.name as link_name, link.id as link_id
+;;   select model.name as model$name, model.id as model$id,
+;;     fields.name as fields$name, fields.type, fields.id as fields$id,
+;;     link.name as link$name, link.id as link$id
 ;;   from model model
 ;;   inner join field fields on (model.id = fields.model_id)
 ;;   left outer join field link on (fields.link_id = link.id);
 ;;
 ;; For join tables (habtm) the following query is necessary:
 ;;
-;;   select yellow.aoahoah as yellow_aoahoah, green.balloon as green_balloon,
-;;     green_join.green_id as green_join_green_id,
-;;     green_join.opny_id as green_join_opny_id
+;;   select yellow.aoahoah as yellow$aoahoah, green.balloon as green$balloon,
+;;     green_join.green_id as green_join$green_id,
+;;     green_join.opny_id as green_join$opny_id
 ;;   from yellow yellow
 ;;   left outer join green_opny green_join on (green_join.opny_id = yellow.id)
 ;;   left outer join green green on (green.id = green_join.green_id);
 ;;
-;; The left outer joins are necessary so that items without associations are still found.
+;; The left outer joins are necessary so that items without
+;; associations are still found.
 
 (defn select-fields
+  "Find all necessary columns for the select query based on the given include nesting
+   and fashion them into sql form."
   [field prefix opts]
   (let [columns (table-fields field)
         model-fields
         (map
          (fn [slug]
-           (str prefix "." (name slug) " as " prefix "_" (name slug))) columns)
+           (str prefix "." (name slug) " as " prefix "$" (name slug))) columns)
         join-model-fields
         (join-fields field (:slug field) opts)]
     (concat model-fields join-model-fields)))
@@ -144,9 +152,10 @@
   (update-values [this content values] values)
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where [this prefix where] (db/clause "%1%2 = %3" [(suffix-prefix prefix) (row :slug) where]))
+  (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (row :slug))))
   (render [this content opts] (field-from this content opts)))
   
@@ -170,9 +179,10 @@
 
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where [this prefix where] (db/clause "%1%2 = %3" [(suffix-prefix prefix) (row :slug) where]))
+  (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (row :slug))))
   (render [this content opts] (field-from this content opts)))
   
@@ -198,9 +208,10 @@
 
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where [this prefix where] (db/clause "%1%2 = %3" [(suffix-prefix prefix) (row :slug) where]))
+  (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (row :slug))))
   (render [this content opts] (str (field-from this content opts))))
   
@@ -219,9 +230,10 @@
 
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where [this prefix where] (db/clause "%1%2 = '%3'" [(suffix-prefix prefix) (row :slug) where]))
+  (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (row :slug))))
   (render [this content opts] (field-from this content opts)))
 
@@ -244,9 +256,10 @@
        :else values)))
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where [this prefix where] (db/clause "%1%2 = '%3'" [(suffix-prefix prefix) (row :slug) where]))
+  (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (row :slug))))
   (render [this content opts] (field-from this content opts)))
 
@@ -264,9 +277,10 @@
         values)))
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where [this prefix where] (db/clause "%1%2 = '%3'" [(suffix-prefix prefix) (row :slug) where]))
+  (recompose-field [this mass opts])
   (field-from [this content opts] (adapter/text-value @config/db-adapter (content (keyword (row :slug)))))
   (render [this content opts] (field-from this content opts)))
 
@@ -290,9 +304,10 @@
         values)))
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where [this prefix where] (db/clause "%1%2 = %3" [(suffix-prefix prefix) (row :slug) where]))
+  (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (-> this :row :slug))))
   (render [this content opts] (field-from this content opts)))
 
@@ -329,10 +344,11 @@
        :else values)))
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where
     [this prefix where] (build-where-timestamp prefix (:slug row) where))
+  (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (row :slug))))
   (render [this content opts]
     (format-date (field-from this content opts))))
@@ -344,8 +360,10 @@
 (declare create)
 (declare update)
 (declare destroy)
+(declare model-select-fields)
 (declare model-join-fields)
 (declare model-join-conditions)
+(declare recompose)
 (def models (ref {}))
 
 (defn pad-break-id [id]
@@ -390,12 +408,19 @@
   (update-values [this content values] values)
   (post-update [this content] content)
   (pre-destroy [this content] content)
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts]
+    (model-select-fields (:asset @models) (:slug row) opts))
   (join-conditions [this prefix opts]
     [(db/clause "left outer join asset %1 on (%2.%1_id = %1.id)"
                 [(:slug row) prefix])])
   (build-where [this prefix where])
     ;;(db/clause "%1%2 = %3" [(suffix-prefix prefix) (row :slug) where]))
+
+  (recompose-field
+    [this mass opts]
+    (let [clay (recompose (:asset @models) (:slug row) mass {})]
+      (if (:id clay) clay)))
+
   (field-from [this content opts]
     (let [asset-id (content (keyword (str (row :slug) "_id")))
           asset (or (db/choose :asset asset-id) {})]
@@ -453,14 +478,21 @@
   (post-update [this content] content)
   (pre-destroy [this content] content)
 
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts]
+    (model-select-fields (:location @models) (:slug row) opts))
   (join-conditions [this prefix opts]
     [(db/clause "left outer join location %1 on (%2.%1_id = %1.id)"
                 [(:slug row) prefix])])
   (build-where [this prefix where])
 
+  (recompose-field
+    [this mass opts]
+    (let [clay (recompose (:location @models) (:slug row) mass {})]
+      (if (:id clay) clay)))
+
   (field-from [this content opts]
     (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
+
   (render [this content opts]
     (model-render (models :location) (field-from this content opts) {})))
 
@@ -552,8 +584,11 @@
         (doall (map #(destroy target (% :id)) parts))))
     content)
 
-  (join-fields [this field opts]
-    [])
+  (join-fields [this prefix opts]
+    (with-include opts (:slug row)
+      (fn [down]
+        (let [target (@models (:target_id row))]
+          (model-select-fields target (:slug row) down)))))
 
   (join-conditions [this prefix opts]
     (with-include opts (:slug row)
@@ -567,6 +602,14 @@
            downstream)))))
 
   (build-where [this prefix where])
+
+  (recompose-field
+    [this mass opts]
+    (with-include opts (:slug row)
+      (fn [down]
+        (let [target (@models (:target_id row))
+              clay (recompose target (:slug row) mass down)]
+          (if (:id clay) [clay] [])))))
 
   (field-from [this content opts]
     (with-include opts (:slug row)
@@ -631,7 +674,11 @@
 
   (pre-destroy [this content] content)
 
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts]
+    (with-include opts (:slug row)
+      (fn [down]
+        (let [target (@models (:target_id row))]
+          (model-select-fields target (:slug row) down)))))
 
   (join-conditions [this prefix opts]
     (with-include opts (:slug row)
@@ -644,6 +691,14 @@
            downstream)))))
 
   (build-where [this prefix where])
+
+  (recompose-field
+    [this mass opts]
+    (with-include opts (:slug row)
+      (fn [down]
+        (let [target (@models (:target_id row))
+              clay (recompose target (:slug row) mass down)]
+          (if (:id clay) clay)))))
 
   (field-from [this content opts]
     (with-include opts (:slug row)
@@ -687,12 +742,16 @@
 
   (pre-destroy [this content] content)
 
-  (join-fields [this field opts] [])
+  (join-fields [this prefix opts]
+    (with-include opts (:slug row)
+      (fn [down]
+        (let [target (@models (:model_id row))]
+          (model-select-fields target (:slug row) down)))))
 
   (join-conditions [this prefix opts]
     (with-include opts (:slug row)
       (fn [down]
-        (let [target (@models (:target_id row))
+        (let [target (@models (:model_id row))
               downstream (model-join-conditions target (:slug row) down)
               params [(:slug target) (:slug row) prefix]]
           (concat
@@ -701,18 +760,26 @@
 
   (build-where [this prefix where])
 
+  (recompose-field
+    [this mass opts]
+    (with-include opts (:slug row)
+      (fn [down]
+        (let [target (@models (:model_id row))
+              clay (recompose target (:slug row) mass down)]
+          (if (:id clay) clay)))))
+
   (field-from [this content opts]
     (with-include opts (:slug row)
       (fn [down]
         (if-let [tie-key (keyword (str (:slug row) "_id"))]
-          (let [model ((:model_id row) @models)]
+          (let [model (@models (:model_id row))]
             (from model (db/choose (:slug model) (content tie-key)) down))))))
 
   (render [this content opts]
     (with-include opts (:slug row)
       (fn [down]
         (if-let [field (field-from this content opts)]
-          (model-render (models (row :model_id)) field down))))))
+          (model-render (@models (row :model_id)) field down))))))
 
 (defn join-table-name
   "construct a join table name out of two link names"
@@ -728,6 +795,7 @@
     (keyword (join-table-name from-name to-name))))
 
 (defn link-keys
+  "Find all related keys given by this link field."
   [field]
   (let [reciprocal (-> field :env :link)
         from-name (-> field :row :slug)
@@ -863,30 +931,24 @@
   (pre-destroy [this content]
     content)
 
-  (join-fields [this field opts]
+  (join-fields [this prefix opts]
     (with-include opts (:slug row)
-      (fn [down])))
+      (fn [down]
+        (let [target (@models (:target_id row))]
+          (model-select-fields target (:slug row) down)))))
 
   (join-conditions [this prefix opts]
     (link-join-conditions this prefix opts))
 
-    ;; (let [field-slug (-> this :row :slug)]
-    ;;   (with-include opts field-slug
-    ;;     (fn [down]
-    ;;       (let [reciprocal (-> this :env :link)
-    ;;             from-name field-slug
-    ;;             from-key (str from-name "_id")
-    ;;             to-name (reciprocal :slug)
-    ;;             to-key (str to-name "_id")
-    ;;             join-key (join-table-name from-name to-name)
-    ;;             join-alias (str from-name "_join")
-    ;;             target (@models (-> this :row :target_id))]
-    ;;         [(db/clause "left outer join %1 %2 on (%2.%3_id = %4.id)"
-    ;;                     [join-key join-alias to-name prefix])
-    ;;          (db/clause "left outer join %1 %2 on (%2.id = %3.%2_id)"
-    ;;                     [(:slug target) field-slug join-alias])])))))
-
   (build-where [this prefix where])
+
+  (recompose-field
+    [this mass opts]
+    (with-include opts (:slug row)
+      (fn [down]
+        (let [target (@models (:target_id row))
+              clay (recompose target (:slug row) mass down)]
+          (if (:id clay) [clay] [])))))
 
   (field-from [this content opts]
     (with-include opts (:slug row)
@@ -907,25 +969,142 @@
   (let [model ((keyword slug) @models)]))
 
 (defn model-table-fields
+  "All rows in the table governed by this model."
   [model]
   (map table-fields (vals (:fields model))))
 
 (defn model-select-fields
-  [model sig opts]
+  "Build a set of select fields based on the given model."
+  [model prefix opts]
   (let [fields (vals (:fields model))
-        sf (fn [field] (select-fields field sig opts))
+        sf (fn [field]
+             (select-fields field (name prefix) opts))
         model-fields (map sf fields)]
-    (apply concat model-fields)))
+    (set (apply concat model-fields))))
 
 (defn model-join-conditions
-  [model alias opts]
+  "Find all necessary table joins for this query based on the arbitrary
+   nesting of the include option."
+  [model prefix opts]
   (let [fields (vals (:fields model))]
     (apply
      concat
      (map
       (fn [field]
-        (join-conditions field alias opts))
+        (join-conditions field prefix opts))
       fields))))
+
+(defn model-select-query
+  "Build the select query for this model by the given prefix based on the
+   particular nesting of the include map."
+  [model prefix opts]
+  (let [selects (join ", " (model-select-fields model prefix opts))
+        joins (join " " (model-join-conditions model prefix opts))]
+    (join " " ["select" selects "from" (:slug model) (name prefix) joins])))
+
+(defn uberquery
+  "The query to bind all queries.  Returns every facet of every row given an
+   arbitrary nesting of include relationships (also known as the uberjoin)."
+  [model opts]
+  (let [query (model-select-query model (:slug model) opts)]
+    (db/query query)))
+
+(defn match-prefix
+  "Determine whether this bit (key from an uberjoin) is governed by the given prefix."
+  [prefix bit]
+  (if-let [pattern (re-find (re-pattern (str "^" (name prefix) "\\$(.*)$")) (name bit))]
+    [bit (keyword (last pattern))]))
+
+(defn blank-join?
+  [void]
+  (or (nil? void) (not (:id void))))
+
+(defn pretach
+  "This attaches from the mass to the spark even if
+   the value from the mass for the given field is nil."
+  [spark field mass opts]
+  (let [form (recompose-field field mass opts)
+        sign (keyword (-> field :row :slug))]
+    (if (or form (not (contains? spark sign)))
+      (assoc spark (keyword (-> field :row :slug)) form)
+      spark)))
+
+(defn attach
+  "Only attach values from the mass to the spark based on this field
+   if the value for that field is not nil."
+  [spark field mass opts]
+  (if-let [form (recompose-field field mass opts)]
+    (assoc spark (keyword (-> field :row :slug)) form)
+    spark))
+
+(defn recompose
+  "Given a model and a mass of undetermined columns from an uberjoin,
+   reconstitutes the values from other tables living side by side
+   in the mass into a nested map based on the fields and associations
+   present in the model."
+  [model prefix mass opts]
+  (let [patterns
+        (filter
+         identity
+         (map
+          (partial match-prefix prefix)
+          (keys mass)))
+
+        spark
+        (reduce
+         (fn [golem [bit pattern]]
+           (assoc golem pattern (bit mass)))
+         {} patterns)
+
+        axons
+        (reduce
+         (fn [spark field]
+           (attach spark field mass opts))
+         spark (vals (:fields model)))]
+
+    axons))
+
+(defn renew
+  "Recompose the swaths of undifferentiated uberjoin rows into nested maps
+   based on the fields in the given model."
+  [model prefix swaths opts]
+  (map #(recompose model prefix % opts) swaths))
+
+(declare fuse)
+(declare fuse-merge-with)
+
+(defn fuse-merge
+  "Fuse two subentries of an uberjoin."
+  [a b]
+  (cond
+   (not (and a b)) (or a b)
+   (some sequential? [a b]) (fuse (concat a b))
+   (some map? [a b]) (fuse-merge-with a b)
+   :else a))
+
+(defn fuse-merge-with
+  [a b]
+  (merge-with fuse-merge a b))
+
+(defn reduce-fuse-merge
+  [pulse]
+  (reduce fuse-merge-with {} pulse))
+
+(defn fuse
+  "Take many threads from an uberquery and fuse them into maps where each
+   exploded row is collapsed into a single map."
+  [threads]
+  (if threads
+    (let [attraction (group-by #(:id %) threads)
+          light (map reduce-fuse-merge (vals attraction))]
+      light)))
+
+(defn find-all
+  [slug opts]
+  (let [model (slug @models)
+        resurrected (uberquery model opts)
+        threads (renew model (:slug model) resurrected opts)]
+    (fuse threads)))
 
 (def field-constructors
   {:id (fn [row] (IdField. row {}))
