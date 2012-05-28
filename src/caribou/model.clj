@@ -484,7 +484,7 @@
 
   (render [this content opts]
     (update-in content [(keyword (:slug row))] 
-               #(model-render (models :asset) % opts))))
+               #(model-render (:asset @models) % opts))))
 
 (defn full-address [address]
   (join " " [(address :address)
@@ -559,7 +559,7 @@
 
   (render [this content opts]
     (update-in content [(keyword (:slug row))] 
-               #(model-render (models :location) % opts))))
+               #(model-render (:location @models) % opts))))
 
 (defn assoc-field
   [content field opts]
@@ -592,6 +592,24 @@
               subconditions (model-where-conditions target slug down)
               params [prefix link (:slug target) slug subconditions]]
           (db/clause "%1.id in (select %4.%2_id from %3 %4 where %5)" params))))))
+
+(defn collection-render
+  [field content opts]
+  (if-let [include (:include opts)]
+    (let [slug (keyword (-> field :row :slug))]
+      (if-let [sub (slug include)]
+        (let [target (@models (-> field :row :target_id))
+              down {:include sub}]
+          (update-in
+           content [slug]
+           (fn [col]
+             (doall
+              (map
+               (fn [to]
+                 (model-render target to down))
+               col)))))
+        content))
+    content))
 
 (defrecord CollectionField [row env]
   Field
@@ -696,13 +714,7 @@
           (map #(from (target-for this) % down) parts)))))
 
   (render [this content opts]
-    (with-nesting :include opts (:slug row)
-      (fn [down]
-        (map
-         (fn [field]
-           (model-render
-            (target-for this) field down))
-         (field-from this content opts))))))
+    (collection-render this content opts)))
 
 (defrecord PartField [row env]
   Field
@@ -795,11 +807,16 @@
             (from (target-for this) collector down))))))
 
   (render [this content opts]
-    (with-nesting :include opts (:slug row) 
-      (fn [down]
-        (if-let [field (field-from this content opts)]
-          (model-render
-           (target-for this) field down))))))
+    (if-let [include (:include opts)]
+      (let [slug (keyword (:slug row))
+            target (@models (:target_id row))
+            down {:include (slug include)}]
+        (update-in
+         content [slug] 
+         (fn [part]
+           (if part
+             (model-render target part down)))))
+      content)))
 
 (defrecord TieField [row env]
   Field
@@ -873,10 +890,16 @@
             (from model (db/choose (:slug model) (content tie-key)) down))))))
 
   (render [this content opts]
-    (with-nesting :include opts (:slug row)
-      (fn [down]
-        (if-let [field (field-from this content opts)]
-          (model-render (@models (row :model_id)) field down))))))
+    (if-let [include (:include opts)]
+      (let [slug (keyword (:slug row))
+            target (@models (:model_id row))
+            down {:include (slug include)}]
+        (update-in
+         content [slug] 
+         (fn [tie]
+           (if tie
+             (model-render target tie down)))))
+      content)))
 
 (defn join-table-name
   "construct a join table name out of two link names"
@@ -992,6 +1015,24 @@
         downstream (model-natural-orderings target slug opts)]
     [(db/clause "%1.%2_position asc" [join-alias slug]) downstream]))
 
+(defn link-render
+  [this content opts]
+  (if-let [include (:include opts)]
+    (let [slug (keyword (-> this :row :slug))]
+      (if-let [sub (slug include)]
+        (let [target (@models (-> this :row :target_id))
+              down {:include sub}]
+          (update-in
+           content [slug]
+           (fn [col]
+             (doall
+              (map
+               (fn [to]
+                 (model-render target to down))
+               col)))))
+        content))
+    content))
+
 (defrecord LinkField [row env]
   Field
 
@@ -1087,12 +1128,7 @@
            (retrieve-links this content))))))
 
   (render [this content opts]
-    (with-nesting :include opts (:slug row)
-      (fn [down]
-        (map
-         (fn [field]
-           (model-render (target-for this) field down))
-         (field-from this content opts))))))
+    (link-render this content opts)))
 
 (defn build-select
   [slug opts]
@@ -1388,13 +1424,10 @@
   "render a piece of content according to the fields contained in the model
   and given by the supplied opts"
   [model content opts]
-  (let [fields (vals (model :fields))]
+  (let [fields (vals (:fields model))]
     (reduce
      (fn [content field]
        (render field content opts))
-     ;; #(assoc %1
-     ;;    (keyword (-> %2 :row :slug))
-     ;;    (render %2 content opts))
      content fields)))
 
 (def lifecycle-hooks (ref {}))
