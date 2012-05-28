@@ -90,6 +90,7 @@
   (join-fields [this prefix opts])
   (join-conditions [this prefix opts])
   (build-where [this prefix opts] "creates a where clause suitable to this field from the given where map, with fields prefixed by the given prefix.")
+  (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
   (field-from [this content opts]
     "retrieves the value for this field from this content item")
@@ -178,9 +179,10 @@
   (build-where
     [this prefix opts]
     (field-where this prefix opts pure-where))
+  (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
-  (field-from [this content opts] (content (keyword (row :slug))))
-  (render [this content opts] (field-from this content opts)))
+  (field-from [this content opts] (content (keyword (:slug row))))
+  (render [this content opts] content))
   
 (defrecord IntegerField [row env]
   Field
@@ -191,7 +193,7 @@
   (target-for [this] nil)
 
   (update-values [this content values]
-    (let [key (keyword (row :slug))]
+    (let [key (keyword (:slug row))]
       (if (contains? content key)
         (try
           (let [value (content key)
@@ -207,9 +209,10 @@
   (build-where
     [this prefix opts]
     (field-where this prefix opts pure-where))
+  (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
-  (field-from [this content opts] (content (keyword (row :slug))))
-  (render [this content opts] (field-from this content opts)))
+  (field-from [this content opts] (content (keyword (:slug row))))
+  (render [this content opts] content))
   
 (defrecord DecimalField [row env]
   Field
@@ -220,7 +223,7 @@
   (target-for [this] nil)
 
   (update-values [this content values]
-    (let [key (keyword (row :slug))]
+    (let [key (keyword (:slug row))]
       (if (contains? content key)
         (try
           (let [value (content key)
@@ -238,9 +241,11 @@
   (build-where
     [this prefix opts]
     (field-where this prefix opts pure-where))
+  (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
-  (field-from [this content opts] (content (keyword (row :slug))))
-  (render [this content opts] (str (field-from this content opts))))
+  (field-from [this content opts] (content (keyword (:slug row))))
+  (render [this content opts]
+    (update-in content [(keyword (:slug row))] str)))
   
 (defrecord StringField [row env]
   Field
@@ -250,7 +255,7 @@
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values [this content values]
-    (let [key (keyword (row :slug))]
+    (let [key (keyword (:slug row))]
       (if (contains? content key)
         (assoc values key (content key))
         values)))
@@ -262,9 +267,10 @@
   (build-where
     [this prefix opts]
     (field-where this prefix opts string-where))
+  (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
-  (field-from [this content opts] (content (keyword (row :slug))))
-  (render [this content opts] (field-from this content opts)))
+  (field-from [this content opts] (content (keyword (:slug row))))
+  (render [this content opts] content))
 
 (defrecord SlugField [row env]
   Field
@@ -274,7 +280,7 @@
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values [this content values]
-    (let [key (keyword (row :slug))]
+    (let [key (keyword (:slug row))]
       (cond
        (env :link)
          (let [icon (content (keyword (-> env :link :slug)))]
@@ -290,9 +296,10 @@
   (build-where
     [this prefix opts]
     (field-where this prefix opts string-where))
+  (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
-  (field-from [this content opts] (content (keyword (row :slug))))
-  (render [this content opts] (field-from this content opts)))
+  (field-from [this content opts] (content (keyword (:slug row))))
+  (render [this content opts] content))
 
 (defrecord TextField [row env]
   Field
@@ -302,7 +309,7 @@
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values [this content values]
-    (let [key (keyword (row :slug))]
+    (let [key (keyword (:slug row))]
       (if (contains? content key)
         (assoc values key (content key))
         values)))
@@ -313,9 +320,10 @@
   (build-where
     [this prefix opts]
     (field-where this prefix opts string-where))
+  (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
-  (field-from [this content opts] (adapter/text-value @config/db-adapter (content (keyword (row :slug)))))
-  (render [this content opts] (field-from this content opts)))
+  (field-from [this content opts] (adapter/text-value @config/db-adapter (content (keyword (:slug row)))))
+  (render [this content opts] content))
 
 (defrecord BooleanField [row env]
   Field
@@ -325,7 +333,7 @@
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values [this content values]
-    (let [key (keyword (row :slug))]
+    (let [key (keyword (:slug row))]
       (if (contains? content key)
         (try
           (let [value (content key)
@@ -342,9 +350,10 @@
   (build-where
     [this prefix opts]
     (field-where this prefix opts pure-where))
+  (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
-  (field-from [this content opts] (content (keyword (-> this :row :slug))))
-  (render [this content opts] (field-from this content opts)))
+  (field-from [this content opts] (content (keyword (:slug row))))
+  (render [this content opts] content))
 
 (defn build-extract
   [prefix field [index value]]
@@ -367,7 +376,7 @@
   (target-for [this] nil)
   (update-values
     [this content values]
-    (let [key (keyword (row :slug))]
+    (let [key (keyword (:slug row))]
       (cond
        ;; (= key :updated_at) (assoc values key :current_timestamp)
        (contains? content key)
@@ -384,10 +393,11 @@
   (build-where
     [this prefix opts]
     (field-where this prefix opts timestamp-where))
+  (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
-  (field-from [this content opts] (content (keyword (row :slug))))
+  (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
-    (format-date (field-from this content opts))))
+    (update-in content [(keyword (:slug row))] format-date)))
 
 ;; forward reference for Fields that need them
 (declare make-field)
@@ -400,6 +410,7 @@
 (declare model-join-fields)
 (declare model-join-conditions)
 (declare model-where-conditions)
+(declare model-natural-orderings)
 (declare recompose)
 (def models (ref {}))
 
@@ -434,12 +445,12 @@
   (subfield-names [this field] [(str field "_id")])
   (setup-field [this spec]
     (update :model (row :model_id)
-            {:fields [{:name (titleize (str (row :slug) "_id"))
+            {:fields [{:name (titleize (str (:slug row) "_id"))
                        :type "integer"
                        :editable false}]} {:op :migration}))
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
-          id (keyword (str (row :slug) "_id"))]
+          id (keyword (str (:slug row) "_id"))]
       (destroy :field (-> fields id :row :id))))
   (target-for [this] nil)
   (update-values [this content values] values)
@@ -459,19 +470,21 @@
       (fn [down]
         (model-where-conditions (:asset @models) (:slug row) down))))
 
+  (natural-orderings [this prefix opts])
+
   (recompose-field
     [this mass opts]
     (let [clay (recompose (:asset @models) (:slug row) mass {})]
       (if (:id clay) clay)))
 
   (field-from [this content opts]
-    (let [asset-id (content (keyword (str (row :slug) "_id")))
+    (let [asset-id (content (keyword (str (:slug row) "_id")))
           asset (or (db/choose :asset asset-id) {})]
       (assoc asset :path (asset-path asset))))
 
   (render [this content opts]
-    (let [asset (field-from this content opts)]
-      (model-render (models :asset) asset {}))))
+    (update-in content [(keyword (:slug row))] 
+               #(model-render (models :asset) % opts))))
 
 (defn full-address [address]
   (join " " [(address :address)
@@ -501,17 +514,17 @@
   (subfield-names [this field] [(str field "_id")])
   (setup-field [this spec]
     (update :model (row :model_id)
-            {:fields [{:name (titleize (str (row :slug) "_id"))
+            {:fields [{:name (titleize (str (:slug row) "_id"))
                        :type "integer"
                        :editable false}]} {:op :migration}))
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
-          id (keyword (str (row :slug) "_id"))]
+          id (keyword (str (:slug row) "_id"))]
       (destroy :field (-> fields id :row :id))))
   (target-for [this] nil)
   (update-values [this content values]
-    (let [posted (content (keyword (row :slug)))
-          idkey (keyword (str (row :slug) "_id"))
+    (let [posted (content (keyword (:slug row)))
+          idkey (keyword (str (:slug row) "_id"))
           preexisting (content idkey)
           address (if preexisting (assoc posted :id preexisting) posted)]
       (if address
@@ -534,6 +547,8 @@
       (fn [down]
         (model-where-conditions (:location @models) (:slug row) down))))
 
+  (natural-orderings [this prefix opts])
+
   (recompose-field
     [this mass opts]
     (let [clay (recompose (:location @models) (:slug row) mass {})]
@@ -543,7 +558,8 @@
     (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
 
   (render [this content opts]
-    (model-render (models :location) (field-from this content opts) {})))
+    (update-in content [(keyword (:slug row))] 
+               #(model-render (models :location) % opts))))
 
 (defn assoc-field
   [content field opts]
@@ -604,7 +620,7 @@
   (target-for [this] (models (row :target_id)))
 
   (update-values [this content values]
-    (let [removed (keyword (str "removed_" (row :slug)))]
+    (let [removed (keyword (str "removed_" (:slug row)))]
       (if (present? (content removed))
         (let [ex (map #(Integer. %) (split (content removed) #","))
               part (env :link)
@@ -617,7 +633,7 @@
         values)))
 
   (post-update [this content]
-    (if-let [collection (content (keyword (row :slug)))]
+    (if-let [collection (content (keyword (:slug row)))]
       (let [part (env :link)
             part-key (keyword (str (part :slug) "_id"))
             model (models (part :model_id))
@@ -627,12 +643,12 @@
                         (model :slug)
                         (merge % {part-key (content :id)}))
                       collection))]
-        (assoc content (keyword (row :slug)) updated))
+        (assoc content (keyword (:slug row)) updated))
       content))
 
   (pre-destroy [this content]
     (if (or (row :dependent) (-> env :link :dependent))
-      (let [parts (field-from this content {:include {(keyword (row :slug)) {}}})
+      (let [parts (field-from this content {:include {(keyword (:slug row)) {}}})
             target (keyword ((target-for this) :slug))]
         (doall (map #(destroy target (% :id)) parts))))
     content)
@@ -657,6 +673,12 @@
   (build-where
     [this prefix opts]
     (collection-where this prefix opts))
+
+  (natural-orderings [this prefix opts]
+    (let [target (@models (:target_id row))
+          link (-> this :env :link :slug)
+          downstream (model-natural-orderings target (:slug row) opts)]
+      [(db/clause "%1.%2_position asc" [prefix link]) downstream]))
 
   (recompose-field
     [this mass opts]
@@ -704,17 +726,17 @@
 
       (update :model model_id
         {:fields
-         [{:name (titleize (str (row :slug) "_id"))
+         [{:name (titleize (str (:slug row) "_id"))
            :type "integer"
            :editable false}
-          {:name (titleize (str (row :slug) "_position"))
+          {:name (titleize (str (:slug row) "_position"))
            :type "integer"
            :editable false}]} {:op :migration})))
 
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
-          id (keyword (str (row :slug) "_id"))
-          position (keyword (str (row :slug) "_position"))]
+          id (keyword (str (:slug row) "_id"))
+          position (keyword (str (:slug row) "_position"))]
       (destroy :field (-> fields id :row :id))
       (destroy :field (-> fields position :row :id))
       (try
@@ -752,6 +774,11 @@
         (let [target (@models (:target_id row))]
           (model-where-conditions target (:slug row) down)))))
 
+  (natural-orderings [this prefix opts]
+    (let [target (@models (:target_id row))
+          downstream (model-natural-orderings target (:slug row) opts)]
+      downstream))
+
   (recompose-field
     [this mass opts]
     (with-nesting :include opts (:slug row)
@@ -785,13 +812,13 @@
           model (models model_id)]
       (update :model model_id
         {:fields
-         [{:name (titleize (str (row :slug) "_id"))
+         [{:name (titleize (str (:slug row) "_id"))
            :type "integer"
            :editable false}]} {:op :migration})))
 
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
-          id (keyword (str (row :slug) "_id"))]
+          id (keyword (str (:slug row) "_id"))]
       (destroy :field (-> fields id :row :id))))
 
   (target-for [this] this)
@@ -824,6 +851,11 @@
       (fn [down]
         (let [target (@models (:model_id row))]
           (model-where-conditions target (:slug row) down)))))
+
+  (natural-orderings [this prefix opts]
+    (let [target (@models (:model_id row))
+          downstream (model-natural-orderings target (:slug row) opts)]
+      downstream))
 
   (recompose-field
     [this mass opts]
@@ -914,19 +946,20 @@
     (if preexisting
       (destroy join-key (preexisting :id)))))
 
-(defn link-join-conditions [this prefix opts]
-  (let [field-slug (-> this :row :slug)]
-    (with-nesting :include opts field-slug
+(defn link-join-conditions
+  [this prefix opts]
+  (let [slug (-> this :row :slug)]
+    (with-nesting :include opts slug
       (fn [down]
         (let [reciprocal (-> this :env :link)
-              from-name field-slug
+              from-name slug
               to-name (reciprocal :slug)
               join-key (join-table-name from-name to-name)
               join-alias (str from-name "_join")
               target (@models (-> this :row :target_id))
               join-params [join-key join-alias to-name prefix]
-              link-params [(:slug target) field-slug join-alias]
-              downstream (model-join-conditions target field-slug down)]
+              link-params [(:slug target) slug join-alias]
+              downstream (model-join-conditions target slug down)]
           (concat
            [(db/clause "left outer join %1 %2 on (%2.%3_id = %4.id)" join-params)
             (db/clause "left outer join %1 %2 on (%2.id = %3.%2_id)" link-params)]
@@ -949,6 +982,15 @@
               params [prefix link join-key join-alias
                       (:slug target) slug subconditions]]
           (db/clause clause params))))))
+
+(defn link-natural-orderings
+  [this prefix opts]
+  (let [slug (-> this :row :slug)
+        reciprocal (-> this :env :link)
+        join-alias (str slug "_join")
+        target (@models (-> this :row :target_id))
+        downstream (model-natural-orderings target slug opts)]
+    [(db/clause "%1.%2_position asc" [join-alias slug]) downstream]))
 
 (defrecord LinkField [row env]
   Field
@@ -995,7 +1037,7 @@
   (target-for [this] (models (row :target_id)))
 
   (update-values [this content values]
-    (let [removed (content (keyword (str "removed_" (row :slug))))]
+    (let [removed (content (keyword (str "removed_" (:slug row))))]
       (debug content)
       (if (present? removed)
         (let [ex (map #(Integer. %) (split removed #","))]
@@ -1003,10 +1045,10 @@
     values)
 
   (post-update [this content]
-    (if-let [collection (content (keyword (row :slug)))]
+    (if-let [collection (content (keyword (:slug row)))]
       (let [linked (doall (map #(link this content %) collection))
-            with-links (assoc content (keyword (str (row :slug) "_join")) linked)]
-        (assoc content (row :slug) (retrieve-links this content))))
+            with-links (assoc content (keyword (str (:slug row) "_join")) linked)]
+        (assoc content (:slug row) (retrieve-links this content))))
     content)
 
   (pre-destroy [this content]
@@ -1025,6 +1067,9 @@
     [this prefix opts]
     (link-where this prefix opts))
 
+  (natural-orderings [this prefix opts]
+    (link-natural-orderings this prefix opts))
+
   (recompose-field
     [this mass opts]
     (with-nesting :include opts (:slug row)
@@ -1037,7 +1082,9 @@
     (with-nesting :include opts (:slug row)
       (fn [down]
         (let [target (target-for this)]
-          (map #(from target % down) (retrieve-links this content))))))
+          (map
+           #(from target % down)
+           (retrieve-links this content))))))
 
   (render [this content opts]
     (with-nesting :include opts (:slug row)
@@ -1069,13 +1116,13 @@
   "Find all necessary table joins for this query based on the arbitrary
    nesting of the include option."
   [model prefix opts]
-  (let [fields (vals (:fields model))]
+  (let [fields (:fields model)]
     (apply
      concat
      (map
       (fn [field]
         (join-conditions field prefix opts))
-      fields))))
+      (vals fields)))))
 
 (defn model-select-query
   "Build the select query for this model by the given prefix based on the
@@ -1101,10 +1148,36 @@
          (map
           (fn [field]
             (build-where field prefix opts))
-          (vals (:fields model))))
+          (vals (:fields model))))]
+    (join " and " (flatten eyes))))
 
-        where (join " and " (flatten eyes))]
-    where))
+(defn model-natural-orderings
+  [model prefix opts]
+  (let [fields (:fields model)]
+    (flatten
+     (map
+      (fn [order-key]
+        (let [field (order-key fields)]
+          (natural-orderings
+           field (-> field :row :slug)
+           {:include (-> opts :include order-key)})))
+      (keys (:include opts))))))
+
+(defn build-order
+  [prefix order]
+  (if (re-find #"^[^.]+\.\w+ (de|a)sc$" order)
+    order
+    (str prefix "." order)))
+
+(defn model-order-statement
+  [model opts]
+  (let [order
+        (map
+         (partial build-order (:slug model))
+         (or (:order opts) ["position asc"]))
+        natural (model-natural-orderings model (:slug model) opts)
+        statement (join ", " (concat order natural))]
+      (db/clause " order by %1" [statement])))
 
 (defn uberquery
   "The query to bind all queries.  Returns every facet of every row given an
@@ -1117,17 +1190,14 @@
         (if-let [limit (:limit opts)]
           (model-limit-offset model (:slug model) where limit (or (:offset opts) 0)))
 
-        condition
-        (if limit-offset
-          (if (empty? where)
-            limit-offset
-            (str limit-offset " and " where))
-          where)
+        condition (or limit-offset where)
 
         full-condition
         (if (not (empty? condition))
-          (str " where " condition))]
-    (db/query (str query full-condition))))
+          (str " where " condition))
+
+        order (model-order-statement model opts)]
+    (db/query (str query full-condition order))))
 
 (defn match-prefix
   "Determine whether this bit (key from an uberjoin) is governed by the given prefix."
@@ -1219,12 +1289,61 @@
           light (map reduce-fuse-merge (vals attraction))]
       light)))
 
-(defn find-all
+(defn gather
   [slug opts]
   (let [model (slug @models)
         resurrected (uberquery model opts)
         threads (renew model (:slug model) resurrected opts)]
     (fuse threads)))
+
+(defn process-include
+  [include]
+  (if (and include (not (empty? include)))
+    (let [clauses (split include #",")
+          paths (map #(map keyword (split % #"\.")) clauses)
+          ubermap
+          (reduce
+           (fn [include path]
+             (update-in include path (fn [_] {})))
+           {} paths)]
+      ubermap)
+    {}))
+
+(defn where-path
+  [where]
+  (let [[path condition] (split where #":")]
+    [(map keyword (split path #"\.")) condition]))
+
+(defn process-where
+  [where]
+  (if (and where (not (empty? where)))
+    (let [clauses (split where #",")
+          paths (map where-path clauses)
+          ubermap
+          (reduce
+           (fn [where [path condition]]
+             (update-in where path (fn [_] condition)))
+           {} paths)]
+      ubermap)
+    {}))
+
+(defn process-order
+  [order]
+  (if (and order (not (empty? order)))
+    (split order #",")
+    []))
+
+(defn find-all
+  [slug opts]
+  (let [include (process-include (:include opts))
+        where (process-where (:where opts))
+        order (process-order (:order opts))]
+    (gather slug (merge opts {:include include :where where :order order}))))
+
+(defn find-one
+  [slug opts]
+  (let [oneify (assoc opts :limit 1)]
+    (first (find-all slug oneify))))
 
 (def field-constructors
   {:id (fn [row] (IdField. row {}))
@@ -1265,18 +1384,18 @@
   [row]
   ((field-constructors (keyword (row :type))) row))
 
-(defn fields-render
-  "render all fields out to a string friendly format"
-  [fields content opts]
-  (reduce #(assoc %1 (keyword (-> %2 :row :slug))
-             (render %2 content opts))
-          content fields))
-
 (defn model-render
   "render a piece of content according to the fields contained in the model
   and given by the supplied opts"
   [model content opts]
-  (fields-render (vals (model :fields)) content opts))
+  (let [fields (vals (model :fields))]
+    (reduce
+     (fn [content field]
+       (render field content opts))
+     ;; #(assoc %1
+     ;;    (keyword (-> %2 :row :slug))
+     ;;    (render %2 content opts))
+     content fields)))
 
 (def lifecycle-hooks (ref {}))
 
