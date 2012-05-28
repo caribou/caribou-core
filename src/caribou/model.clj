@@ -182,7 +182,7 @@
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content))
+  (render [this content opts] (field-from this content opts)))
   
 (defrecord IntegerField [row env]
   Field
@@ -212,7 +212,7 @@
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content))
+  (render [this content opts] (field-from this content opts)))
   
 (defrecord DecimalField [row env]
   Field
@@ -244,8 +244,7 @@
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts]
-    (update-in content [(keyword (:slug row))] str)))
+  (render [this content opts] (str (field-from this content opts))))
   
 (defrecord StringField [row env]
   Field
@@ -270,7 +269,7 @@
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content))
+  (render [this content opts] (field-from this content opts)))
 
 (defrecord SlugField [row env]
   Field
@@ -299,7 +298,7 @@
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content))
+  (render [this content opts] (field-from this content opts)))
 
 (defrecord TextField [row env]
   Field
@@ -323,7 +322,7 @@
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
   (field-from [this content opts] (adapter/text-value @config/db-adapter (content (keyword (:slug row)))))
-  (render [this content opts] content))
+  (render [this content opts] (field-from this content opts)))
 
 (defrecord BooleanField [row env]
   Field
@@ -353,7 +352,7 @@
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content))
+  (render [this content opts] (field-from this content opts)))
 
 (defn build-extract
   [prefix field [index value]]
@@ -397,7 +396,7 @@
   (recompose-field [this mass opts])
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
-    (update-in content [(keyword (:slug row))] format-date)))
+    (format-date (field-from this content opts))))
 
 ;; forward reference for Fields that need them
 (declare make-field)
@@ -483,8 +482,8 @@
       (assoc asset :path (asset-path asset))))
 
   (render [this content opts]
-    (update-in content [(keyword (:slug row))] 
-               #(model-render (models :asset) % opts))))
+    (let [asset (field-from this content opts)]
+      (model-render (models :asset) asset {}))))
 
 (defn full-address [address]
   (join " " [(address :address)
@@ -558,8 +557,7 @@
     (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
 
   (render [this content opts]
-    (update-in content [(keyword (:slug row))] 
-               #(model-render (models :location) % opts))))
+    (model-render (models :location) (field-from this content opts) {})))
 
 (defn assoc-field
   [content field opts]
@@ -1384,18 +1382,18 @@
   [row]
   ((field-constructors (keyword (row :type))) row))
 
+(defn fields-render
+  "render all fields out to a string friendly format"
+  [fields content opts]
+  (reduce #(assoc %1 (keyword (-> %2 :row :slug))
+             (render %2 content opts))
+          content fields))
+
 (defn model-render
   "render a piece of content according to the fields contained in the model
   and given by the supplied opts"
   [model content opts]
-  (let [fields (vals (model :fields))]
-    (reduce
-     (fn [content field]
-       (render field content opts))
-     ;; #(assoc %1
-     ;;    (keyword (-> %2 :row :slug))
-     ;;    (render %2 content opts))
-     content fields)))
+  (fields-render (vals (model :fields)) content opts))
 
 (def lifecycle-hooks (ref {}))
 
