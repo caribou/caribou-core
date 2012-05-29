@@ -601,6 +601,7 @@
   [field content opts]
   (if-let [include (:include opts)]
     (let [slug (keyword (-> field :row :slug))]
+      (println slug)
       (if-let [sub (slug include)]
         (let [target (@models (-> field :row :target_id))
               down {:include sub}]
