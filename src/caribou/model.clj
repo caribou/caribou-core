@@ -322,8 +322,12 @@
     (field-where this prefix opts string-where))
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
-  (field-from [this content opts] (adapter/text-value @config/db-adapter (content (keyword (:slug row)))))
-  (render [this content opts] content))
+  (field-from [this content opts]
+    (adapter/text-value @config/db-adapter (content (keyword (:slug row)))))
+  (render [this content opts]
+    (update-in
+     content [(keyword (:slug row))]
+     #(adapter/text-value @config/db-adapter %))))
 
 (defrecord BooleanField [row env]
   Field
@@ -1213,7 +1217,8 @@
          (or (:order opts) ["position asc"]))
         natural (model-natural-orderings model (:slug model) opts)
         statement (join ", " (concat order natural))]
-      (db/clause " order by %1" [statement])))
+    (if (not (empty? statement))
+      (db/clause " order by %1" [statement]))))
 
 (defn uberquery
   "The query to bind all queries.  Returns every facet of every row given an
@@ -1325,12 +1330,58 @@
           light (map reduce-fuse-merge (vals attraction))]
       light)))
 
+(defn seq-keys
+  [mass]
+  (filter
+   #(sequential? (mass %))
+   (keys mass)))
+
+(declare diffuse)
+
+(defn gradient
+  [pool fiber]
+  (loop [waters pool
+         sequentials (seq-keys fiber)]
+    (if (empty? sequentials)
+      waters
+      (let [seq-key (first sequentials)]
+        (recur
+         (update-in waters [(:id fiber) seq-key] #(concat % (seq-key fiber)))
+         (rest sequentials))))))
+
+(defn flow
+  [fiber]
+  (loop [fiber fiber
+         sequentials (seq-keys fiber)]
+    (if (empty? sequentials)
+      fiber
+      (let [seq-key (first sequentials)]
+        (recur
+         (update-in fiber [seq-key] diffuse)
+         (rest sequentials))))))
+
+(defn diffuse
+  [fibers]
+  (loop [fibers fibers
+         pool {}
+         order []]
+    (if (empty? fibers)
+      (map #(flow (pool %)) (reverse order))
+      (let [fiber (first fibers)
+            preexisting (contains? pool (:id fiber))
+            [pooling ordering]
+            (if preexisting
+              [(gradient pool fiber) order]
+              [(assoc pool (:id fiber) fiber) (cons (:id fiber) order)])]
+        (recur
+         (rest fibers) pooling ordering)))))
+
 (defn gather
   [slug opts]
-  (let [model (slug @models)
+  (let [model ((keyword slug) @models)
         resurrected (uberquery model opts)
-        threads (renew model (:slug model) resurrected opts)]
-    (fuse threads)))
+        fibers (renew model (:slug model) resurrected opts)]
+    (diffuse fibers)))
 
 (defn process-include
   [include]
