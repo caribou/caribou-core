@@ -661,12 +661,14 @@
 
 (defn collection-fusion
   [this prefix archetype skein opts]
-  (let [slug (keyword (-> this :row :slug))]
-    (with-nesting :include opts slug
-      (fn [down]
-        (let [target (@models (-> this :row :target_id))
-              value (fusion target slug skein down)]
-          (assoc archetype slug value))))))
+  (let [slug (keyword (-> this :row :slug))
+        nesting 
+        (with-nesting :include opts slug
+          (fn [down]
+            (let [target (@models (-> this :row :target_id))
+                  value (fusion target slug skein down)]
+              (assoc archetype slug value))))]
+    (or nesting archetype)))
 
 (defrecord CollectionField [row env]
   Field
@@ -1317,8 +1319,7 @@
 
 (defn subfusion
   [model prefix skein opts]
-  (let [field-keys (keys (:fields model))
-        fields (vals (:fields model))
+  (let [fields (vals (:fields model))
         archetype
         (reduce
          (fn [archetype field]
