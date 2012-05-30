@@ -92,6 +92,7 @@
   (build-where [this prefix opts] "creates a where clause suitable to this field from the given where map, with fields prefixed by the given prefix.")
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
+  (field-fusion [this prefix archetype skein opts])
   (field-from [this content opts]
     "retrieves the value for this field from this content item")
   (render [this content opts] "renders out a single field from this content item"))
@@ -101,6 +102,10 @@
   (if (or (nil? prefix) (empty? prefix))
     ""
     (str prefix ".")))
+
+(defn prefix-key
+  [prefix slug]
+  (keyword (str (name prefix) "$" (name slug))))
 
 (defn table-fields
   "This is part of the Field protocol that is the same for all fields.
@@ -164,6 +169,13 @@
     (if-let [where (-> opts :where slug)]
       (do-where prefix slug where))))
 
+(defn pure-fusion
+  [this prefix archetype skein opts]
+  (let [slug (keyword (-> this :row :slug))
+        bit (prefix-key prefix slug)
+        value (get (first skein) bit)]
+    (assoc archetype slug value)))
+
 (defrecord IdField [row env]
   Field
   (table-additions [this field] [[(keyword field) "SERIAL"]]) ;; "PRIMARY KEY"]])
@@ -181,6 +193,8 @@
     (field-where this prefix opts pure-where))
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
+  (field-fusion [this prefix archetype skein opts]
+    (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
   
@@ -211,6 +225,8 @@
     (field-where this prefix opts pure-where))
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
+  (field-fusion [this prefix archetype skein opts]
+    (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
   
@@ -243,6 +259,8 @@
     (field-where this prefix opts pure-where))
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
+  (field-fusion [this prefix archetype skein opts]
+    (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
     (update-in content [(keyword (:slug row))] str)))
@@ -269,6 +287,8 @@
     (field-where this prefix opts string-where))
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
+  (field-fusion [this prefix archetype skein opts]
+    (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
@@ -298,6 +318,8 @@
     (field-where this prefix opts string-where))
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
+  (field-fusion [this prefix archetype skein opts]
+    (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
@@ -322,6 +344,8 @@
     (field-where this prefix opts string-where))
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
+  (field-fusion [this prefix archetype skein opts]
+    (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts]
     (adapter/text-value @config/db-adapter (content (keyword (:slug row)))))
   (render [this content opts]
@@ -356,6 +380,8 @@
     (field-where this prefix opts pure-where))
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
+  (field-fusion [this prefix archetype skein opts]
+    (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
@@ -399,6 +425,8 @@
     (field-where this prefix opts timestamp-where))
   (natural-orderings [this prefix opts])
   (recompose-field [this mass opts])
+  (field-fusion [this prefix archetype skein opts]
+    (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
     (update-in content [(keyword (:slug row))] format-date)))
@@ -416,6 +444,8 @@
 (declare model-where-conditions)
 (declare model-natural-orderings)
 (declare recompose)
+(declare subfusion)
+(declare fusion)
 (def models (ref {}))
 
 (defn pad-break-id [id]
@@ -442,6 +472,14 @@
 (defn asset-where
   [field prefix where]
   ())
+
+(defn join-fusion
+  [this target prefix archetype skein opts]
+  (let [slug (keyword (-> this :row :slug))
+        value (subfusion target slug skein opts)]
+    (if (:id value)
+      (assoc archetype slug value)
+      archetype)))
 
 (defrecord AssetField [row env]
   Field
@@ -480,6 +518,9 @@
     [this mass opts]
     (let [clay (recompose (:asset @models) (:slug row) mass {})]
       (if (:id clay) clay)))
+
+  (field-fusion [this prefix archetype skein opts]
+    (join-fusion this (:asset @models) prefix archetype skein opts))
 
   (field-from [this content opts]
     (let [asset-id (content (keyword (str (:slug row) "_id")))
@@ -558,6 +599,9 @@
     (let [clay (recompose (:location @models) (:slug row) mass {})]
       (if (:id clay) clay)))
 
+  (field-fusion [this prefix archetype skein opts]
+    (join-fusion this (:location @models) prefix archetype skein opts))
+
   (field-from [this content opts]
     (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
 
@@ -601,7 +645,6 @@
   [field content opts]
   (if-let [include (:include opts)]
     (let [slug (keyword (-> field :row :slug))]
-      (println slug)
       (if-let [sub (slug include)]
         (let [target (@models (-> field :row :target_id))
               down {:include sub}]
@@ -615,6 +658,15 @@
                col)))))
         content))
     content))
+
+(defn collection-fusion
+  [this prefix archetype skein opts]
+  (let [slug (keyword (-> this :row :slug))]
+    (with-nesting :include opts slug
+      (fn [down]
+        (let [target (@models (-> this :row :target_id))
+              value (fusion target slug skein down)]
+          (assoc archetype slug value))))))
 
 (defrecord CollectionField [row env]
   Field
@@ -711,6 +763,9 @@
               clay (recompose target (:slug row) mass down)]
           (if (:id clay) [clay] [])))))
 
+  (field-fusion [this prefix archetype skein opts]
+    (collection-fusion this prefix archetype skein opts))
+
   (field-from [this content opts]
     (with-nesting :include opts (:slug row)
       (fn [down]
@@ -720,6 +775,16 @@
 
   (render [this content opts]
     (collection-render this content opts)))
+
+(defn part-fusion
+  [this target prefix archetype skein opts]
+  (let [slug (keyword (-> this :row :slug))]
+    (with-nesting :include opts slug
+      (fn [down]
+        (let [value (subfusion target slug skein down)]
+          (if (:id value)
+            (assoc archetype slug value)
+            archetype))))))
 
 (defrecord PartField [row env]
   Field
@@ -804,6 +869,9 @@
               clay (recompose target (:slug row) mass down)]
           (if (:id clay) clay)))))
 
+  (field-fusion [this prefix archetype skein opts]
+    (part-fusion this (@models (-> this :row :target_id)) prefix archetype skein opts))
+
   (field-from [this content opts]
     (with-nesting :include opts (:slug row)
       (fn [down]
@@ -886,6 +954,9 @@
         (let [target (@models (:model_id row))
               clay (recompose target (:slug row) mass down)]
           (if (:id clay) clay)))))
+
+  (field-fusion [this prefix archetype skein opts]
+    (part-fusion this (@models (-> this :row :model_id)) prefix archetype skein opts))
 
   (field-from [this content opts]
     (with-nesting :include opts (:slug row)
@@ -1124,6 +1195,9 @@
               clay (recompose target (:slug row) mass down)]
           (if (:id clay) [clay] [])))))
 
+  (field-fusion [this prefix archetype skein opts]
+    (collection-fusion this prefix archetype skein opts))
+
   (field-from [this content opts]
     (with-nesting :include opts (:slug row)
       (fn [down]
@@ -1241,15 +1315,34 @@
         order (model-order-statement model opts)]
     (db/query (str query full-condition order))))
 
+(defn subfusion
+  [model prefix skein opts]
+  (let [field-keys (keys (:fields model))
+        fields (vals (:fields model))
+        archetype
+        (reduce
+         (fn [archetype field]
+           (field-fusion field prefix archetype skein opts))
+         {} fields)]
+    archetype))
+
+(defn fusion
+  [model prefix fibers opts]
+  (let [model-key (prefix-key prefix "id")
+        order (map model-key fibers)
+        world (group-by model-key fibers)]
+    (doall (map #(subfusion model prefix % opts) (vals world)))))
+
+(comment begin huge swath of useless code!
+
+(def uberseparator #"\$")
+
 (defn match-prefix
   "Determine whether this bit (key from an uberjoin) is governed by the given prefix."
   [prefix bit]
-  (if-let [pattern (re-find (re-pattern (str "^" (name prefix) "\\$(.*)$")) (name bit))]
-    [bit (keyword (last pattern))]))
-
-(defn blank-join?
-  [void]
-  (or (nil? void) (not (:id void))))
+  (let [[pre slug] (split (name bit) uberseparator)]
+    (if (= pre prefix)
+      [bit (keyword slug)])))
 
 (defn pretach
   "This attaches from the mass to the spark even if
@@ -1337,52 +1430,48 @@
    #(sequential? (mass %))
    (keys mass)))
 
+(defn gradient
+  [being fiber sequentials]
+  (reduce
+   (fn [being seq-key]
+      (let [contribution (first (seq-key fiber))]
+        (update-in being [seq-key] #(conj % contribution))))
+   being sequentials))
+     
 (declare diffuse)
 
-(defn gradient
-  [pool fiber]
-  (loop [waters pool
-         sequentials (seq-keys fiber)]
-    (if (empty? sequentials)
-      waters
-      (let [seq-key (first sequentials)]
-        (recur
-         (update-in waters [(:id fiber) seq-key] #(concat % (seq-key fiber)))
-         (rest sequentials))))))
-
 (defn flow
-  [fiber]
-  (loop [fiber fiber
-         sequentials (seq-keys fiber)]
-    (if (empty? sequentials)
-      fiber
-      (let [seq-key (first sequentials)]
-        (recur
-         (update-in fiber [seq-key] diffuse)
-         (rest sequentials))))))
+  [fiber sequentials]
+  (reduce
+   (fn [fiber seq-key]
+     (update-in fiber [seq-key] #(reverse (diffuse %))))
+   fiber sequentials))
 
 (defn diffuse
   [fibers]
-  (loop [fibers fibers
-         pool {}
-         order []]
-    (if (empty? fibers)
-      (map #(flow (pool %)) (reverse order))
-      (let [fiber (first fibers)
-            preexisting (contains? pool (:id fiber))
-            [pooling ordering]
-            (if preexisting
-              [(gradient pool fiber) order]
-              [(assoc pool (:id fiber) fiber) (cons (:id fiber) order)])]
-        (recur
-         (rest fibers) pooling ordering)))))
+  (let [sequentials (seq-keys (first fibers))]
+    (loop [fibers fibers
+           pool {}
+           order []]
+      (if (empty? fibers)
+        (map #(flow (pool %) sequentials) (reverse order))
+        (let [fiber (first fibers)
+              fiber-id (:id fiber)
+              preexisting (contains? pool fiber-id)
+              [pooling ordering]
+              (if preexisting
+                [(update-in pool [fiber-id] #(gradient % fiber sequentials)) order]
+                [(assoc pool fiber-id fiber) (cons fiber-id order)])]
+          (recur
+           (rest fibers) pooling ordering))))))
+
+end huge swath of useless code!)
 
 (defn gather
   [slug opts]
   (let [model ((keyword slug) @models)
-        resurrected (uberquery model opts)
-        fibers (renew model (:slug model) resurrected opts)]
-    (diffuse fibers)))
+        resurrected (uberquery model opts)]
+    (fusion model (keyword slug) resurrected opts)))
 
 (defn process-include
   [include]
