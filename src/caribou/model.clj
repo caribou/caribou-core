@@ -1329,9 +1329,10 @@
 (defn fusion
   [model prefix fibers opts]
   (let [model-key (prefix-key prefix "id")
-        order (map model-key fibers)
-        world (group-by model-key fibers)]
-    (doall (map #(subfusion model prefix % opts) (vals world)))))
+        order (distinct (map model-key fibers))
+        world (group-by model-key fibers)
+        fused (map-vals #(subfusion model prefix % opts) world)]
+    (map #(fused %) order)))
 
 (comment begin huge swath of useless code!
 
