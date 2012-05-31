@@ -520,7 +520,8 @@
       (if (:id clay) clay)))
 
   (field-fusion [this prefix archetype skein opts]
-    (join-fusion this (:asset @models) prefix archetype skein opts))
+    (let [master (join-fusion this (:asset @models) prefix archetype skein opts)]
+      (assoc master :path (asset-path master))))
 
   (field-from [this content opts]
     (let [asset-id (content (keyword (str (:slug row) "_id")))
