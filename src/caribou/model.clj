@@ -458,7 +458,7 @@
     path))
 
 (defn asset-dir [asset]
-  (pathify ["assets/" (pad-break-id (asset :id))]))
+  (pathify ["assets" (pad-break-id (asset :id))]))
 
 (defn asset-path [asset]
   (if (and asset (asset :filename))
@@ -474,12 +474,32 @@
   ())
 
 (defn join-fusion
-  [this target prefix archetype skein opts]
-  (let [slug (keyword (-> this :row :slug))
-        value (subfusion target slug skein opts)]
-    (if (:id value)
-      (assoc archetype slug value)
-      archetype)))
+  ([this target prefix archetype skein opts]
+     (join-fusion this target prefix archetype skein opts identity))
+  ([this target prefix archetype skein opts process]
+     (let [slug (keyword (-> this :row :slug))
+           value (subfusion target slug skein opts)]
+       (if (:id value)
+         (assoc archetype slug (process value))
+         archetype))))
+
+(defn asset-fusion
+  [this prefix archetype skein opts]
+  (join-fusion
+     this (:asset @models) prefix archetype skein opts
+     (fn [master]
+       (if master
+         (assoc master :path (asset-path master))))))
+
+(defn join-render
+  [this target content opts]
+  (let [slug (keyword (-> this :row :slug))]
+    (if-let [sub (slug content)]
+      (update-in
+       content [slug] 
+       (fn [part]
+         (model-render target part opts)))
+      content)))
 
 (defrecord AssetField [row env]
   Field
@@ -520,8 +540,7 @@
       (if (:id clay) clay)))
 
   (field-fusion [this prefix archetype skein opts]
-    (let [master (join-fusion this (:asset @models) prefix archetype skein opts)]
-      (assoc master :path (asset-path master))))
+    (asset-fusion this prefix archetype skein opts))
 
   (field-from [this content opts]
     (let [asset-id (content (keyword (str (:slug row) "_id")))
@@ -529,8 +548,7 @@
       (assoc asset :path (asset-path asset))))
 
   (render [this content opts]
-    (update-in content [(keyword (:slug row))] 
-               #(model-render (:asset @models) % opts))))
+    (join-render this (:asset @models) content opts)))
 
 (defn full-address [address]
   (join " " [(address :address)
@@ -607,8 +625,7 @@
     (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
 
   (render [this content opts]
-    (update-in content [(keyword (:slug row))] 
-               #(model-render (:location @models) % opts))))
+    (join-render this (:location @models) content opts)))
 
 (defn assoc-field
   [content field opts]
@@ -781,13 +798,28 @@
 
 (defn part-fusion
   [this target prefix archetype skein opts]
-  (let [slug (keyword (-> this :row :slug))]
-    (with-nesting :include opts slug
-      (fn [down]
-        (let [value (subfusion target slug skein down)]
-          (if (:id value)
-            (assoc archetype slug value)
-            archetype))))))
+  (let [slug (keyword (-> this :row :slug))
+        fused
+        (with-nesting :include opts slug
+          (fn [down]
+            (let [value (subfusion target slug skein down)]
+              (if (:id value)
+                (assoc archetype slug value)
+                archetype))))]
+    (or fused archetype)))
+
+(defn part-render
+  [this target content opts]
+  (if-let [include (:include opts)]
+    (let [slug (keyword (-> this :row :slug))
+          down {:include (slug include)}]
+      (if-let [sub (slug content)]
+        (update-in
+         content [slug] 
+         (fn [part]
+           (model-render target part down)))
+        content))
+    content))
 
 (defrecord PartField [row env]
   Field
@@ -883,16 +915,7 @@
             (from (target-for this) collector down))))))
 
   (render [this content opts]
-    (if-let [include (:include opts)]
-      (let [slug (keyword (:slug row))
-            target (@models (:target_id row))
-            down {:include (slug include)}]
-        (update-in
-         content [slug] 
-         (fn [part]
-           (if part
-             (model-render target part down)))))
-      content)))
+    (part-render this (@models (:target_id row)) content opts)))
 
 (defrecord TieField [row env]
   Field
@@ -969,16 +992,7 @@
             (from model (db/choose (:slug model) (content tie-key)) down))))))
 
   (render [this content opts]
-    (if-let [include (:include opts)]
-      (let [slug (keyword (:slug row))
-            target (@models (:model_id row))
-            down {:include (slug include)}]
-        (update-in
-         content [slug] 
-         (fn [tie]
-           (if tie
-             (model-render target tie down)))))
-      content)))
+    (part-render this (@models (:model_id row)) content opts)))
 
 (defn join-table-name
   "construct a join table name out of two link names"
@@ -1550,14 +1564,15 @@ end huge swath of useless code!)
              (LinkField. row {:link link})))
    })
 
-(def base-fields [{:name "Id" :type "id" :locked true :immutable true :editable false}
-                  {:name "Position" :type "integer" :locked true}
-                  {:name "Status" :type "integer" :locked true}
-                  {:name "Locale Id" :type "integer" :locked true :editable false}
-                  {:name "Env Id" :type "integer" :locked true :editable false}
-                  {:name "Locked" :type "boolean" :locked true :immutable true :editable false}
-                  {:name "Created At" :type "timestamp" :locked true :immutable true :editable false}
-                  {:name "Updated At" :type "timestamp" :locked true :editable false}])
+(def base-fields
+  [{:name "Id" :type "id" :locked true :immutable true :editable false}
+   {:name "Position" :type "integer" :locked true}
+   {:name "Status" :type "integer" :locked true}
+   {:name "Locale Id" :type "integer" :locked true :editable false}
+   {:name "Env Id" :type "integer" :locked true :editable false}
+   {:name "Locked" :type "boolean" :locked true :immutable true :editable false}
+   {:name "Created At" :type "timestamp" :locked true :immutable true :editable false}
+   {:name "Updated At" :type "timestamp" :locked true :editable false}])
 
 (defn make-field
   "turn a row from the field table into a full fledged Field record"
