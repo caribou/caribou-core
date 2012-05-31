@@ -687,8 +687,9 @@
         (propagate :include opts slug
           (fn [down]
             (let [target (@models (-> this :row :target_id))
-                  value (fusion target slug skein down)]
-              (assoc archetype slug value))))]
+                  value (fusion target slug skein down)
+                  protected (if (:id (first value)) value [])]
+              (assoc archetype slug protected))))]
     (or nesting archetype)))
 
 (defrecord CollectionField [row env]
@@ -1893,7 +1894,9 @@ end huge swath of useless code!)
   "mapping is between parent_ids and collections which share a parent_id.
   node is the item whose descendent tree is to be reconstructed."
   [mapping node]
-  (assoc node :children (map #(reconstruct mapping %) (mapping (node :id)))))
+  (if (:id node)
+    (assoc node :children
+           (doall (map #(reconstruct mapping %) (mapping (node :id)))))))
 
 (defn arrange-tree
   "given a set of nested items, arrange them into a tree
@@ -1903,7 +1906,12 @@ end huge swath of useless code!)
     items
     (let [by-parent (group-by #(% :parent_id) items)
           roots (by-parent nil)]
-      (doall (map #(reconstruct by-parent %) roots)))))
+      (doall
+       (filter
+        identity
+        (map
+         #(reconstruct by-parent %)
+         roots))))))
 
 (defn load-model-hooks
   []
