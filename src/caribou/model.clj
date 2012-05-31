@@ -148,7 +148,7 @@
         (join-fields field (:slug field) opts)]
     (concat model-fields join-model-fields)))
 
-(defn with-nesting
+(defn propagate
   [sign opts field includer]
   (if-let [outer (sign opts)]
     (if-let [inner (outer (keyword field))]
@@ -528,7 +528,7 @@
 
   (build-where
     [this prefix opts]
-    (with-nesting :where opts (:slug row)
+    (propagate :where opts (:slug row)
       (fn [down]
         (model-where-conditions (:asset @models) (:slug row) down))))
 
@@ -607,7 +607,7 @@
 
   (build-where
     [this prefix opts]
-    (with-nesting :where opts (:slug row)
+    (propagate :where opts (:slug row)
       (fn [down]
         (model-where-conditions (:location @models) (:slug row) down))))
 
@@ -642,7 +642,10 @@
     the name of an association any content associated to this item through
     that association will be inserted under that key."
   [model content opts]
-  (reduce #(assoc-field %1 %2 opts) content (vals (model :fields))))
+  (reduce
+   #(assoc-field %1 %2 opts)
+   content
+   (vals (model :fields))))
 
 (defn present?
   [x]
@@ -651,7 +654,7 @@
 (defn collection-where
   [field prefix opts]  
   (let [slug (-> field :row :slug)]
-    (with-nesting :where opts slug
+    (propagate :where opts slug
       (fn [down]
         (let [target (@models (-> field :row :target_id))
               link (-> field :env :link :slug)
@@ -681,7 +684,7 @@
   [this prefix archetype skein opts]
   (let [slug (keyword (-> this :row :slug))
         nesting 
-        (with-nesting :include opts slug
+        (propagate :include opts slug
           (fn [down]
             (let [target (@models (-> this :row :target_id))
                   value (fusion target slug skein down)]
@@ -693,7 +696,8 @@
   (table-additions [this field] [])
   (subfield-names [this field] [])
 
-  (setup-field [this spec]
+  (setup-field
+    [this spec]
     (if (or (nil? (row :link_id)) (zero? (row :link_id)))
       (let [model (models (row :model_id))
             target (models (row :target_id))
@@ -707,14 +711,18 @@
                     :dependent (row :dependent)})]
         (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (part :id)}))))
 
-  (cleanup-field [this]
+  (cleanup-field
+    [this]
     (try
       (do (destroy :field (-> env :link :id)))
       (catch Exception e (str e))))
 
-  (target-for [this] (models (row :target_id)))
+  (target-for
+    [this]
+    (models (row :target_id)))
 
-  (update-values [this content values]
+  (update-values
+    [this content values]
     (let [removed (keyword (str "removed_" (:slug row)))]
       (if (present? (content removed))
         (let [ex (map #(Integer. %) (split (content removed) #","))
@@ -727,7 +735,8 @@
           values)
         values)))
 
-  (post-update [this content]
+  (post-update
+    [this content]
     (if-let [collection (content (keyword (:slug row)))]
       (let [part (env :link)
             part-key (keyword (str (part :slug) "_id"))
@@ -741,21 +750,24 @@
         (assoc content (keyword (:slug row)) updated))
       content))
 
-  (pre-destroy [this content]
+  (pre-destroy
+    [this content]
     (if (or (row :dependent) (-> env :link :dependent))
       (let [parts (field-from this content {:include {(keyword (:slug row)) {}}})
             target (keyword ((target-for this) :slug))]
         (doall (map #(destroy target (% :id)) parts))))
     content)
 
-  (join-fields [this prefix opts]
-    (with-nesting :include opts (:slug row)
+  (join-fields
+    [this prefix opts]
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
           (model-select-fields target (:slug row) down)))))
 
-  (join-conditions [this prefix opts]
-    (with-nesting :include opts (:slug row)
+  (join-conditions
+    [this prefix opts]
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))
               link (-> this :env :link :slug)
@@ -769,7 +781,8 @@
     [this prefix opts]
     (collection-where this prefix opts))
 
-  (natural-orderings [this prefix opts]
+  (natural-orderings
+    [this prefix opts]
     (let [target (@models (:target_id row))
           link (-> this :env :link :slug)
           downstream (model-natural-orderings target (:slug row) opts)]
@@ -777,30 +790,33 @@
 
   (recompose-field
     [this mass opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))
               clay (recompose target (:slug row) mass down)]
           (if (:id clay) [clay] [])))))
 
-  (field-fusion [this prefix archetype skein opts]
+  (field-fusion
+    [this prefix archetype skein opts]
     (collection-fusion this prefix archetype skein opts))
 
-  (field-from [this content opts]
-    (with-nesting :include opts (:slug row)
+  (field-from
+    [this content opts]
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [link (-> this :env :link :slug)
               parts (db/fetch (-> (target-for this) :slug) (str link "_id = %1 order by %2 asc") (content :id) (str link "_position"))]
           (map #(from (target-for this) % down) parts)))))
 
-  (render [this content opts]
+  (render
+    [this content opts]
     (collection-render this content opts)))
 
 (defn part-fusion
   [this target prefix archetype skein opts]
   (let [slug (keyword (-> this :row :slug))
         fused
-        (with-nesting :include opts slug
+        (propagate :include opts slug
           (fn [down]
             (let [value (subfusion target slug skein down)]
               (if (:id value)
@@ -869,13 +885,13 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
           (model-select-fields target (:slug row) down)))))
 
   (join-conditions [this prefix opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))
               downstream (model-join-conditions target (:slug row) down)
@@ -886,7 +902,7 @@
 
   (build-where
     [this prefix opts]
-    (with-nesting :where opts (:slug row)
+    (propagate :where opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
           (model-where-conditions target (:slug row) down)))))
@@ -898,7 +914,7 @@
 
   (recompose-field
     [this mass opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))
               clay (recompose target (:slug row) mass down)]
@@ -908,7 +924,7 @@
     (part-fusion this (@models (-> this :row :target_id)) prefix archetype skein opts))
 
   (field-from [this content opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (if-let [pointing (content (keyword (str (:slug row) "_id")))]
           (let [collector (db/choose (-> (target-for this) :slug) pointing)]
@@ -946,13 +962,13 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))]
           (model-select-fields target (:slug row) down)))))
 
   (join-conditions [this prefix opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))
               downstream (model-join-conditions target (:slug row) down)
@@ -963,7 +979,7 @@
 
   (build-where
     [this prefix opts]
-    (with-nesting :where opts (:slug row)
+    (propagate :where opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))]
           (model-where-conditions target (:slug row) down)))))
@@ -975,7 +991,7 @@
 
   (recompose-field
     [this mass opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))
               clay (recompose target (:slug row) mass down)]
@@ -985,7 +1001,7 @@
     (part-fusion this (@models (-> this :row :model_id)) prefix archetype skein opts))
 
   (field-from [this content opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (if-let [tie-key (keyword (str (:slug row) "_id"))]
           (let [model (@models (:model_id row))]
@@ -1065,7 +1081,7 @@
 (defn link-join-conditions
   [this prefix opts]
   (let [slug (-> this :row :slug)]
-    (with-nesting :include opts slug
+    (propagate :include opts slug
       (fn [down]
         (let [reciprocal (-> this :env :link)
               from-name slug
@@ -1085,7 +1101,7 @@
   [field prefix opts]  
   (let [slug (-> field :row :slug)
         clause "%1.id in (select %4.%2_id from %3 %4 inner join %5 %6 on (%4.%6_id = %6.id) where %7)"]
-    (with-nesting :where opts slug
+    (propagate :where opts slug
       (fn [down]
         (let [target (@models (-> field :row :target_id))
               link (-> field :env :link :slug)
@@ -1189,7 +1205,7 @@
     content)
 
   (join-fields [this prefix opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
           (model-select-fields target (:slug row) down)))))
@@ -1206,7 +1222,7 @@
 
   (recompose-field
     [this mass opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))
               clay (recompose target (:slug row) mass down)]
@@ -1216,7 +1232,7 @@
     (collection-fusion this prefix archetype skein opts))
 
   (field-from [this content opts]
-    (with-nesting :include opts (:slug row)
+    (propagate :include opts (:slug row)
       (fn [down]
         (let [target (target-for this)]
           (map
@@ -1349,6 +1365,17 @@
         world (group-by model-key fibers)
         fused (map-vals #(subfusion model prefix % opts) world)]
     (map #(fused %) order)))
+
+(defn generate
+  [basis]
+  (loop [basis (seq basis)
+         spawn {}]
+    (if basis
+      (let [[key well] (first basis)]
+        (recur
+         (next basis)
+         (assoc spawn key (well))))
+      spawn)))
 
 (comment begin huge swath of useless code!
 
@@ -1872,9 +1899,11 @@ end huge swath of useless code!)
   "given a set of nested items, arrange them into a tree
   based on id/parent_id relationships."
   [items]
-  (let [by-parent (group-by #(% :parent_id) items)
-        roots (by-parent nil)]
-    (doall (map #(reconstruct by-parent %) roots))))
+  (if (empty? items)
+    items
+    (let [by-parent (group-by #(% :parent_id) items)
+          roots (by-parent nil)]
+      (doall (map #(reconstruct by-parent %) roots)))))
 
 (defn load-model-hooks
   []
