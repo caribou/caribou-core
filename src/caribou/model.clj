@@ -94,7 +94,6 @@
   (build-where [this prefix opts] "creates a where clause suitable to this field from the given where map, with fields prefixed by the given prefix.")
   (natural-orderings [this prefix opts])
   (build-order [this prefix opts])
-  (recompose-field [this mass opts])
   (field-generator [this generators])
   (fuse-field [this prefix archetype skein opts])
 
@@ -205,7 +204,6 @@
   (natural-orderings [this prefix opts])
   (build-order [this prefix opts]
     (pure-order this prefix opts))
-  (recompose-field [this mass opts])
   (field-generator [this generators]
     generators)
   (fuse-field [this prefix archetype skein opts]
@@ -241,7 +239,6 @@
   (natural-orderings [this prefix opts])
   (build-order [this prefix opts]
     (pure-order this prefix opts))
-  (recompose-field [this mass opts])
   (field-generator [this generators]
     (assoc generators (keyword (:slug row)) (fn [] (rand-int 777777777))))
   (fuse-field [this prefix archetype skein opts]
@@ -279,7 +276,6 @@
   (natural-orderings [this prefix opts])
   (build-order [this prefix opts]
     (pure-order this prefix opts))
-  (recompose-field [this mass opts])
   (field-generator [this generators]
     (assoc generators (keyword (:slug row)) (fn [] (rand))))
   (fuse-field [this prefix archetype skein opts]
@@ -323,7 +319,6 @@
   (natural-orderings [this prefix opts])
   (build-order [this prefix opts]
     (pure-order this prefix opts))
-  (recompose-field [this mass opts])
   (field-generator [this generators]
     (assoc generators (keyword (:slug row)) (fn [] (rand-str (inc (rand-int 139))))))
   (fuse-field [this prefix archetype skein opts]
@@ -358,7 +353,6 @@
   (natural-orderings [this prefix opts])
   (build-order [this prefix opts]
     (pure-order this prefix opts))
-  (recompose-field [this mass opts])
   (field-generator [this generators]
     (assoc generators (keyword (:slug row))
            (fn []
@@ -392,7 +386,6 @@
   (natural-orderings [this prefix opts])
   (build-order [this prefix opts]
     (pure-order this prefix opts))
-  (recompose-field [this mass opts])
   (field-generator [this generators]
     (assoc generators (keyword (:slug row)) (fn [] (rand-str (+ 141 (rand-int 5555))))))
   (fuse-field [this prefix archetype skein opts]
@@ -432,7 +425,6 @@
   (natural-orderings [this prefix opts])
   (build-order [this prefix opts]
     (pure-order this prefix opts))
-  (recompose-field [this mass opts])
   (field-generator [this generators]
     (assoc generators (keyword (:slug row)) (fn [] (= 1 (rand-int 2)))))
   (fuse-field [this prefix archetype skein opts]
@@ -481,7 +473,6 @@
   (natural-orderings [this prefix opts])
   (build-order [this prefix opts]
     (pure-order this prefix opts))
-  (recompose-field [this mass opts])
   (field-generator [this generators]
     generators)
   (fuse-field [this prefix archetype skein opts]
@@ -503,7 +494,6 @@
 (declare model-build-order)
 (declare model-where-conditions)
 (declare model-natural-orderings)
-(declare recompose)
 (declare subfusion)
 (declare fusion)
 (def models (ref {}))
@@ -604,11 +594,6 @@
   (build-order [this prefix opts]
     (join-order this (:asset @models) prefix opts))
 
-  (recompose-field
-    [this mass opts]
-    (let [clay (recompose (:asset @models) (:slug row) mass {})]
-      (if (:id clay) clay)))
-
   (field-generator [this generators]
     generators)
 
@@ -688,11 +673,6 @@
 
   (build-order [this prefix opts]
     (join-order this (:location @models) prefix opts))
-
-  (recompose-field
-    [this mass opts]
-    (let [clay (recompose (:location @models) (:slug row) mass {})]
-      (if (:id clay) clay)))
 
   (field-generator [this generators]
     generators)
@@ -871,14 +851,6 @@
   (build-order [this prefix opts]
     (join-order this (@models (row :target_id)) prefix opts))
 
-  (recompose-field
-    [this mass opts]
-    (with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [target (@models (:target_id row))
-              clay (recompose target (:slug row) mass down)]
-          (if (:id clay) [clay] [])))))
-
   (field-generator [this generators]
     generators)
 
@@ -1001,14 +973,6 @@
   (build-order [this prefix opts]
     (join-order this (@models (:target_id row)) prefix opts))
 
-  (recompose-field
-    [this mass opts]
-    (with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [target (@models (:target_id row))
-              clay (recompose target (:slug row) mass down)]
-          (if (:id clay) clay)))))
-
   (fuse-field [this prefix archetype skein opts]
     (part-fusion this (@models (-> this :row :target_id)) prefix archetype skein opts))
 
@@ -1080,14 +1044,6 @@
 
   (build-order [this prefix opts]
     (join-order this (@models (:model_id row)) prefix opts))
-
-  (recompose-field
-    [this mass opts]
-    (with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [target (@models (:model_id row))
-              clay (recompose target (:slug row) mass down)]
-          (if (:id clay) clay)))))
 
   (field-generator [this generators]
     generators)
@@ -1318,14 +1274,6 @@
   (build-order [this prefix opts]
     (join-order this (@models (:target_id row)) prefix opts))
 
-  (recompose-field
-    [this mass opts]
-    (with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [target (@models (:target_id row))
-              clay (recompose target (:slug row) mass down)]
-          (if (:id clay) [clay] [])))))
-
   (field-generator [this generators]
     generators)
 
@@ -1494,145 +1442,15 @@
   (let [generated (generate-model slug n)]
     (doall (map #(create slug %) generated))))
 
-(comment begin huge swath of useless code!
-
-(def uberseparator #"\$")
-
-(defn match-prefix
-  "Determine whether this bit (key from an uberjoin) is governed by the given prefix."
-  [prefix bit]
-  (let [[pre slug] (split (name bit) uberseparator)]
-    (if (= pre prefix)
-      [bit (keyword slug)])))
-
-(defn pretach
-  "This attaches from the mass to the spark even if
-   the value from the mass for the given field is nil."
-  [spark field mass opts]
-  (let [form (recompose-field field mass opts)
-        sign (keyword (-> field :row :slug))]
-    (if (or form (not (contains? spark sign)))
-      (assoc spark (keyword (-> field :row :slug)) form)
-      spark)))
-
-(defn attach
-  "Only attach values from the mass to the spark based on this field
-   if the value for that field is not nil."
-  [spark field mass opts]
-  (if-let [form (recompose-field field mass opts)]
-    (assoc spark (keyword (-> field :row :slug)) form)
-    spark))
-
-(defn recompose
-  "Given a model and a mass of undetermined columns from an uberjoin,
-   reconstitutes the values from other tables living side by side
-   in the mass into a nested map based on the fields and associations
-   present in the model."
-  [model prefix mass opts]
-  (let [patterns
-        (filter
-         identity
-         (map
-          (partial match-prefix prefix)
-          (keys mass)))
-
-        spark
-        (reduce
-         (fn [golem [bit pattern]]
-           (assoc golem pattern (bit mass)))
-         {} patterns)
-
-        axons
-        (reduce
-         (fn [spark field]
-           (attach spark field mass opts))
-         spark (vals (:fields model)))]
-
-    axons))
-
-(defn renew
-  "Recompose the swaths of undifferentiated uberjoin rows into nested maps
-   based on the fields in the given model."
-  [model prefix swaths opts]
-  (map #(recompose model prefix % opts) swaths))
-
-(declare fuse)
-(declare fuse-merge-with)
-
-(defn fuse-merge
-  "Fuse two subentries of an uberjoin."
-  [a b]
-  (cond
-   (not (and a b)) (or a b)
-   (some sequential? [a b]) (fuse (concat a b))
-   (some map? [a b]) (fuse-merge-with a b)
-   :else a))
-
-(defn fuse-merge-with
-  [a b]
-  (merge-with fuse-merge a b))
-
-(defn reduce-fuse-merge
-  [pulse]
-  (reduce fuse-merge-with {} pulse))
-
-(defn fuse
-  "Take many threads from an uberquery and fuse them into maps where each
-   exploded row is collapsed into a single map."
-  [threads]
-  (if threads
-    (let [attraction (group-by #(:id %) threads)
-          light (map reduce-fuse-merge (vals attraction))]
-      light)))
-
-(defn seq-keys
-  [mass]
-  (filter
-   #(sequential? (mass %))
-   (keys mass)))
-
-(defn gradient
-  [being fiber sequentials]
-  (reduce
-   (fn [being seq-key]
-      (let [contribution (first (seq-key fiber))]
-        (update-in being [seq-key] #(conj % contribution))))
-   being sequentials))
-     
-(declare diffuse)
-
-(defn flow
-  [fiber sequentials]
-  (reduce
-   (fn [fiber seq-key]
-     (update-in fiber [seq-key] #(reverse (diffuse %))))
-   fiber sequentials))
-
-(defn diffuse
-  [fibers]
-  (let [sequentials (seq-keys (first fibers))]
-    (loop [fibers fibers
-           pool {}
-           order []]
-      (if (empty? fibers)
-        (map #(flow (pool %) sequentials) (reverse order))
-        (let [fiber (first fibers)
-              fiber-id (:id fiber)
-              preexisting (contains? pool fiber-id)
-              [pooling ordering]
-              (if preexisting
-                [(update-in pool [fiber-id] #(gradient % fiber sequentials)) order]
-                [(assoc pool fiber-id fiber) (cons fiber-id order)])]
-          (recur
-           (rest fibers) pooling ordering))))))
-
-end huge swath of useless code!)
-
 (defn gather
   [slug opts]
   (let [model ((keyword slug) @models)
         resurrected (uberquery model opts)]
     (fusion model (keyword slug) resurrected opts)))
+
+(defn pick
+  [slug opts]
+  (first (gather slug opts)))
 
 (defn translate-directive
   [directive find-path]
