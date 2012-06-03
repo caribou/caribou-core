@@ -78,6 +78,7 @@
   (subfield-names [this field]
     "the names of any additional fields added to the model
     by this field given this name")
+
   (setup-field [this spec] "further processing on creation of field")
   (cleanup-field [this] "further processing on removal of field")
   (target-for [this] "retrieves the model this field points to, if applicable")
@@ -87,12 +88,16 @@
     "any processing that is required after the content is created/updated")
   (pre-destroy [this content]
     "prepare this content item for destruction")
+
   (join-fields [this prefix opts])
   (join-conditions [this prefix opts])
   (build-where [this prefix opts] "creates a where clause suitable to this field from the given where map, with fields prefixed by the given prefix.")
   (natural-orderings [this prefix opts])
+  (build-order [this prefix opts])
   (recompose-field [this mass opts])
-  (field-fusion [this prefix archetype skein opts])
+  (field-generator [this generators])
+  (fuse-field [this prefix archetype skein opts])
+
   (field-from [this content opts]
     "retrieves the value for this field from this content item")
   (render [this content opts] "renders out a single field from this content item"))
@@ -148,7 +153,7 @@
         (join-fields field (:slug field) opts)]
     (concat model-fields join-model-fields)))
 
-(defn propagate
+(defn with-propagation
   [sign opts field includer]
   (if-let [outer (sign opts)]
     (if-let [inner (outer (keyword field))]
@@ -168,6 +173,12 @@
   (let [slug (keyword (-> field :row :slug))]
     (if-let [where (-> opts :where slug)]
       (do-where prefix slug where))))
+
+(defn pure-order
+  [field prefix opts]
+  (let [slug (-> field :row :slug)]
+    (if-let [by (get (:order opts) (keyword slug))]
+      (str (name prefix) "." slug " " (name by)))))
 
 (defn pure-fusion
   [this prefix archetype skein opts]
@@ -192,8 +203,12 @@
     [this prefix opts]
     (field-where this prefix opts pure-where))
   (natural-orderings [this prefix opts])
+  (build-order [this prefix opts]
+    (pure-order this prefix opts))
   (recompose-field [this mass opts])
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    generators)
+  (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
@@ -224,8 +239,12 @@
     [this prefix opts]
     (field-where this prefix opts pure-where))
   (natural-orderings [this prefix opts])
+  (build-order [this prefix opts]
+    (pure-order this prefix opts))
   (recompose-field [this mass opts])
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    (assoc generators (keyword (:slug row)) (fn [] (rand-int 777777777))))
+  (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
@@ -258,13 +277,29 @@
     [this prefix opts]
     (field-where this prefix opts pure-where))
   (natural-orderings [this prefix opts])
+  (build-order [this prefix opts]
+    (pure-order this prefix opts))
   (recompose-field [this mass opts])
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    (assoc generators (keyword (:slug row)) (fn [] (rand))))
+  (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
     (update-in content [(keyword (:slug row))] str)))
   
+(def pool "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
+           =+!@#$%^&*()_-|:;?/}]{[~` 0123456789")
+
+(defn rand-str
+  ([n] (rand-str n pool))
+  ([n pool]
+     (join
+      (map
+       (fn [_]
+         (rand-nth pool))
+       (repeat n nil)))))
+
 (defrecord StringField [row env]
   Field
   (table-additions [this field] [[(keyword field) "varchar(256)"]])
@@ -286,8 +321,12 @@
     [this prefix opts]
     (field-where this prefix opts string-where))
   (natural-orderings [this prefix opts])
+  (build-order [this prefix opts]
+    (pure-order this prefix opts))
   (recompose-field [this mass opts])
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    (assoc generators (keyword (:slug row)) (fn [] (rand-str (inc (rand-int 139))))))
+  (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
@@ -317,8 +356,16 @@
     [this prefix opts]
     (field-where this prefix opts string-where))
   (natural-orderings [this prefix opts])
+  (build-order [this prefix opts]
+    (pure-order this prefix opts))
   (recompose-field [this mass opts])
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    (assoc generators (keyword (:slug row))
+           (fn []
+             (rand-str
+              (inc (rand-int 139))
+              "_abcdefghijklmnopqrstuvwxyz_"))))
+  (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
@@ -343,8 +390,12 @@
     [this prefix opts]
     (field-where this prefix opts string-where))
   (natural-orderings [this prefix opts])
+  (build-order [this prefix opts]
+    (pure-order this prefix opts))
   (recompose-field [this mass opts])
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    (assoc generators (keyword (:slug row)) (fn [] (rand-str (+ 141 (rand-int 5555))))))
+  (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts]
     (adapter/text-value @config/db-adapter (content (keyword (:slug row)))))
@@ -379,8 +430,12 @@
     [this prefix opts]
     (field-where this prefix opts pure-where))
   (natural-orderings [this prefix opts])
+  (build-order [this prefix opts]
+    (pure-order this prefix opts))
   (recompose-field [this mass opts])
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    (assoc generators (keyword (:slug row)) (fn [] (= 1 (rand-int 2)))))
+  (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
@@ -424,8 +479,12 @@
     [this prefix opts]
     (field-where this prefix opts timestamp-where))
   (natural-orderings [this prefix opts])
+  (build-order [this prefix opts]
+    (pure-order this prefix opts))
   (recompose-field [this mass opts])
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    generators)
+  (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
@@ -441,6 +500,7 @@
 (declare model-select-fields)
 (declare model-join-fields)
 (declare model-join-conditions)
+(declare model-build-order)
 (declare model-where-conditions)
 (declare model-natural-orderings)
 (declare recompose)
@@ -472,6 +532,13 @@
 (defn asset-where
   [field prefix where]
   ())
+
+(defn join-order
+  [field target prefix opts]
+  (let [slug (keyword (-> field :row :slug))]
+    (with-propagation :order opts slug
+      (fn [down]
+        (model-build-order target slug down)))))
 
 (defn join-fusion
   ([this target prefix archetype skein opts]
@@ -528,18 +595,24 @@
 
   (build-where
     [this prefix opts]
-    (propagate :where opts (:slug row)
+    (with-propagation :where opts (:slug row)
       (fn [down]
         (model-where-conditions (:asset @models) (:slug row) down))))
 
   (natural-orderings [this prefix opts])
+
+  (build-order [this prefix opts]
+    (join-order this (:asset @models) prefix opts))
 
   (recompose-field
     [this mass opts]
     (let [clay (recompose (:asset @models) (:slug row) mass {})]
       (if (:id clay) clay)))
 
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    generators)
+
+  (fuse-field [this prefix archetype skein opts]
     (asset-fusion this prefix archetype skein opts))
 
   (field-from [this content opts]
@@ -607,18 +680,24 @@
 
   (build-where
     [this prefix opts]
-    (propagate :where opts (:slug row)
+    (with-propagation :where opts (:slug row)
       (fn [down]
         (model-where-conditions (:location @models) (:slug row) down))))
 
   (natural-orderings [this prefix opts])
+
+  (build-order [this prefix opts]
+    (join-order this (:location @models) prefix opts))
 
   (recompose-field
     [this mass opts]
     (let [clay (recompose (:location @models) (:slug row) mass {})]
       (if (:id clay) clay)))
 
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    generators)
+
+  (fuse-field [this prefix archetype skein opts]
     (join-fusion this (:location @models) prefix archetype skein opts))
 
   (field-from [this content opts]
@@ -654,7 +733,7 @@
 (defn collection-where
   [field prefix opts]  
   (let [slug (-> field :row :slug)]
-    (propagate :where opts slug
+    (with-propagation :where opts slug
       (fn [down]
         (let [target (@models (-> field :row :target_id))
               link (-> field :env :link :slug)
@@ -684,7 +763,7 @@
   [this prefix archetype skein opts]
   (let [slug (keyword (-> this :row :slug))
         nesting 
-        (propagate :include opts slug
+        (with-propagation :include opts slug
           (fn [down]
             (let [target (@models (-> this :row :target_id))
                   value (fusion target slug skein down)
@@ -761,14 +840,14 @@
 
   (join-fields
     [this prefix opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
           (model-select-fields target (:slug row) down)))))
 
   (join-conditions
     [this prefix opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))
               link (-> this :env :link :slug)
@@ -789,21 +868,27 @@
           downstream (model-natural-orderings target (:slug row) opts)]
       [(db/clause "%1.%2_position asc" [prefix link]) downstream]))
 
+  (build-order [this prefix opts]
+    (join-order this (@models (row :target_id)) prefix opts))
+
   (recompose-field
     [this mass opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))
               clay (recompose target (:slug row) mass down)]
           (if (:id clay) [clay] [])))))
 
-  (field-fusion
+  (field-generator [this generators]
+    generators)
+
+  (fuse-field
     [this prefix archetype skein opts]
     (collection-fusion this prefix archetype skein opts))
 
   (field-from
     [this content opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [link (-> this :env :link :slug)
               parts (db/fetch (-> (target-for this) :slug) (str link "_id = %1 order by %2 asc") (content :id) (str link "_position"))]
@@ -817,7 +902,7 @@
   [this target prefix archetype skein opts]
   (let [slug (keyword (-> this :row :slug))
         fused
-        (propagate :include opts slug
+        (with-propagation :include opts slug
           (fn [down]
             (let [value (subfusion target slug skein down)]
               (if (:id value)
@@ -886,13 +971,13 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
           (model-select-fields target (:slug row) down)))))
 
   (join-conditions [this prefix opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))
               downstream (model-join-conditions target (:slug row) down)
@@ -903,7 +988,7 @@
 
   (build-where
     [this prefix opts]
-    (propagate :where opts (:slug row)
+    (with-propagation :where opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
           (model-where-conditions target (:slug row) down)))))
@@ -913,19 +998,22 @@
           downstream (model-natural-orderings target (:slug row) opts)]
       downstream))
 
+  (build-order [this prefix opts]
+    (join-order this (@models (:target_id row)) prefix opts))
+
   (recompose-field
     [this mass opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))
               clay (recompose target (:slug row) mass down)]
           (if (:id clay) clay)))))
 
-  (field-fusion [this prefix archetype skein opts]
+  (fuse-field [this prefix archetype skein opts]
     (part-fusion this (@models (-> this :row :target_id)) prefix archetype skein opts))
 
   (field-from [this content opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (if-let [pointing (content (keyword (str (:slug row) "_id")))]
           (let [collector (db/choose (-> (target-for this) :slug) pointing)]
@@ -963,13 +1051,13 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))]
           (model-select-fields target (:slug row) down)))))
 
   (join-conditions [this prefix opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))
               downstream (model-join-conditions target (:slug row) down)
@@ -980,7 +1068,7 @@
 
   (build-where
     [this prefix opts]
-    (propagate :where opts (:slug row)
+    (with-propagation :where opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))]
           (model-where-conditions target (:slug row) down)))))
@@ -990,19 +1078,25 @@
           downstream (model-natural-orderings target (:slug row) opts)]
       downstream))
 
+  (build-order [this prefix opts]
+    (join-order this (@models (:model_id row)) prefix opts))
+
   (recompose-field
     [this mass opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))
               clay (recompose target (:slug row) mass down)]
           (if (:id clay) clay)))))
 
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    generators)
+
+  (fuse-field [this prefix archetype skein opts]
     (part-fusion this (@models (-> this :row :model_id)) prefix archetype skein opts))
 
   (field-from [this content opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (if-let [tie-key (keyword (str (:slug row) "_id"))]
           (let [model (@models (:model_id row))]
@@ -1082,7 +1176,7 @@
 (defn link-join-conditions
   [this prefix opts]
   (let [slug (-> this :row :slug)]
-    (propagate :include opts slug
+    (with-propagation :include opts slug
       (fn [down]
         (let [reciprocal (-> this :env :link)
               from-name slug
@@ -1102,7 +1196,7 @@
   [field prefix opts]  
   (let [slug (-> field :row :slug)
         clause "%1.id in (select %4.%2_id from %3 %4 inner join %5 %6 on (%4.%6_id = %6.id) where %7)"]
-    (propagate :where opts slug
+    (with-propagation :where opts slug
       (fn [down]
         (let [target (@models (-> field :row :target_id))
               link (-> field :env :link :slug)
@@ -1206,7 +1300,7 @@
     content)
 
   (join-fields [this prefix opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
           (model-select-fields target (:slug row) down)))))
@@ -1221,19 +1315,25 @@
   (natural-orderings [this prefix opts]
     (link-natural-orderings this prefix opts))
 
+  (build-order [this prefix opts]
+    (join-order this (@models (:target_id row)) prefix opts))
+
   (recompose-field
     [this mass opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))
               clay (recompose target (:slug row) mass down)]
           (if (:id clay) [clay] [])))))
 
-  (field-fusion [this prefix archetype skein opts]
+  (field-generator [this generators]
+    generators)
+
+  (fuse-field [this prefix archetype skein opts]
     (collection-fusion this prefix archetype skein opts))
 
   (field-from [this content opts]
-    (propagate :include opts (:slug row)
+    (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (target-for this)]
           (map
@@ -1312,20 +1412,21 @@
            {:include (-> opts :include order-key)})))
       (keys (:include opts))))))
 
-(defn build-order
-  [prefix order]
-  (if (re-find #"^[^.]+\.\w+ (de|a)sc$" order)
-    order
-    (str prefix "." order)))
+(defn model-build-order
+  [model prefix opts]
+  (filter
+   identity
+   (map
+    (fn [field]
+      (build-order field prefix opts))
+    (vals (:fields model)))))
 
 (defn model-order-statement
   [model opts]
-  (let [order
-        (map
-         (partial build-order (:slug model))
-         (or (:order opts) ["position asc"]))
+  (let [ordering (if (:order opts) opts (assoc opts :order {:position :asc}))
+        order (model-build-order model (:slug model) ordering)
         natural (model-natural-orderings model (:slug model) opts)
-        statement (join ", " (concat order natural))]
+        statement (join ", " (flatten (concat order natural)))]
     (if (not (empty? statement))
       (db/clause " order by %1" [statement]))))
 
@@ -1355,7 +1456,7 @@
         archetype
         (reduce
          (fn [archetype field]
-           (field-fusion field prefix archetype skein opts))
+           (fuse-field field prefix archetype skein opts))
          {} fields)]
     archetype))
 
@@ -1367,6 +1468,11 @@
         fused (map-vals #(subfusion model prefix % opts) world)]
     (map #(fused %) order)))
 
+(defn model-generator
+  [model]
+  (let [fields (vals (:fields model))]
+    (reduce #(field-generator %2 %1) {} fields)))
+
 (defn generate
   [basis]
   (loop [basis (seq basis)
@@ -1377,6 +1483,16 @@
          (next basis)
          (assoc spawn key (well))))
       spawn)))
+
+(defn generate-model
+  [slug n]
+  (let [g (model-generator (slug @models))]
+    (map (fn [_] (generate g)) (repeat n nil))))
+
+(defn spawn-model
+  [slug n]
+  (let [generated (generate-model slug n)]
+    (doall (map #(create slug %) generated))))
 
 (comment begin huge swath of useless code!
 
@@ -1518,42 +1634,42 @@ end huge swath of useless code!)
         resurrected (uberquery model opts)]
     (fusion model (keyword slug) resurrected opts)))
 
-(defn process-include
-  [include]
-  (if (and include (not (empty? include)))
-    (let [clauses (split include #",")
-          paths (map #(map keyword (split % #"\.")) clauses)
+(defn translate-directive
+  [directive find-path]
+  (if (and directive (not (empty? directive)))
+    (let [clauses (split directive #",")
+          paths (map find-path clauses)
           ubermap
           (reduce
-           (fn [include path]
-             (update-in include path (fn [_] {})))
+           (fn [directive [path condition]]
+             (update-in directive path (fn [_] condition)))
            {} paths)]
       ubermap)
     {}))
-
-(defn where-path
-  [where]
-  (let [[path condition] (split where #":")]
-    [(map keyword (split path #"\.")) condition]))
+  
+(defn process-include
+  [include]
+  (translate-directive
+   include
+   (fn [include]
+     [(map keyword (split include #"\.")) {}])))
 
 (defn process-where
   [where]
-  (if (and where (not (empty? where)))
-    (let [clauses (split where #",")
-          paths (map where-path clauses)
-          ubermap
-          (reduce
-           (fn [where [path condition]]
-             (update-in where path (fn [_] condition)))
-           {} paths)]
-      ubermap)
-    {}))
+  (translate-directive
+   where
+   (fn [where]
+     (let [[path condition] (split where #":")]
+       [(map keyword (split path #"\.")) condition]))))
 
 (defn process-order
   [order]
-  (if (and order (not (empty? order)))
-    (split order #",")
-    []))
+  (translate-directive
+   order
+   (fn [order]
+     (let [[path condition] (split order #" ")]
+       [(map keyword (split path #"\."))
+        (keyword (or condition "asc"))]))))
 
 (defn find-all
   [slug opts]

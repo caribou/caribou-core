@@ -38,7 +38,8 @@
   "make an arbitrary query, substituting in extra args as % parameters"
   [q & args]
   (sql/with-query-results res
-    [(log :db (clause q args))]
+    [(clause q args)]
+    ;; [(log :db (clause q args))]
     (doall res)))
 
 (defn recursive-query [table fields base-where recur-where]
