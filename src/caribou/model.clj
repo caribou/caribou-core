@@ -1452,6 +1452,12 @@
   [slug opts]
   (first (gather slug opts)))
 
+(defn impose
+  [slug opts]
+  (or
+   (pick slug opts)
+   (create slug (:where opts))))
+
 (defn translate-directive
   [directive find-path]
   (if (and directive (not (empty? directive)))
