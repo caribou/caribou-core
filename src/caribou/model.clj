@@ -1239,7 +1239,6 @@
 
   (update-values [this content values]
     (let [removed (content (keyword (str "removed_" (:slug row))))]
-      (debug content)
       (if (present? removed)
         (let [ex (map #(Integer. %) (split removed #","))]
           (doall (map #(remove-link this (content :id) %) ex)))))
@@ -1314,12 +1313,14 @@
    nesting of the include option."
   [model prefix opts]
   (let [fields (:fields model)]
-    (apply
-     concat
-     (map
-      (fn [field]
-        (join-conditions field prefix opts))
-      (vals fields)))))
+    (filter
+     identity
+     (apply
+      concat
+      (map
+       (fn [field]
+         (join-conditions field prefix opts))
+       (vals fields))))))
 
 (defn model-select-query
   "Build the select query for this model by the given prefix based on the
