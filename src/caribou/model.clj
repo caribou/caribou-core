@@ -1351,15 +1351,14 @@
 
 (defn model-natural-orderings
   [model prefix opts]
-  (let [fields (:fields model)]
-    (flatten
-     (map
-      (fn [order-key]
-        (let [field (order-key fields)]
-          (natural-orderings
-           field (-> field :row :slug)
-           {:include (-> opts :include order-key)})))
-      (keys (:include opts))))))
+  (flatten
+   (map
+    (fn [order-key]
+      (if-let [field (-> model :fields order-key)]
+        (natural-orderings
+         field (-> field :row :slug)
+         {:include (-> opts :include order-key)})))
+    (keys (:include opts)))))
 
 (defn model-build-order
   [model prefix opts]
