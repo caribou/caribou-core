@@ -149,7 +149,7 @@
          (fn [slug]
            (str prefix "." (name slug) " as " prefix "$" (name slug))) columns)
         join-model-fields
-        (join-fields field (:slug field) opts)]
+        (join-fields field (str prefix (:slug field)) opts)]
     (concat model-fields join-model-fields)))
 
 (defn with-propagation
@@ -515,20 +515,12 @@
     (pathify [(asset-dir asset) (asset :filename)])
     ""))
 
-(defn build-where-table
-  [table field [index value]]
-  (str (name table) "." (name field) " = "))
-
-(defn asset-where
-  [field prefix where]
-  ())
-
 (defn join-order
   [field target prefix opts]
   (let [slug (keyword (-> field :row :slug))]
     (with-propagation :order opts slug
       (fn [down]
-        (model-build-order target slug down)))))
+        (model-build-order target (str prefix "$" slug) down)))))
 
 (defn join-fusion
   ([this target prefix archetype skein opts]
@@ -577,17 +569,17 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (model-select-fields (:asset @models) (:slug row) opts))
+    (model-select-fields (:asset @models) (str prefix "$" (:slug row)) opts))
 
   (join-conditions [this prefix opts]
-    [(db/clause "left outer join asset %1 on (%2.%1_id = %1.id)"
+    [(db/clause "left outer join asset %2$%1 on (%2.%1_id = %2$%1.id)"
                 [(:slug row) prefix])])
 
   (build-where
     [this prefix opts]
     (with-propagation :where opts (:slug row)
       (fn [down]
-        (model-where-conditions (:asset @models) (:slug row) down))))
+        (model-where-conditions (:asset @models) (str prefix "$" (:slug row)) down))))
 
   (natural-orderings [this prefix opts])
 
@@ -658,16 +650,16 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (model-select-fields (:location @models) (:slug row) opts))
+    (model-select-fields (:location @models) (str prefix "$" (:slug row)) opts))
   (join-conditions [this prefix opts]
-    [(db/clause "left outer join location %1 on (%2.%1_id = %1.id)"
+    [(db/clause "left outer join location %2$%1 on (%2.%1_id = %2$%1.id)"
                 [(:slug row) prefix])])
 
   (build-where
     [this prefix opts]
     (with-propagation :where opts (:slug row)
       (fn [down]
-        (model-where-conditions (:location @models) (:slug row) down))))
+        (model-where-conditions (:location @models) (str prefix "$" (:slug row)) down))))
 
   (natural-orderings [this prefix opts])
 
@@ -717,8 +709,9 @@
       (fn [down]
         (let [target (@models (-> field :row :target_id))
               link (-> field :env :link :slug)
-              subconditions (model-where-conditions target slug down)
-              params [prefix link (:slug target) slug subconditions]]
+              table-alias (str prefix "$" slug)
+              subconditions (model-where-conditions target table-alias down)
+              params [prefix link (:slug target) table-alias subconditions]]
           (db/clause "%1.id in (select %4.%2_id from %3 %4 where %5)" params))))))
 
 (defn collection-render
@@ -823,7 +816,7 @@
     (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
-          (model-select-fields target (:slug row) down)))))
+          (model-select-fields target (str prefix "$" (:slug row)) down)))))
 
   (join-conditions
     [this prefix opts]
@@ -831,8 +824,9 @@
       (fn [down]
         (let [target (@models (:target_id row))
               link (-> this :env :link :slug)
-              downstream (model-join-conditions target (:slug row) down)
-              params [(:slug target) (:slug row) prefix link]]
+              table-alias (str prefix "$" (:slug row))
+              downstream (model-join-conditions target table-alias down)
+              params [(:slug target) table-alias prefix link]]
           (concat
            [(db/clause "left outer join %1 %2 on (%3.id = %2.%4_id)" params)]
            downstream)))))
@@ -946,16 +940,17 @@
     (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
-          (model-select-fields target (:slug row) down)))))
+          (model-select-fields target (str prefix "$" (:slug row)) down)))))
 
   (join-conditions [this prefix opts]
     (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))
-              downstream (model-join-conditions target (:slug row) down)
-              params [(:slug target) (:slug row) prefix]]
+              table-alias (str prefix "$" (:slug row))
+              downstream (model-join-conditions target table-alias down)
+              params [(:slug target) table-alias prefix (:slug row)]]
           (concat
-           [(db/clause "left outer join %1 %2 on (%3.%2_id = %2.id)" params)]
+           [(db/clause "left outer join %1 %2 on (%3.%4_id = %2.id)" params)]
            downstream)))))
 
   (build-where
@@ -963,7 +958,7 @@
     (with-propagation :where opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
-          (model-where-conditions target (:slug row) down)))))
+          (model-where-conditions target (str prefix "$" (:slug row)) down)))))
 
   (natural-orderings [this prefix opts]
     (let [target (@models (:target_id row))
@@ -1018,16 +1013,17 @@
     (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))]
-          (model-select-fields target (:slug row) down)))))
+          (model-select-fields target (str prefix "$" (:slug row)) down)))))
 
   (join-conditions [this prefix opts]
     (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))
-              downstream (model-join-conditions target (:slug row) down)
-              params [(:slug target) (:slug row) prefix]]
+              table-alias (str prefix "$" (:slug row))
+              downstream (model-join-conditions target table-alias down)
+              params [(:slug target) table-alias prefix (:slug row)]]
           (concat
-           [(db/clause "left outer join %1 %2 on (%3.%2_id = %2.id)" params)]
+           [(db/clause "left outer join %1 %2 on (%3.%4_id = %2.id)" params)]
            downstream)))))
 
   (build-where
@@ -1035,12 +1031,13 @@
     (with-propagation :where opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))]
-          (model-where-conditions target (:slug row) down)))))
+          (model-where-conditions target (str prefix "$" (:slug row)) down)))))
 
   (natural-orderings [this prefix opts]
-    (let [target (@models (:model_id row))
-          downstream (model-natural-orderings target (:slug row) opts)]
-      downstream))
+    (with-propagation :where opts (:slug row)
+      (fn [down]
+        (let [target (@models (:model_id row))]
+          (model-natural-orderings target (:slug row) down)))))
 
   (build-order [this prefix opts]
     (join-order this (@models (:model_id row)) prefix opts))
@@ -1138,39 +1135,41 @@
               from-name slug
               to-name (reciprocal :slug)
               join-key (join-table-name from-name to-name)
-              join-alias (str from-name "_join")
+              join-alias (str prefix "$" from-name "_join")
+              table-alias (str prefix "$" slug)
               target (@models (-> this :row :target_id))
               join-params [join-key join-alias to-name prefix]
-              link-params [(:slug target) slug join-alias]
-              downstream (model-join-conditions target slug down)]
+              link-params [(:slug target) table-alias join-alias slug]
+              downstream (model-join-conditions target table-alias down)]
           (concat
            [(db/clause "left outer join %1 %2 on (%2.%3_id = %4.id)" join-params)
-            (db/clause "left outer join %1 %2 on (%2.id = %3.%2_id)" link-params)]
+            (db/clause "left outer join %1 %2 on (%2.id = %3.%4_id)" link-params)]
            downstream))))))
 
 (defn link-where
   [field prefix opts]  
   (let [slug (-> field :row :slug)
-        clause "%1.id in (select %4.%2_id from %3 %4 inner join %5 %6 on (%4.%6_id = %6.id) where %7)"]
+        clause "%1.id in (select %4.%2_id from %3 %4 inner join %5 %8 on (%4.%6_id = %8.id) where %7)"]
     (with-propagation :where opts slug
       (fn [down]
         (let [target (@models (-> field :row :target_id))
               link (-> field :env :link :slug)
-              subconditions (model-where-conditions target slug down)
+              table-alias (str prefix "$" slug)
+              subconditions (model-where-conditions target table-alias down)
               reciprocal (-> field :env :link)
               from-name slug
               to-name (reciprocal :slug)
               join-key (join-table-name from-name to-name)
-              join-alias (str from-name "_join")
+              join-alias (str prefix "$" from-name "_join")
               params [prefix link join-key join-alias
-                      (:slug target) slug subconditions]]
+                      (:slug target) slug subconditions table-alias]]
           (db/clause clause params))))))
 
 (defn link-natural-orderings
   [this prefix opts]
   (let [slug (-> this :row :slug)
         reciprocal (-> this :env :link)
-        join-alias (str slug "_join")
+        join-alias (str prefix "$" slug "_join")
         target (@models (-> this :row :target_id))
         downstream (model-natural-orderings target slug opts)]
     [(db/clause "%1.%2_position asc" [join-alias slug]) downstream]))
@@ -1258,7 +1257,7 @@
     (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
-          (model-select-fields target (:slug row) down)))))
+          (model-select-fields target (str prefix "$" (:slug row)) down)))))
 
   (join-conditions [this prefix opts]
     (link-join-conditions this prefix opts))
@@ -1356,7 +1355,7 @@
     (fn [order-key]
       (if-let [field (-> model :fields order-key)]
         (natural-orderings
-         field (-> field :row :slug)
+         field (str prefix "$" (-> field :row :slug))
          {:include (-> opts :include order-key)})))
     (keys (:include opts)))))
 
