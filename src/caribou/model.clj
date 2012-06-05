@@ -520,14 +520,14 @@
   (let [slug (keyword (-> field :row :slug))]
     (with-propagation :order opts slug
       (fn [down]
-        (model-build-order target (str prefix "$" slug) down)))))
+        (model-build-order target (str prefix "$" (name slug)) down)))))
 
 (defn join-fusion
   ([this target prefix archetype skein opts]
      (join-fusion this target prefix archetype skein opts identity))
   ([this target prefix archetype skein opts process]
      (let [slug (keyword (-> this :row :slug))
-           value (subfusion target slug skein opts)]
+           value (subfusion target (str prefix "$" (name slug)) skein opts)]
        (if (:id value)
          (assoc archetype slug (process value))
          archetype))))
@@ -739,7 +739,7 @@
         (with-propagation :include opts slug
           (fn [down]
             (let [target (@models (-> this :row :target_id))
-                  value (fusion target slug skein down)
+                  value (fusion target (str prefix "$" (name slug)) skein down)
                   protected (if (:id (first value)) value [])]
               (assoc archetype slug protected))))]
     (or nesting archetype)))
@@ -839,8 +839,9 @@
     [this prefix opts]
     (let [target (@models (:target_id row))
           link (-> this :env :link :slug)
-          downstream (model-natural-orderings target (:slug row) opts)]
-      [(db/clause "%1.%2_position asc" [prefix link]) downstream]))
+          table-alias (str prefix "$" (:slug row))
+          downstream (model-natural-orderings target table-alias opts)]
+      [(db/clause "%1.%2_position asc" [table-alias link]) downstream]))
 
   (build-order [this prefix opts]
     (join-order this (@models (row :target_id)) prefix opts))
@@ -870,7 +871,7 @@
         fused
         (with-propagation :include opts slug
           (fn [down]
-            (let [value (subfusion target slug skein down)]
+            (let [value (subfusion target (str prefix "$" slug) skein down)]
               (if (:id value)
                 (assoc archetype slug value)
                 archetype))))]
@@ -962,7 +963,7 @@
 
   (natural-orderings [this prefix opts]
     (let [target (@models (:target_id row))
-          downstream (model-natural-orderings target (:slug row) opts)]
+          downstream (model-natural-orderings target (str prefix "$" (:slug row)) opts)]
       downstream))
 
   (build-order [this prefix opts]
@@ -1037,7 +1038,7 @@
     (with-propagation :where opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))]
-          (model-natural-orderings target (:slug row) down)))))
+          (model-natural-orderings target (str prefix "$" (:slug row)) down)))))
 
   (build-order [this prefix opts]
     (join-order this (@models (:model_id row)) prefix opts))
@@ -1171,7 +1172,7 @@
         reciprocal (-> this :env :link)
         join-alias (str prefix "$" slug "_join")
         target (@models (-> this :row :target_id))
-        downstream (model-natural-orderings target slug opts)]
+        downstream (model-natural-orderings target (str prefix "$" slug) opts)]
     [(db/clause "%1.%2_position asc" [join-alias slug]) downstream]))
 
 (defn link-render
@@ -1318,7 +1319,7 @@
       concat
       (map
        (fn [field]
-         (join-conditions field prefix opts))
+         (join-conditions field (name prefix) opts))
        (vals fields))))))
 
 (defn model-select-query
@@ -1355,7 +1356,7 @@
     (fn [order-key]
       (if-let [field (-> model :fields order-key)]
         (natural-orderings
-         field (str prefix "$" (-> field :row :slug))
+         field prefix
          {:include (-> opts :include order-key)})))
     (keys (:include opts)))))
 
@@ -1445,7 +1446,7 @@
   [slug opts]
   (let [model ((keyword slug) @models)
         resurrected (uberquery model opts)]
-    (fusion model (keyword slug) resurrected opts)))
+    (fusion model (name slug) resurrected opts)))
 
 (defn pick
   [slug opts]
