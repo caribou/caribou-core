@@ -1351,36 +1351,37 @@
 
 (defn model-natural-orderings
   [model prefix opts]
-  (flatten
-   (map
-    (fn [order-key]
-      (if-let [field (-> model :fields order-key)]
-        (natural-orderings
-         field prefix
-         {:include (-> opts :include order-key)})))
-    (keys (:include opts)))))
+  (filter
+   identity
+   (flatten
+    (map
+     (fn [order-key]
+       (if-let [field (-> model :fields order-key)]
+         (natural-orderings
+          field (name prefix)
+          {:include (-> opts :include order-key)})))
+     (keys (:include opts))))))
 
 (defn model-build-order
   [model prefix opts]
   (filter
    identity
-   (map
-    (fn [field]
-      (build-order field prefix opts))
-    (vals (:fields model)))))
+   (flatten
+    (map
+     (fn [field]
+       (build-order field prefix opts))
+     (vals (:fields model))))))
 
 (defn model-order-statement
   [model opts]
   (let [ordering (if (:order opts) opts (assoc opts :order {:position :asc}))
         order (model-build-order model (:slug model) ordering)
         natural (model-natural-orderings model (:slug model) opts)
-        statement (join ", " (flatten (concat order natural)))]
+        statement (join ", " (concat order natural))]
     (if (not (empty? statement))
       (db/clause " order by %1" [statement]))))
 
-(defn uberquery
-  "The query to bind all queries.  Returns every facet of every row given an
-   arbitrary nesting of include relationships (also known as the uberjoin)."
+(defn form-uberquery
   [model opts]
   (let [query (model-select-query model (:slug model) opts)
         where (model-where-conditions model (:slug model) opts)
@@ -1396,7 +1397,13 @@
           (str " where " condition))
 
         order (model-order-statement model opts)]
-    (db/query (str query full-condition order))))
+    (str query full-condition order)))
+
+(defn uberquery
+  "The query to bind all queries.  Returns every facet of every row given an
+   arbitrary nesting of include relationships (also known as the uberjoin)."
+  [model opts]
+  (db/query (form-uberquery model opts)))
 
 (defn subfusion
   [model prefix skein opts]
