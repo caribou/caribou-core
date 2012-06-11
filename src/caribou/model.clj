@@ -871,7 +871,7 @@
         fused
         (with-propagation :include opts slug
           (fn [down]
-            (let [value (subfusion target (str prefix "$" slug) skein down)]
+            (let [value (subfusion target (str prefix "$" (name slug)) skein down)]
               (if (:id value)
                 (assoc archetype slug value)
                 archetype))))]
