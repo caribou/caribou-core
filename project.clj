@@ -1,4 +1,4 @@
-(defproject antler/caribou-core "0.6.2"
+(defproject antler/caribou-core "0.6.3"
   :description "caribou: type structure interaction api"
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [org.clojure/java.jdbc "0.0.6"]
@@ -11,9 +11,9 @@
                  [org.clojure/tools.logging "0.2.3"]]
                  ;; [antler/clojure-solr "0.3.0-SNAPSHOT"]
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
-  :aot [caribou.model]
+  :aot [caribou.model])
   ;; :resource-paths ["resources"]
-  :repositories {"snapshots" {:url "http://battlecat:8080/nexus/content/repositories/snapshots" 
-                              :username "deployment" :password "deployment"}
-                 "releases"  {:url "http://battlecat:8080/nexus/content/repositories/releases" 
-                              :username "deployment" :password "deployment"}})
+  ;; :repositories {"snapshots" {:url "http://battlecat:8080/nexus/content/repositories/snapshots" 
+  ;;                             :username "deployment" :password "deployment"}
+  ;;                "releases"  {:url "http://battlecat:8080/nexus/content/repositories/releases" 
+  ;;                             :username "deployment" :password "deployment"}})

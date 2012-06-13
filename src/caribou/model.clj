@@ -545,7 +545,7 @@
   (let [slug (keyword (-> this :row :slug))]
     (if-let [sub (slug content)]
       (update-in
-       content [slug] 
+       content [slug]
        (fn [part]
          (model-render target part opts)))
       content)))
@@ -1477,7 +1477,7 @@
            {} paths)]
       ubermap)
     {}))
-  
+
 (defn process-include
   [include]
   (translate-directive
