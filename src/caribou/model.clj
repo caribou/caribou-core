@@ -101,13 +101,13 @@
     "retrieves the value for this field from this content item")
   (render [this content opts] "renders out a single field from this content item"))
 
-(defn suffix-prefix
+(defn- suffix-prefix
   [prefix]
   (if (or (nil? prefix) (empty? prefix))
     ""
     (str prefix ".")))
 
-(defn prefix-key
+(defn- prefix-key
   [prefix slug]
   (keyword (str (name prefix) "$" (name slug))))
 
@@ -152,34 +152,34 @@
         (join-fields field (str prefix (:slug field)) opts)]
     (concat model-fields join-model-fields)))
 
-(defn with-propagation
+(defn- with-propagation
   [sign opts field includer]
   (if-let [outer (sign opts)]
     (if-let [inner (outer (keyword field))]
       (let [down (assoc opts sign inner)]
         (includer down)))))
 
-(defn pure-where
+(defn- pure-where
   [prefix field where]
   (db/clause "%1.%2 = %3" [prefix field where]))
 
-(defn string-where
+(defn- string-where
   [prefix field where]
   (db/clause "%1.%2 = '%3'" [prefix field where]))
 
-(defn field-where
+(defn- field-where
   [field prefix opts do-where]
   (let [slug (keyword (-> field :row :slug))]
     (if-let [where (-> opts :where slug)]
       (do-where prefix slug where))))
 
-(defn pure-order
+(defn- pure-order
   [field prefix opts]
   (let [slug (-> field :row :slug)]
     (if-let [by (get (:order opts) (keyword slug))]
       (str (name prefix) "." slug " " (name by)))))
 
-(defn pure-fusion
+(defn- pure-fusion
   [this prefix archetype skein opts]
   (let [slug (keyword (-> this :row :slug))
         bit (prefix-key prefix slug)
@@ -432,11 +432,11 @@
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
-(defn build-extract
+(defn- build-extract
   [prefix field [index value]]
   (db/clause "extract(%1 from %2.%3) = %4" [(name index) prefix (name field) value]))
 
-(defn timestamp-where
+(defn- timestamp-where
   "To find something by a certain timestamp you must provide a map with keys into
    the date or time.  Example:
      (timestamp-where :created_at {:day 15 :month 7 :year 2020})
@@ -498,7 +498,7 @@
 (declare fusion)
 (def models (ref {}))
 
-(defn pad-break-id [id]
+(defn- pad-break-id [id]
   (let [root (str id)
         len (count root)
         pad-len (- 8 len)
@@ -515,14 +515,14 @@
     (pathify [(asset-dir asset) (asset :filename)])
     ""))
 
-(defn join-order
+(defn- join-order
   [field target prefix opts]
   (let [slug (keyword (-> field :row :slug))]
     (with-propagation :order opts slug
       (fn [down]
         (model-build-order target (str prefix "$" (name slug)) down)))))
 
-(defn join-fusion
+(defn- join-fusion
   ([this target prefix archetype skein opts]
      (join-fusion this target prefix archetype skein opts identity))
   ([this target prefix archetype skein opts process]
@@ -532,7 +532,7 @@
          (assoc archetype slug (process value))
          archetype))))
 
-(defn asset-fusion
+(defn- asset-fusion
   [this prefix archetype skein opts]
   (join-fusion
      this (:asset @models) prefix archetype skein opts
@@ -540,7 +540,7 @@
        (if master
          (assoc master :path (asset-path master))))))
 
-(defn join-render
+(defn- join-render
   [this target content opts]
   (let [slug (keyword (-> this :row :slug))]
     (if-let [sub (slug content)]
@@ -600,7 +600,7 @@
   (render [this content opts]
     (join-render this (:asset @models) content opts)))
 
-(defn full-address [address]
+(defn- full-address [address]
   (join " " [(address :address)
              (address :address_two)
              (address :postal_code)
@@ -609,13 +609,7 @@
              (address :country)]))
 
 (defn geocode-address [address]
-  (let [code (geo/geocode (full-address address))]
-    (if (empty? code)
-      {}
-      {:lat (-> (first code) :location :latitude)
-       :lng (-> (first code) :location :longitude)})))
-
-(defn geocode-address [address]
+  ;; (let [code (geo/geocode (full-address address))]
   (let [code (geo/geocode address)]
     (if (empty? code)
       {}
@@ -678,7 +672,7 @@
   (render [this content opts]
     (join-render this (:location @models) content opts)))
 
-(defn assoc-field
+(defn- assoc-field
   [content field opts]
   (assoc
     content
@@ -702,7 +696,7 @@
   [x]
   (and (not (nil? x)) (or (number? x) (not (empty? x)))))
 
-(defn collection-where
+(defn- collection-where
   [field prefix opts]  
   (let [slug (-> field :row :slug)]
     (with-propagation :where opts slug
@@ -714,7 +708,7 @@
               params [prefix link (:slug target) table-alias subconditions]]
           (db/clause "%1.id in (select %4.%2_id from %3 %4 where %5)" params))))))
 
-(defn collection-render
+(defn- collection-render
   [field content opts]
   (if-let [include (:include opts)]
     (let [slug (keyword (-> field :row :slug))]
@@ -732,7 +726,7 @@
         content))
     content))
 
-(defn collection-fusion
+(defn- collection-fusion
   [this prefix archetype skein opts]
   (let [slug (keyword (-> this :row :slug))
         nesting 
@@ -865,7 +859,7 @@
     [this content opts]
     (collection-render this content opts)))
 
-(defn part-fusion
+(defn- part-fusion
   [this target prefix archetype skein opts]
   (let [slug (keyword (-> this :row :slug))
         fused
@@ -877,7 +871,7 @@
                 archetype))))]
     (or fused archetype)))
 
-(defn part-render
+(defn- part-render
   [this target content opts]
   (if-let [include (:include opts)]
     (let [slug (keyword (-> this :row :slug))
@@ -1127,7 +1121,7 @@
     (if preexisting
       (destroy join-key (preexisting :id)))))
 
-(defn link-join-conditions
+(defn- link-join-conditions
   [this prefix opts]
   (let [slug (-> this :row :slug)]
     (with-propagation :include opts slug
@@ -1147,7 +1141,7 @@
             (db/clause "left outer join %1 %2 on (%2.id = %3.%4_id)" link-params)]
            downstream))))))
 
-(defn link-where
+(defn- link-where
   [field prefix opts]  
   (let [slug (-> field :row :slug)
         clause "%1.id in (select %4.%2_id from %3 %4 inner join %5 %8 on (%4.%6_id = %8.id) where %7)"]
@@ -1166,7 +1160,7 @@
                       (:slug target) slug subconditions table-alias]]
           (db/clause clause params))))))
 
-(defn link-natural-orderings
+(defn- link-natural-orderings
   [this prefix opts]
   (let [slug (-> this :row :slug)
         reciprocal (-> this :env :link)
@@ -1175,7 +1169,7 @@
         downstream (model-natural-orderings target (str prefix "$" slug) opts)]
     [(db/clause "%1.%2_position asc" [join-alias slug]) downstream]))
 
-(defn link-render
+(defn- link-render
   [this content opts]
   (if-let [include (:include opts)]
     (let [slug (keyword (-> this :row :slug))]
@@ -1290,10 +1284,6 @@
   (render [this content opts]
     (link-render this content opts)))
 
-(defn build-select
-  [slug opts]
-  (let [model ((keyword slug) @models)]))
-
 (defn model-table-fields
   "All rows in the table governed by this model."
   [model]
@@ -1331,6 +1321,7 @@
     (join " " ["select" selects "from" (:slug model) (name prefix) joins])))
 
 (defn model-limit-offset
+  "Determine the limit and offset component of the uberquery based on the given where condition."
   [model prefix where limit offset]
   (let [condition (if (empty? where)
                     ""
@@ -1339,6 +1330,8 @@
     (db/clause "%1.id in (select %1.id from %2 %1 %3limit %4 offset %5)" params)))
 
 (defn model-where-conditions
+  "Builds the where part of the uberquery given the model, prefix and given map of the
+   where conditions."
   [model prefix opts]
   (let [eyes
         (filter
@@ -1350,6 +1343,8 @@
     (join " and " (flatten eyes))))
 
 (defn model-natural-orderings
+  "Find all orderings between included associations that depend on the association position column
+   of the given model."
   [model prefix opts]
   (filter
    identity
@@ -1363,6 +1358,8 @@
      (keys (:include opts))))))
 
 (defn model-build-order
+  "Builds out the order component of the uberquery given whatever ordering map
+   is found in opts."
   [model prefix opts]
   (filter
    identity
@@ -1373,6 +1370,8 @@
      (vals (:fields model))))))
 
 (defn model-order-statement
+  "Joins the natural orderings and the given orderings from the opts map and constructs
+   the order clause to ultimately be used in the uberquery."
   [model opts]
   (let [ordering (if (:order opts) opts (assoc opts :order {:position :asc}))
         order (model-build-order model (:slug model) ordering)
@@ -1382,6 +1381,7 @@
       (db/clause " order by %1" [statement]))))
 
 (defn form-uberquery
+  "Given the model and map of opts, construct the corresponding uberquery (but don't call it!)"
   [model opts]
   (let [query (model-select-query model (:slug model) opts)
         where (model-where-conditions model (:slug model) opts)
@@ -1405,7 +1405,7 @@
   [model opts]
   (db/query (form-uberquery model opts)))
 
-(defn subfusion
+(defn- subfusion
   [model prefix skein opts]
   (let [fields (vals (:fields model))
         archetype
@@ -1416,6 +1416,8 @@
     archetype))
 
 (defn fusion
+  "Takes the results of the uberquery, which could have a map for each item associated to a given
+   piece of content, and fuses them into a single nested map representing that content."
   [model prefix fibers opts]
   (let [model-key (prefix-key prefix "id")
         order (distinct (map model-key fibers))
@@ -1424,11 +1426,14 @@
     (map #(fused %) order)))
 
 (defn model-generator
+  "Constructs a map of field generator functions for the given model and its fields."
   [model]
   (let [fields (vals (:fields model))]
     (reduce #(field-generator %2 %1) {} fields)))
 
 (defn generate
+  "Given a map of field generator functions, create a new map that has a value in each key
+   given by the field generator for that key."
   [basis]
   (loop [basis (seq basis)
          spawn {}]
@@ -1440,32 +1445,54 @@
       spawn)))
 
 (defn generate-model
+  "Given a slug and a number n, generate that number of instances of the model given by that slug."
   [slug n]
   (let [g (model-generator (slug @models))]
     (map (fn [_] (generate g)) (repeat n nil))))
 
 (defn spawn-model
+  "Given a slug and a number n, actually create the given number of model instances in the db given
+   by the field generators for that model."
   [slug n]
   (let [generated (generate-model slug n)]
     (doall (map #(create slug %) generated))))
 
 (defn gather
+  "The main function to retrieve instances of a model given by the slug.
+   The possible keys in the opts map are:
+     :include - a nested map of associated content to include with the found instances.
+     :where - a nested map of conditions given to constrain the results found, which could include associated content.
+     :order - a nested map of ordering statements which may or may not be across associations.
+     :limit - The number of primary results to return (the number of associated instances given by the :include
+              option are not limited).
+     :offset - how many records into the result set are returned.
+
+   Example:  (gather :model {:include {:fields {:link {}}}
+                             :where {:fields {:slug \"name\"}}
+                             :order {:slug :asc}
+                             :limit 10 :offset 3})
+     --> returns 10 models and all their associated fields (and those fields' links if they exist) who have a
+         field with the slug of 'name', ordered by the model slug and offset by 3."
   [slug opts]
   (let [model ((keyword slug) @models)
         resurrected (uberquery model opts)]
     (fusion model (name slug) resurrected opts)))
 
 (defn pick
+  "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
   [slug opts]
   (first (gather slug opts)))
 
 (defn impose
+  "impose is identical to pick except that if the record with the given :where conditions is not found,
+   it is created according to that :where map."
   [slug opts]
   (or
    (pick slug opts)
    (create slug (:where opts))))
 
 (defn translate-directive
+  "Used to decompose strings into the nested maps required by the uberquery."
   [directive find-path]
   (if (and directive (not (empty? directive)))
     (let [clauses (split directive #",")
@@ -1479,6 +1506,11 @@
     {}))
 
 (defn process-include
+  "The :include option is parsed into a nested map suitable for calling by the uberquery.
+   It translates strings of the form:
+     'association.further_association,other_association'
+   into -->
+     {:association {:further_association {}} :other_association {}}"
   [include]
   (translate-directive
    include
@@ -1486,6 +1518,11 @@
      [(map keyword (split include #"\.")) {}])))
 
 (defn process-where
+  "The :where option is parsed into a nested map suitable for calling by the uberquery.
+   It translates strings of the form:
+     'fields.slug=name'
+   into -->
+     {:fields {:slug \"name\"}"
   [where]
   (translate-directive
    where
@@ -1494,6 +1531,11 @@
        [(map keyword (split path #"\.")) condition]))))
 
 (defn process-order
+  "The :order option is parsed into a nested map suitable for calling by the uberquery.
+   It translates strings of the form:
+     'fields.slug asc,position desc'
+   into -->
+     {:fields {:slug :asc} :position :desc}"
   [order]
   (translate-directive
    order
@@ -1503,6 +1545,8 @@
         (keyword (or condition "asc"))]))))
 
 (defn find-all
+  "This function is the same as gather, but uses strings for all the options that are transformed into
+   the nested maps that gather requires.  See the various process-* functions in this same namespace."
   [slug opts]
   (let [include (process-include (:include opts))
         where (process-where (:where opts))
@@ -1510,6 +1554,7 @@
     (gather slug (merge opts {:include include :where where :order order}))))
 
 (defn find-one
+  "This is the same as find-all, but returns only a single item, not a vector."
   [slug opts]
   (let [oneify (assoc opts :limit 1)]
     (first (find-all slug oneify))))
@@ -1621,7 +1666,7 @@
 
 (def invoke-models)
 
-(defn add-model-hooks []
+(defn- add-model-hooks []
   (add-hook :model :before_create :build_table (fn [env]
     (create-model-table (slugify (-> env :spec :name)))
     env))
@@ -1662,7 +1707,7 @@
     (invoke-models)
     env)))
   
-(defn add-field-hooks []
+(defn- add-field-hooks []
   (add-hook :field :before_save :check_link_slug (fn [env]
     (assoc env :values 
       (if (-> env :spec :link_slug)
@@ -1764,7 +1809,8 @@
          (_final :content)))))
 
 (defn rally
-  "pull a set of content up through the model system with the given options."
+  "Pull a set of content up through the model system with the given options.
+   Avoids the uberquery so is considered deprecated and inferior, left here for historical reasons."
   ([slug] (rally slug {}))
   ([slug opts]
      (let [model (models (keyword slug))
