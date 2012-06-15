@@ -1,0 +1,1044 @@
+<html>
+  <head>
+    <title>caribou.model - Caribou Core API documentation</title>
+    <link href="static/favicon.png" rel="icon" />
+    <link href="static/favicon.png" rel="shortcut icon" />
+    <link media="all" type="text/css" href="static/clojure.css" rel="stylesheet" />
+    <link media="all" type="text/css" href="static/wiki.css" rel="stylesheet" />
+    <link media="all" type="text/css" href="static/internal.css" rel="stylesheet" />
+    <style>.menuWrapper{height: 36px;}</style>
+    <!--[if lte IE 6]>
+    <link rel="stylesheet" href="http://www.wikispaces.com/_/2009051601/s/internal_ie.css" type="text/css" />
+    <![endif]-->
+  </head>
+<!--
+This document was auto-generated from the source by the clojure autodoc system.
+To report errors or ask questions about the overall documentation structure, formatting,
+etc., contact Tom Faulhaber (google mail name: tomfaulhaber).
+For errors in the documentation of a particular namespace, contact the author of that
+namespace.
+-->
+  <body>
+    <div id="AllContentContainer">
+      <div id="Header">
+	<a id="Logo" href="index.html"><img alt="Clojure" height="100" width="100" src="static/clojure-icon.gif" /></a>
+	<h1><a title="page header title" id="page-header" href="index.html">Caribou Core: Documentation</a></h1>
+      </div>
+      <div id="leftcolumn"><div style="text-align: center;"></div>
+<div class="menu">
+  <div class="WikiCustomNav WikiElement wiki">
+    <span class="toc-header"><span id="project-name">Caribou Core</span> <span id="version"></span> API</span><br />
+    <ul>
+      <li><a class="wiki_link" href="index.html">Overview</a></li>
+      <li><a class="wiki_link" href="api-index.html">API Index</a></li>
+    </ul>
+    <div class="NamespaceTOC">
+      <span class="toc-header">Namespaces</span>
+      <ul id="left-sidebar-list">
+        <li><a href="caribou.config-api.html" class="wiki_link">caribou.config</a></li><li><a href="caribou.db-api.html" class="wiki_link">caribou.db</a></li><li><a href="caribou.debug-api.html" class="wiki_link">caribou.debug</a></li><li><a href="caribou.logger-api.html" class="wiki_link">caribou.logger</a></li><li><a href="caribou.model-api.html" class="wiki_link">caribou.model</a></li><li><a href="caribou.util-api.html" class="wiki_link">caribou.util</a></li>
+      </ul>
+    </div>
+    
+    <a href="http://clojure.org" class="wiki_link">Clojure Home</a>
+  </div>
+</div>
+</div>
+      <div id="rightcolumn">
+	<div id="Content">
+	  <div class="contentBox"><div class="innerContentBox">
+              <div id="content_view" class="wiki wikiPage">
+                <div id="right-sidebar"><div id="toc">
+  <h1 class="nopad">Table of Contents</h1>
+  <div style="margin-left: 1em;" class="toc-section">
+    <a href="#toc0">Overview</a>
+    <div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/Field">Field</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/add-hook">add-hook</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/arrange-tree">arrange-tree</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/asset-dir">asset-dir</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/asset-path">asset-path</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/build-where">build-where</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/cleanup-field">cleanup-field</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/create">create</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/create-model-table">create-model-table</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/db">db</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/descendents">descendents</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/destroy">destroy</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/field-from">field-from</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/find-all">find-all</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/find-one">find-one</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/form-uberquery">form-uberquery</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/format-date">format-date</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/from">from</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/fusion">fusion</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/gather">gather</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/generate">generate</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/generate-model">generate-model</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/impose">impose</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/invoke-model">invoke-model</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/invoke-models">invoke-models</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/join-table-name">join-table-name</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/link">link</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/link-join-name">link-join-name</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/link-keys">link-keys</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/make-field">make-field</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/make-lifecycle-hooks">make-lifecycle-hooks</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/model-build-order">model-build-order</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/model-generator">model-generator</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/model-join-conditions">model-join-conditions</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/model-limit-offset">model-limit-offset</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/model-natural-orderings">model-natural-orderings</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/model-order-statement">model-order-statement</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/model-render">model-render</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/model-select-fields">model-select-fields</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/model-select-query">model-select-query</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/model-table-fields">model-table-fields</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/model-where-conditions">model-where-conditions</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/pick">pick</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/post-update">post-update</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/pre-destroy">pre-destroy</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/process-include">process-include</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/process-order">process-order</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/process-where">process-where</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/progenitors">progenitors</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/rally">rally</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/read-date">read-date</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/reconstruct">reconstruct</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/render">render</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/retrieve-links">retrieve-links</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/run-hook">run-hook</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/select-fields">select-fields</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/setup-field">setup-field</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/spawn-model">spawn-model</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/subfield-names">subfield-names</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/table-additions">table-additions</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/table-columns">table-columns</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/table-fields">table-fields</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/target-for">target-for</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/translate-directive">translate-directive</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/uberquery">uberquery</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/update">update</a>
+    </div><div style="margin-left: 1em;" class="toc-entry">
+      <a href="#caribou.model/update-values">update-values</a>
+    </div>
+    <br />
+  </div>
+</div>
+</div>
+                <div id="content-tag"><h1 id="overview">API for <span id="namespace-name">caribou.model</span>
+  - <span id="header-project">Caribou Core</span> <span id="header-version"></span>
+  </h1>
+
+<br />Full namespace name: <span id="long-name">caribou.model</span>
+<p></p>
+<h2>Overview</h2>
+<pre id="namespace-docstr"></pre>
+
+
+<br />
+<h2>Public Variables and Functions</h2>
+<div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/Field">Field</h2>
+  <span id="var-type">var</span><br />
+  <pre id="var-usage"></pre>
+  <pre id="var-docstr">a protocol for expected behavior of all model fields</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/add-hook">add-hook</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (add-hook slug timings id func)
+</pre>
+  <pre id="var-docstr">add a hook for the given model slug for the given timing.
+each hook must have a unique id, or it overwrites the previous hook at that id.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/arrange-tree">arrange-tree</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (arrange-tree items)
+</pre>
+  <pre id="var-docstr">given a set of nested items, arrange them into a tree
+based on id/parent_id relationships.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/asset-dir">asset-dir</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (asset-dir asset)
+</pre>
+  <pre id="var-docstr">Construct the dir this asset will live in.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/asset-path">asset-path</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (asset-path asset)
+</pre>
+  <pre id="var-docstr">Construct the path this asset will live in.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/build-where">build-where</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (build-where this prefix opts)
+</pre>
+  <pre id="var-docstr">creates a where clause suitable to this field from the given where map, with fields prefixed by the given prefix.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/cleanup-field">cleanup-field</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (cleanup-field this)
+</pre>
+  <pre id="var-docstr">further processing on removal of field</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/create">create</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (create slug spec)
+       (create slug spec opts)
+</pre>
+  <pre id="var-docstr">slug represents the model to be updated.
+the spec contains all information about how to update this row,
+including nested specs which update across associations.
+the only difference between a create and an update is if an id is supplied,
+hence this will automatically forward to update if it finds an id in the spec.
+this means you can use this create method to create or update something,
+using the presence or absence of an id to signal which operation gets triggered.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/create-model-table">create-model-table</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (create-model-table name)
+</pre>
+  <pre id="var-docstr">create an table with the given name.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/db">db</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (db f)
+</pre>
+  <pre id="var-docstr">Calls f in the connect of the current configured database connection.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/descendents">descendents</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (descendents slug id)
+       (descendents slug id opts)
+</pre>
+  <pre id="var-docstr">pull up all the descendents of the item given by id
+in the nested model given by slug.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/destroy">destroy</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (destroy slug id)
+</pre>
+  <pre id="var-docstr">destroy the item of the given model with the given id.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/field-from">field-from</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (field-from this content opts)
+</pre>
+  <pre id="var-docstr">retrieves the value for this field from this content item</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/find-all">find-all</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (find-all slug opts)
+</pre>
+  <pre id="var-docstr">This function is the same as gather, but uses strings for all the options that are transformed into
+the nested maps that gather requires.  See the various process-* functions in this same namespace.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/find-one">find-one</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (find-one slug opts)
+</pre>
+  <pre id="var-docstr">This is the same as find-all, but returns only a single item, not a vector.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/form-uberquery">form-uberquery</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (form-uberquery model opts)
+</pre>
+  <pre id="var-docstr">Given the model and map of opts, construct the corresponding uberquery (but don't call it!)</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/format-date">format-date</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (format-date date)
+</pre>
+  <pre id="var-docstr">given a date object, return a string representing the canonical format for that date</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/from">from</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (from model content opts)
+</pre>
+  <pre id="var-docstr">takes a model and a raw db row and converts it into a full
+content representation as specified by the supplied opts.
+some opts that are supported:
+  include - a nested hash of association includes.  if a key matches
+  the name of an association any content associated to this item through
+  that association will be inserted under that key.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/fusion">fusion</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (fusion model prefix fibers opts)
+</pre>
+  <pre id="var-docstr">Takes the results of the uberquery, which could have a map for each item associated to a given
+piece of content, and fuses them into a single nested map representing that content.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/gather">gather</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (gather slug opts)
+</pre>
+  <pre id="var-docstr">The main function to retrieve instances of a model given by the slug.
+The possible keys in the opts map are:
+  :include - a nested map of associated content to include with the found instances.
+  :where - a nested map of conditions given to constrain the results found, which could include associated content.
+  :order - a nested map of ordering statements which may or may not be across associations.
+  :limit - The number of primary results to return (the number of associated instances given by the :include
+           option are not limited).
+  :offset - how many records into the result set are returned.
+
+Example:  (gather :model {:include {:fields {:link {}}}
+                          :where {:fields {:slug "name"}}
+                          :order {:slug :asc}
+                          :limit 10 :offset 3})
+  --&gt; returns 10 models and all their associated fields (and those fields' links if they exist) who have a
+      field with the slug of 'name', ordered by the model slug and offset by 3.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/generate">generate</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (generate basis)
+</pre>
+  <pre id="var-docstr">Given a map of field generator functions, create a new map that has a value in each key
+given by the field generator for that key.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/generate-model">generate-model</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (generate-model slug n)
+</pre>
+  <pre id="var-docstr">Given a slug and a number n, generate that number of instances of the model given by that slug.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/impose">impose</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (impose slug opts)
+</pre>
+  <pre id="var-docstr">impose is identical to pick except that if the record with the given :where conditions is not found,
+it is created according to that :where map.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/invoke-model">invoke-model</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (invoke-model model)
+</pre>
+  <pre id="var-docstr">translates a row from the model table into a nested hash with references
+to its fields in a hash with keys being the field slugs
+and vals being the field invoked as a Field protocol record.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/invoke-models">invoke-models</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (invoke-models)
+</pre>
+  <pre id="var-docstr">call to populate the application model cache in model/models.
+(otherwise we hit the db all the time with model and field selects)
+this also means if a model or field is changed in any way that model will
+have to be reinvoked to reflect the current state.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/join-table-name">join-table-name</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (join-table-name a b)
+</pre>
+  <pre id="var-docstr">construct a join table name out of two link names</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/link">link</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (link field a b)
+</pre>
+  <pre id="var-docstr">Link two rows by the given LinkField.  This function accepts its arguments
+in order, so that 'a' is a row from the model containing the given field.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/link-join-name">link-join-name</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (link-join-name field)
+</pre>
+  <pre id="var-docstr">Given a link field, return the join table name used by that link.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/link-keys">link-keys</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (link-keys field)
+</pre>
+  <pre id="var-docstr">Find all related keys given by this link field.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/make-field">make-field</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (make-field row)
+</pre>
+  <pre id="var-docstr">turn a row from the field table into a full fledged Field record</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/make-lifecycle-hooks">make-lifecycle-hooks</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (make-lifecycle-hooks slug)
+</pre>
+  <pre id="var-docstr">establish the set of functions which are called throughout the lifecycle
+of all rows for a given model (slug).  the possible hook points are:
+  :before_create     -- called for create only, before the record is made
+  :after_create      -- called for create only, now the record has an id
+  :before_update     -- called for update only, before any changes are made
+  :after_update      -- called for update only, now the changes have been committed
+  :before_save       -- called for create and update
+  :after_save        -- called for create and update
+  :before_destroy    -- only called on destruction, record has not yet been removed
+  :after_destroy     -- only called on destruction, now the db has no record of it</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/model-build-order">model-build-order</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (model-build-order model prefix opts)
+</pre>
+  <pre id="var-docstr">Builds out the order component of the uberquery given whatever ordering map
+is found in opts.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/model-generator">model-generator</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (model-generator model)
+</pre>
+  <pre id="var-docstr">Constructs a map of field generator functions for the given model and its fields.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/model-join-conditions">model-join-conditions</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (model-join-conditions model prefix opts)
+</pre>
+  <pre id="var-docstr">Find all necessary table joins for this query based on the arbitrary
+nesting of the include option.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/model-limit-offset">model-limit-offset</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (model-limit-offset model prefix where limit offset)
+</pre>
+  <pre id="var-docstr">Determine the limit and offset component of the uberquery based on the given where condition.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/model-natural-orderings">model-natural-orderings</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (model-natural-orderings model prefix opts)
+</pre>
+  <pre id="var-docstr">Find all orderings between included associations that depend on the association position column
+of the given model.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/model-order-statement">model-order-statement</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (model-order-statement model opts)
+</pre>
+  <pre id="var-docstr">Joins the natural orderings and the given orderings from the opts map and constructs
+the order clause to ultimately be used in the uberquery.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/model-render">model-render</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (model-render model content opts)
+</pre>
+  <pre id="var-docstr">render a piece of content according to the fields contained in the model
+and given by the supplied opts</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/model-select-fields">model-select-fields</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (model-select-fields model prefix opts)
+</pre>
+  <pre id="var-docstr">Build a set of select fields based on the given model.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/model-select-query">model-select-query</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (model-select-query model prefix opts)
+</pre>
+  <pre id="var-docstr">Build the select query for this model by the given prefix based on the
+particular nesting of the include map.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/model-table-fields">model-table-fields</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (model-table-fields model)
+</pre>
+  <pre id="var-docstr">All rows in the table governed by this model.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/model-where-conditions">model-where-conditions</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (model-where-conditions model prefix opts)
+</pre>
+  <pre id="var-docstr">Builds the where part of the uberquery given the model, prefix and given map of the
+where conditions.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/pick">pick</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (pick slug opts)
+</pre>
+  <pre id="var-docstr">pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/post-update">post-update</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (post-update this content)
+</pre>
+  <pre id="var-docstr">any processing that is required after the content is created/updated</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/pre-destroy">pre-destroy</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (pre-destroy this content)
+</pre>
+  <pre id="var-docstr">prepare this content item for destruction</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/process-include">process-include</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (process-include include)
+</pre>
+  <pre id="var-docstr">The :include option is parsed into a nested map suitable for calling by the uberquery.
+It translates strings of the form:
+  'association.further_association,other_association'
+into --&gt;
+  {:association {:further_association {}} :other_association {}}</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/process-order">process-order</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (process-order order)
+</pre>
+  <pre id="var-docstr">The :order option is parsed into a nested map suitable for calling by the uberquery.
+It translates strings of the form:
+  'fields.slug asc,position desc'
+into --&gt;
+  {:fields {:slug :asc} :position :desc}</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/process-where">process-where</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (process-where where)
+</pre>
+  <pre id="var-docstr">The :where option is parsed into a nested map suitable for calling by the uberquery.
+It translates strings of the form:
+  'fields.slug=name'
+into --&gt;
+  {:fields {:slug "name"}</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/progenitors">progenitors</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (progenitors slug id)
+       (progenitors slug id opts)
+</pre>
+  <pre id="var-docstr">if the model given by slug is nested,
+return a list of the item given by this id along with all of its ancestors.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/rally">rally</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (rally slug)
+       (rally slug opts)
+</pre>
+  <pre id="var-docstr">Pull a set of content up through the model system with the given options.
+Avoids the uberquery so is considered deprecated and inferior, left here for historical reasons.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/read-date">read-date</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (read-date date-string)
+</pre>
+  <pre id="var-docstr">Given a date string try every imaginable thing to parse it into something
+resembling a date.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/reconstruct">reconstruct</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (reconstruct mapping node)
+</pre>
+  <pre id="var-docstr">mapping is between parent_ids and collections which share a parent_id.
+node is the item whose descendent tree is to be reconstructed.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/render">render</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (render this content opts)
+</pre>
+  <pre id="var-docstr">renders out a single field from this content item</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/retrieve-links">retrieve-links</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (retrieve-links field content)
+</pre>
+  <pre id="var-docstr">Given a link field and a row, find all target rows linked to the given row
+by this field.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/run-hook">run-hook</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (run-hook slug timing env)
+</pre>
+  <pre id="var-docstr">run the hooks for the given model slug given by timing.
+env contains any necessary additional information for the running of the hook</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/select-fields">select-fields</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (select-fields field prefix opts)
+</pre>
+  <pre id="var-docstr">Find all necessary columns for the select query based on the given include nesting
+and fashion them into sql form.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/setup-field">setup-field</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (setup-field this spec)
+</pre>
+  <pre id="var-docstr">further processing on creation of field</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/spawn-model">spawn-model</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (spawn-model slug n)
+</pre>
+  <pre id="var-docstr">Given a slug and a number n, actually create the given number of model instances in the db given
+by the field generators for that model.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/subfield-names">subfield-names</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (subfield-names this field)
+</pre>
+  <pre id="var-docstr">the names of any additional fields added to the model
+by this field given this name</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/table-additions">table-additions</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (table-additions this field)
+</pre>
+  <pre id="var-docstr">the set of additions to this db table based on the given name</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/table-columns">table-columns</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (table-columns slug)
+</pre>
+  <pre id="var-docstr">Return a list of all columns for the table corresponding to this model.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/table-fields">table-fields</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (table-fields field)
+</pre>
+  <pre id="var-docstr">This is part of the Field protocol that is the same for all fields.
+Returns the set of fields that could play a role in the select. </pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/target-for">target-for</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (target-for this)
+</pre>
+  <pre id="var-docstr">retrieves the model this field points to, if applicable</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/translate-directive">translate-directive</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (translate-directive directive find-path)
+</pre>
+  <pre id="var-docstr">Used to decompose strings into the nested maps required by the uberquery.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/uberquery">uberquery</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (uberquery model opts)
+</pre>
+  <pre id="var-docstr">The query to bind all queries.  Returns every facet of every row given an
+arbitrary nesting of include relationships (also known as the uberjoin).</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/update">update</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (update slug id spec)
+       (update slug id spec opts)
+</pre>
+  <pre id="var-docstr">slug represents the model to be updated.
+id is the specific row to update.
+the spec contains all information about how to update this row,
+including nested specs which update across associations.</pre>
+  
+  
+  
+</div><div id="var-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model/update-values">update-values</h2>
+  <span id="var-type">function</span><br />
+  <pre id="var-usage">Usage: (update-values this content values)
+</pre>
+  <pre id="var-docstr">adds to the map of values that will be committed to the db for this row</pre>
+  
+  
+  
+</div>
+
+
+</div>
+              </div>
+            </div>
+          </div>
+	</div>
+	<div id="foot">
+	  <div style="text-align: center;" id="copyright">No copyright info </div>
+	</div>
+      </div>
+      <div id="DesignedBy">Logo &amp; site design by <a title="Visit Tom Hickey's website." href="http://www.tomhickey.com">Tom Hickey</a>.<br />
+      Clojure auto-documentation system by Tom Faulhaber.</div>
+    </div>
+    <!-- /AllContentContainer -->
+  </body>
+
+</html>

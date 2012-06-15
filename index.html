@@ -1,0 +1,210 @@
+<html>
+  <head>
+    <title>Overview - Caribou Core API documentation</title>
+    <link href="static/favicon.png" rel="icon" />
+    <link href="static/favicon.png" rel="shortcut icon" />
+    <link media="all" type="text/css" href="static/clojure.css" rel="stylesheet" />
+    <link media="all" type="text/css" href="static/wiki.css" rel="stylesheet" />
+    <link media="all" type="text/css" href="static/internal.css" rel="stylesheet" />
+    <style>.menuWrapper{height: 36px;}</style>
+    <!--[if lte IE 6]>
+    <link rel="stylesheet" href="http://www.wikispaces.com/_/2009051601/s/internal_ie.css" type="text/css" />
+    <![endif]-->
+  </head>
+<!--
+This document was auto-generated from the source by the clojure autodoc system.
+To report errors or ask questions about the overall documentation structure, formatting,
+etc., contact Tom Faulhaber (google mail name: tomfaulhaber).
+For errors in the documentation of a particular namespace, contact the author of that
+namespace.
+-->
+  <body>
+    <div id="AllContentContainer">
+      <div id="Header">
+	<a id="Logo" href="index.html"><img alt="Clojure" height="100" width="100" src="static/clojure-icon.gif" /></a>
+	<h1><a title="page header title" id="page-header" href="index.html">Caribou Core: Documentation</a></h1>
+      </div>
+      <div id="leftcolumn"><div style="text-align: center;"></div>
+<div class="menu">
+  <div class="WikiCustomNav WikiElement wiki">
+    <span class="toc-header"><span id="project-name">Caribou Core</span> <span id="version"></span> API</span><br />
+    <ul>
+      <li><a class="wiki_link" href="index.html">Overview</a></li>
+      <li><a class="wiki_link" href="api-index.html">API Index</a></li>
+    </ul>
+    <div class="NamespaceTOC">
+      <span class="toc-header">Namespaces</span>
+      <ul id="left-sidebar-list">
+        <li><a href="caribou.config-api.html" class="wiki_link">caribou.config</a></li><li><a href="caribou.db-api.html" class="wiki_link">caribou.db</a></li><li><a href="caribou.debug-api.html" class="wiki_link">caribou.debug</a></li><li><a href="caribou.logger-api.html" class="wiki_link">caribou.logger</a></li><li><a href="caribou.model-api.html" class="wiki_link">caribou.model</a></li><li><a href="caribou.util-api.html" class="wiki_link">caribou.util</a></li>
+      </ul>
+    </div>
+    
+    <a href="http://clojure.org" class="wiki_link">Clojure Home</a>
+  </div>
+</div>
+</div>
+      <div id="rightcolumn">
+	<div id="Content">
+	  <div class="contentBox"><div class="innerContentBox">
+              <div id="content_view" class="wiki wikiPage">
+                <div id="right-sidebar"><div id="toc">
+  <h1 class="nopad">Table of Contents</h1>
+  <div style="margin-left: 1em;" class="toc-section">
+    <a href="#caribou.config">caribou.config</a>
+    
+    <br />
+  </div><div style="margin-left: 1em;" class="toc-section">
+    <a href="#caribou.db">caribou.db</a>
+    
+    <br />
+  </div><div style="margin-left: 1em;" class="toc-section">
+    <a href="#caribou.debug">caribou.debug</a>
+    
+    <br />
+  </div><div style="margin-left: 1em;" class="toc-section">
+    <a href="#caribou.logger">caribou.logger</a>
+    
+    <br />
+  </div><div style="margin-left: 1em;" class="toc-section">
+    <a href="#caribou.model">caribou.model</a>
+    
+    <br />
+  </div><div style="margin-left: 1em;" class="toc-section">
+    <a href="#caribou.util">caribou.util</a>
+    
+    <br />
+  </div>
+</div>
+</div>
+                <div id="content-tag"><h1 id="toc0">API Overview - <span id="header-project">Caribou Core</span> <span id="header-version"></span></h1>
+<br />
+<div id="project-description"><p>This library represents the core model and configuration for Caribou.
+           Used alone, it is a powerful way to capture your data model *as data*,
+           effectively shaping it as your application develops.  Once the data
+           model is rendered in this malleable form, Caribou can harness that
+           specification to do a variety of things, including constructing
+           queries based on the relationships *between* models you define.
+           This means it is possible to order or filter results based on
+           conditions that exist in associated models!</p>
+
+           <p>Also, this provides the basis for the other Caribou libraries,
+           <a href="http://antler.github.com/caribou-frontend">Caribou Frontend</a>
+           <a href="http://antler.github.com/caribou-api">Caribou API</a> and 
+           <a href="http://antler.github.com/caribou-admin">Caribou Admin</a>,
+           each of which build in their own way upon this data model as a basis.</p></div>
+<br />
+<div id="namespace-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.config">caribou.config</h2>
+  
+  <a href="caribou.config-api.html" id="api-link">Detailed API documentation</a><br />
+  <pre id="namespace-docstr"></pre>
+  
+  
+  
+  Public variables and functions:
+  <span id="var-link"><a href="caribou.config-api.html#caribou.config/set-db-config" id="var-tag">set-db-config</a> </span><br />
+  
+</div><div id="namespace-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.db">caribou.db</h2>
+  
+  <a href="caribou.db-api.html" id="api-link">Detailed API documentation</a><br />
+  <pre id="namespace-docstr"></pre>
+  
+  
+  
+  Public variables and functions:
+  <span id="var-link"><a href="caribou.db-api.html#caribou.db/add-column" id="var-tag">add-column</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/change-db-keep-host" id="var-tag">change-db-keep-host</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/choose" id="var-tag">choose</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/clause" id="var-tag">clause</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/create-database" id="var-tag">create-database</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/create-table" id="var-tag">create-table</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/delete" id="var-tag">delete</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/do-sql" id="var-tag">do-sql</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/drop-column" id="var-tag">drop-column</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/drop-database" id="var-tag">drop-database</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/drop-table" id="var-tag">drop-table</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/fetch" id="var-tag">fetch</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/insert" id="var-tag">insert</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/query" id="var-tag">query</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/rebuild-database" id="var-tag">rebuild-database</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/rename-column" id="var-tag">rename-column</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/rename-table" id="var-tag">rename-table</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/set-default" id="var-tag">set-default</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/sqlize" id="var-tag">sqlize</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/table?" id="var-tag">table?</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/tally" id="var-tag">tally</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/update" id="var-tag">update</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/value-map" id="var-tag">value-map</a> </span><span id="var-link"><a href="caribou.db-api.html#caribou.db/zap" id="var-tag">zap</a> </span><br />
+  <span id="subspace"><br />Variables and functions in
+    <span id="name">caribou.db.adapter</span>:
+    <span id="sub-var-link">
+      <a href="caribou.db-api.html#caribou.db.adapter/adapter-for">adapter-for</a>
+    </span>
+    <br />
+  </span><span id="subspace"><br />Variables and functions in
+    <span id="name">caribou.db.adapter.h2</span>:
+    <span id="sub-var-link">
+      <a href="caribou.db-api.html#caribou.db.adapter.h2/h2-table?">h2-table?</a>
+    </span><span id="sub-var-link">
+      <a href="caribou.db-api.html#caribou.db.adapter.h2/h2-tables">h2-tables</a>
+    </span>
+    <br />
+  </span><span id="subspace"><br />Variables and functions in
+    <span id="name">caribou.db.adapter.postgres</span>:
+    <span id="sub-var-link">
+      <a href="caribou.db-api.html#caribou.db.adapter.postgres/postgres-table?">postgres-table?</a>
+    </span>
+    <br />
+  </span>
+</div><div id="namespace-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.debug">caribou.debug</h2>
+  
+  <a href="caribou.debug-api.html" id="api-link">Detailed API documentation</a><br />
+  <pre id="namespace-docstr"></pre>
+  
+  
+  
+  Public variables and functions:
+  <span id="var-link"><a href="caribou.debug-api.html#caribou.debug/debug" id="var-tag">debug</a> </span><span id="var-link"><a href="caribou.debug-api.html#caribou.debug/eval-with-locals" id="var-tag">eval-with-locals</a> </span><span id="var-link"><a href="caribou.debug-api.html#caribou.debug/local-bindings" id="var-tag">local-bindings</a> </span><span id="var-link"><a href="caribou.debug-api.html#caribou.debug/log" id="var-tag">log</a> </span><span id="var-link"><a href="caribou.debug-api.html#caribou.debug/repl" id="var-tag">repl</a> </span><br />
+  
+</div><div id="namespace-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.logger">caribou.logger</h2>
+  
+  <a href="caribou.logger-api.html" id="api-link">Detailed API documentation</a><br />
+  <pre id="namespace-docstr"></pre>
+  
+  
+  
+  Public variables and functions:
+  <span id="var-link"><a href="caribou.logger-api.html#caribou.logger/debug" id="var-tag">debug</a> </span><span id="var-link"><a href="caribou.logger-api.html#caribou.logger/error" id="var-tag">error</a> </span><span id="var-link"><a href="caribou.logger-api.html#caribou.logger/info" id="var-tag">info</a> </span><span id="var-link"><a href="caribou.logger-api.html#caribou.logger/warn" id="var-tag">warn</a> </span><br />
+  
+</div><div id="namespace-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.model">caribou.model</h2>
+  
+  <a href="caribou.model-api.html" id="api-link">Detailed API documentation</a><br />
+  <pre id="namespace-docstr"></pre>
+  
+  
+  
+  Public variables and functions:
+  <span id="var-link"><a href="caribou.model-api.html#caribou.model/Field" id="var-tag">Field</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/add-hook" id="var-tag">add-hook</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/arrange-tree" id="var-tag">arrange-tree</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/asset-dir" id="var-tag">asset-dir</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/asset-path" id="var-tag">asset-path</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/build-where" id="var-tag">build-where</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/cleanup-field" id="var-tag">cleanup-field</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/create" id="var-tag">create</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/create-model-table" id="var-tag">create-model-table</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/db" id="var-tag">db</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/descendents" id="var-tag">descendents</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/destroy" id="var-tag">destroy</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/field-from" id="var-tag">field-from</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/find-all" id="var-tag">find-all</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/find-one" id="var-tag">find-one</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/form-uberquery" id="var-tag">form-uberquery</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/format-date" id="var-tag">format-date</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/from" id="var-tag">from</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/fusion" id="var-tag">fusion</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/gather" id="var-tag">gather</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/generate" id="var-tag">generate</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/generate-model" id="var-tag">generate-model</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/impose" id="var-tag">impose</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/invoke-model" id="var-tag">invoke-model</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/invoke-models" id="var-tag">invoke-models</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/join-table-name" id="var-tag">join-table-name</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/link" id="var-tag">link</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/link-join-name" id="var-tag">link-join-name</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/link-keys" id="var-tag">link-keys</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/make-field" id="var-tag">make-field</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/make-lifecycle-hooks" id="var-tag">make-lifecycle-hooks</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/model-build-order" id="var-tag">model-build-order</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/model-generator" id="var-tag">model-generator</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/model-join-conditions" id="var-tag">model-join-conditions</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/model-limit-offset" id="var-tag">model-limit-offset</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/model-natural-orderings" id="var-tag">model-natural-orderings</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/model-order-statement" id="var-tag">model-order-statement</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/model-render" id="var-tag">model-render</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/model-select-fields" id="var-tag">model-select-fields</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/model-select-query" id="var-tag">model-select-query</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/model-table-fields" id="var-tag">model-table-fields</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/model-where-conditions" id="var-tag">model-where-conditions</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/pick" id="var-tag">pick</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/post-update" id="var-tag">post-update</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/pre-destroy" id="var-tag">pre-destroy</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/process-include" id="var-tag">process-include</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/process-order" id="var-tag">process-order</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/process-where" id="var-tag">process-where</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/progenitors" id="var-tag">progenitors</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/rally" id="var-tag">rally</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/read-date" id="var-tag">read-date</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/reconstruct" id="var-tag">reconstruct</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/render" id="var-tag">render</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/retrieve-links" id="var-tag">retrieve-links</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/run-hook" id="var-tag">run-hook</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/select-fields" id="var-tag">select-fields</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/setup-field" id="var-tag">setup-field</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/spawn-model" id="var-tag">spawn-model</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/subfield-names" id="var-tag">subfield-names</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/table-additions" id="var-tag">table-additions</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/table-columns" id="var-tag">table-columns</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/table-fields" id="var-tag">table-fields</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/target-for" id="var-tag">target-for</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/translate-directive" id="var-tag">translate-directive</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/uberquery" id="var-tag">uberquery</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/update" id="var-tag">update</a> </span><span id="var-link"><a href="caribou.model-api.html#caribou.model/update-values" id="var-tag">update-values</a> </span><br />
+  
+</div><div id="namespace-entry">
+  <br />
+  <hr />
+  <h2 id="caribou.util">caribou.util</h2>
+  
+  <a href="caribou.util-api.html" id="api-link">Detailed API documentation</a><br />
+  <pre id="namespace-docstr"></pre>
+  
+  
+  
+  Public variables and functions:
+  <span id="var-link"><a href="caribou.util-api.html#caribou.util/postwalk" id="var-tag">postwalk</a> </span><span id="var-link"><a href="caribou.util-api.html#caribou.util/stringify-keys" id="var-tag">stringify-keys</a> </span><span id="var-link"><a href="caribou.util-api.html#caribou.util/walk" id="var-tag">walk</a> </span><br />
+  
+</div>
+</div>
+              </div>
+            </div>
+          </div>
+	</div>
+	<div id="foot">
+	  <div style="text-align: center;" id="copyright">No copyright info </div>
+	</div>
+      </div>
+      <div id="DesignedBy">Logo &amp; site design by <a title="Visit Tom Hickey's website." href="http://www.tomhickey.com">Tom Hickey</a>.<br />
+      Clojure auto-documentation system by Tom Faulhaber.</div>
+    </div>
+    <!-- /AllContentContainer -->
+  </body>
+
+</html>
