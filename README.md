@@ -49,12 +49,13 @@ to another model.  Links are just fields, with the added effect that they have a
           bird-model (model/create :model {:name "Bird" 
                                            :fields [{:name "Species" :type :string} 
                                                     {:name "Portrait" :type :asset}
-                                                    {:name "Nests" :type :link :target_id tree-id 
+                                                    {:name "Nests" :type :link 
+                                                     :target_id tree-id 
                                                      :reciprocal_name "Inhabitors"}]})
           bird (model/create :bird {:species "Monticola gularis"})
           tree (model/pick :tree {:where {:limbs 3}})]
         (model/update :bird (:id bird) {:nests [tree]}))
-    (println (model/gather :tree {:include {:inhabitors {}}}))))
+    (println (model/gather :tree {:include {:inhabitors {}}})))) ;; Acer circinatum will now contain an inhabitor
 ```
 
 ## License
