@@ -479,6 +479,7 @@
 (declare subfusion)
 (declare fusion)
 (def models (ref {}))
+(def model-slugs (ref {}))
 
 (defn- pad-break-id [id]
   (let [root (str id)
@@ -1650,7 +1651,7 @@
   [name]
   (db/create-table (keyword name) []))
 
-(def invoke-models)
+(declare invoke-models)
 
 (defn- add-model-hooks []
   (add-hook :model :before_create :build_table (fn [env]
@@ -1743,6 +1744,18 @@
         env)
       (catch Exception e env)))))
 
+(defn add-app-model-hooks
+  "reads the hooks/ dir from resources and runs load-file for filenames that match
+  the application's model names"
+  []
+  ;; this needs logging when we get it hooked up
+  (doseq [model-slug @model-slugs]
+    (let [hooks-filename (str (@config/app :hooks-dir) "/" (name model-slug) ".clj")]
+      (try
+        (let [hooks-file (io/resource hooks-filename)]
+          (load-reader (io/reader hooks-file)))
+        (catch Exception e)))))
+
 (defn invoke-model
   "translates a row from the model table into a nested hash with references
   to its fields in a hash with keys being the field slugs
@@ -1767,7 +1780,12 @@
       (alter models 
         (fn [in-ref new-models] new-models)
         (merge (seq-to-map #(keyword (% :slug)) invoked)
-               (seq-to-map #(% :id) invoked))))))
+               (seq-to-map #(% :id) invoked)))))
+
+     ;; get all of our model slugs
+     (dosync
+      (ref-set model-slugs (filter keyword? (keys @models))))
+     (add-app-model-hooks))
 
 (defn create
   "slug represents the model to be updated.
@@ -1891,12 +1909,6 @@
         (map
          #(reconstruct by-parent %)
          roots))))))
-
-(defn load-model-hooks
-  []
-  (try
-    (io/resource (@config/app :hooks-dir))
-    (catch Exception e (println "no model hooks"))))
 
 (gen-class
  :name caribou.model.Model
