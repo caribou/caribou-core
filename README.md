@@ -1,6 +1,6 @@
 # Caribou Core
 
-A basis for creating dynamic data models who themselves live as data within a model that represents data models.
+A basis for creating dynamic data models who themselves live as data within a model that represents data models.  In this way it is a cyclic self-creating ouroboros of code/data.
 
 ## Usage
 
