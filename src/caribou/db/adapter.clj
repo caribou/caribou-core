@@ -4,6 +4,7 @@
            [caribou.db.adapter.h2 H2Adapter]))
 
 (defn adapter-for
+  "Find the right adapter for the given database configuration."
   [config]
   (condp = (config :subprotocol)
     "postgresql" (PostgresAdapter. config)

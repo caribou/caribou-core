@@ -1,40 +1,22 @@
 (ns caribou.logger
-  (:require [clojure.tools.logging :as logging]
-            [clj-logging-config.log4j :as log4j]))
+  (:require [clojure.tools.logging :as logging]))
 
-;; define the log appenders / define layouts
-(log4j/set-logger!
-   :pattern "%-6p %d{HH:mm:ss}     %m%n"
-  :level :debug
-  :out "caribou.log"
-  :name "caribou-api-file")
-
-(log4j/set-logger!
-  :pattern "%-6p %d{HH:mm:ss}     %m%n"
-  :level :debug
-  :out :console
-  :name "caribou-api-console")
-
-(defmacro debug 
+(defn debug 
   "Log a debug message (with an optional prefix)"
-  [msg & prefix]
-  (if (nil? prefix) (logging/debug msg)
-  (logging/debug (str (name (first prefix)) ": " msg))))
+  ([msg] (logging/debug msg))
+  ([msg prefix] (debug (str (name prefix) ": " msg))))
 
-(defmacro info 
+(defn info 
   "Log an info message (with an optional prefix)"
-  [msg & prefix]
-  (if (nil? prefix) (logging/info msg)
-  (logging/info (str (name (first prefix)) ": " msg))))
+  ([msg] (logging/info msg))
+  ([msg prefix] (info (str (name prefix) ": " msg))))
 
-(defmacro warn 
+(defn warn 
   "Log a warning message (with an optional prefix)"
-  [msg & prefix]
-  (if (nil? prefix) (logging/warn msg)
-  (logging/warn (str (name (first prefix)) ": " msg))))
+  ([msg] (logging/warn msg))
+  ([msg prefix] (warn (str (name prefix) ": " msg))))
 
-(defmacro error 
+(defn error 
   "Log an error message (with an optional prefix)"
-  [msg & prefix]
-  (if (nil? prefix) (logging/error msg)
-  (logging/error (str (name (first prefix)) ": " msg))))
+  ([msg] (logging/error msg))
+  ([msg prefix] (error (str (name prefix) ": " msg))))

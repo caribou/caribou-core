@@ -16,6 +16,7 @@
 (import java.text.SimpleDateFormat)
 
 (defn db
+  "Calls f in the connect of the current configured database connection."
   [f]
   (db/call f))
 
@@ -59,6 +60,8 @@
   (timecore/from-time-zone timestamp (timecore/default-time-zone)))
 
 (defn read-date
+  "Given a date string try every imaginable thing to parse it into something
+   resembling a date."
   [date-string]
   (let [trimmed (trim date-string)
         default (coerce/from-string trimmed)]
@@ -117,27 +120,6 @@
   [field]
   (concat (map first (table-additions field (-> field :row :slug)))
           (subfield-names field (-> field :row :slug))))
-
-;; We want to enable queries of the form: 
-;;
-;;   select model.name as model$name, model.id as model$id,
-;;     fields.name as fields$name, fields.type, fields.id as fields$id,
-;;     link.name as link$name, link.id as link$id
-;;   from model model
-;;   inner join field fields on (model.id = fields.model_id)
-;;   left outer join field link on (fields.link_id = link.id);
-;;
-;; For join tables (habtm) the following query is necessary:
-;;
-;;   select yellow.aoahoah as yellow$aoahoah, green.balloon as green$balloon,
-;;     green_join.green_id as green_join$green_id,
-;;     green_join.opny_id as green_join$opny_id
-;;   from yellow yellow
-;;   left outer join green_opny green_join on (green_join.opny_id = yellow.id)
-;;   left outer join green green on (green.id = green_join.green_id);
-;;
-;; The left outer joins are necessary so that items without
-;; associations are still found.
 
 (defn select-fields
   "Find all necessary columns for the select query based on the given include nesting
@@ -507,10 +489,14 @@
         path (join "/" halves)]
     path))
 
-(defn asset-dir [asset]
+(defn asset-dir
+  "Construct the dir this asset will live in."
+  [asset]
   (pathify ["assets" (pad-break-id (asset :id))]))
 
-(defn asset-path [asset]
+(defn asset-path
+  "Construct the path this asset will live in."
+  [asset]
   (if (and asset (asset :filename))
     (pathify [(asset-dir asset) (asset :filename)])
     ""))

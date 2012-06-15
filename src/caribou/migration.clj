@@ -1,4 +1,5 @@
-(ns caribou.migration
+(ns ^{:skip-wiki true}
+  caribou.migration
   (:use caribou.debug)
   (:require [clojure.set :as set]
             [clojure.java.jdbc :as sql]

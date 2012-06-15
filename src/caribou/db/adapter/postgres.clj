@@ -38,6 +38,7 @@
     (doall res)))
 
 (defn postgres-table?
+  "Determine if this table exists in the postgresql database."
   [table]
   (< 0
      (count

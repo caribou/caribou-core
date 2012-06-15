@@ -4,6 +4,7 @@
 /checkouts
 /config
 /resources/config
+/autodoc/**
 pom.xml
 *.jar
 *.class

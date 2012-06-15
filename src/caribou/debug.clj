@@ -1,10 +1,16 @@
 (ns caribou.debug)
 
-(defmacro debug [x]
+(defmacro debug
+  "Simple way to print the value of an expression while still evaluating to the
+   same thing.  Example:  (debug (inc 3)) --> 4  *prints 4*"
+  [x]
   `(let [x# ~x] (println "debug:" '~x " -> " x#) x#))
 
-(defmacro log [j x]
-  `(let [x# ~x] (println (str ~(name j) ":") x#) x#))
+(defmacro log
+  "Same as debug but takes a key that illustrates what conceptual area this
+   logged information belongs to."
+  [key x]
+  `(let [x# ~x] (println (str ~(name key) ":") x#) x#))
 
 (defmacro local-bindings
   "Produces a map of the names of local bindings to their values."

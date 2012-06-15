@@ -1,4 +1,5 @@
-(ns caribou.migrations.premigrations
+(ns ^{:skip-wiki true}
+  caribou.migrations.premigrations
   (:require [caribou.db :as db]
             [caribou.model :as model]))
 

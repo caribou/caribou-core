@@ -1,4 +1,5 @@
-(ns caribou.tasks.bootstrap
+(ns ^{:skip-wiki true}
+  caribou.tasks.bootstrap
   (:require [clojure.java.jdbc :as sql]
             [caribou.db :as db]
             [caribou.config :as config]
