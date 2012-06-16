@@ -1467,7 +1467,7 @@
 (defn pick
   "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
   [slug opts]
-  (first (gather slug opts)))
+  (first (gather slug (assoc opts :limit 1))))
 
 (defn impose
   "impose is identical to pick except that if the record with the given :where conditions is not found,

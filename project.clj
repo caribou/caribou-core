@@ -13,7 +13,7 @@
   :dev-dependencies [[lein-autodoc "0.9.0"]]
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
   :autodoc {:name "Caribou Core"
-            :page-title "Caribou Core: Documentation"
+            :page-title "Caribou Core - Documentation"
             :description
           "<p>This library represents the core model and configuration for Caribou.
            Used alone, it is a powerful way to capture your data model *as data*,

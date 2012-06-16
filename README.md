@@ -54,7 +54,7 @@ to another model.  Links are just fields, with the added effect that they have a
                                                      :reciprocal_name "Inhabitors"}]})
           bird (model/create :bird {:species "Monticola gularis"})
           tree (model/pick :tree {:where {:limbs 3}})]
-        (model/update :bird (:id bird) {:nests [tree]}))
+       (model/update :bird (:id bird) {:nests [tree]}))
     (println (model/gather :tree {:include {:inhabitors {}}})))) ;; Acer circinatum will now contain an inhabitor
 ```
 
