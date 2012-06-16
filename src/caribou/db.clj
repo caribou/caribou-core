@@ -39,7 +39,6 @@
   [q & args]
   (sql/with-query-results res
     [(clause q args)]
-    [(log :db (clause q args))]
     (doall res)))
 
 (defn recursive-query [table fields base-where recur-where]
@@ -83,7 +82,7 @@
 (defn update
   "update the given row with the given values"
   [table where values]
-  (log :db (str "update " table " set " values))
+  (log :db (str "update " table " " where " set " values))
   (if (not (empty? values))
     (try
       (sql/update-values table where values)
