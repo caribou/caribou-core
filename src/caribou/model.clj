@@ -1309,12 +1309,12 @@
 
 (defn model-limit-offset
   "Determine the limit and offset component of the uberquery based on the given where condition."
-  [model prefix where limit offset]
+  [model prefix where limit offset order]
   (let [condition (if (empty? where)
                     ""
-                    (str "where " where " "))
-        params [prefix (:slug model) condition limit offset]]
-    (db/clause "%1.id in (select %1.id from %2 %1 %3limit %4 offset %5)" params)))
+                    (str " where " where))
+        params [prefix (:slug model) condition order limit offset]]
+    (db/clause "%1.id in (select %1.id from %2 %1%3%4 limit %5 offset %6)" params)))
 
 (defn model-where-conditions
   "Builds the where part of the uberquery given the model, prefix and given map of the
@@ -1372,18 +1372,18 @@
   [model opts]
   (let [query (model-select-query model (:slug model) opts)
         where (model-where-conditions model (:slug model) opts)
-
+        order (model-order-statement model opts)
+        
         limit-offset
         (if-let [limit (:limit opts)]
-          (model-limit-offset model (:slug model) where limit (or (:offset opts) 0)))
+          (model-limit-offset
+           model (:slug model) where limit (or (:offset opts) 0) order))
 
         condition (or limit-offset where)
 
         full-condition
         (if (not (empty? condition))
-          (str " where " condition))
-
-        order (model-order-statement model opts)]
+          (str " where " condition))]
     (str query full-condition order)))
 
 (defn uberquery
