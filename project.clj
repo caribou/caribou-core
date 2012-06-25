@@ -30,8 +30,3 @@
            <a href=\"http://antler.github.com/caribou-admin\">Caribou Admin</a>,
            each of which build in their own way upon this data model as a basis."}
   :aot [caribou.model])
-  ;; :resource-paths ["resources"]
-  ;; :repositories {"snapshots" {:url "http://battlecat:8080/nexus/content/repositories/snapshots" 
-  ;;                             :username "deployment" :password "deployment"}
-  ;;                "releases"  {:url "http://battlecat:8080/nexus/content/repositories/releases" 
-  ;;                             :username "deployment" :password "deployment"}})
