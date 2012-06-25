@@ -1752,9 +1752,9 @@
   (doseq [model-slug @model-slugs]
     (let [hooks-filename (str (@config/app :hooks-dir) "/" (name model-slug) ".clj")]
       (try
-        (let [hooks-file (io/resource hooks-filename)]
+        (if-let [hooks-file (io/resource hooks-filename)]
           (load-reader (io/reader hooks-file)))
-        (catch Exception e)))))
+        (catch Exception e (.printStackTrace e))))))
 
 (defn invoke-model
   "translates a row from the model table into a nested hash with references
