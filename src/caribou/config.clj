@@ -14,13 +14,23 @@
 (def db (ref {}))
 (def db-adapter (ref nil))
 
+(defn set-properties
+  [props]
+  (doseq [prop-key (keys props)]
+    (System/setProperty (name prop-key) (str (get props prop-key)))))
+
+(defn load-caribou-properties
+  []
+  (let [props (util/load-props "caribou.properties")]
+    (set-properties props)))
+
 (defn system-property
   [key]
-  (.get (System/getProperties) key))
+  (.get (System/getProperties) (name key)))
 
 (defn environment
   []
-  (keyword (or (system-property "environment") "development")))
+  (keyword (or (system-property :environment) "development")))
 
 (defn app-value-eq
   [kw value]
@@ -62,6 +72,7 @@
     (dosync
      (alter db merge (assoc-subname db-config)))
     (adapter/init @db-adapter)
+    (load-caribou-properties)
     config-map))
 
 (defn init

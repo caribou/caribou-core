@@ -65,6 +65,15 @@
   (let [filename (.getName file)]
   (.toLowerCase (.substring filename (.lastIndexOf filename ".")))))
 
+(defn load-props
+  [props-name]
+  (try 
+    (let [raw (io/reader (io/resource props-name))
+          props (java.util.Properties.)]
+      (.load props raw)
+      (into {} (for [[k v] props] [(keyword k) (read-string v)])))
+    (catch Exception e (println "No properties file named" props-name))))
+
 (defn load-resource
   [resource-name]
   (let [thr (Thread/currentThread)
