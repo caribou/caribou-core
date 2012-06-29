@@ -1390,6 +1390,7 @@
   "The query to bind all queries.  Returns every facet of every row given an
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
+  (println "UBEROPTS" (str opts))
   (let [query-mass (form-uberquery model opts)]
     (db/query query-mass)))
 
@@ -1427,11 +1428,12 @@
      (fn [include]
        (reduce
         (fn [split key]
-          (assoc split
-            key {include (-> opts key include)}))
+          (if-let [inner (-> opts key include)]
+            (assoc split key {include inner})
+            (assoc split key (get opts key))))
         opts [:include :order :where]))
      include-keys)
-    [{}]))
+    [opts]))
 
 (defn beam-validator
   [slug opts]
