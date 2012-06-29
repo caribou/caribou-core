@@ -6,7 +6,7 @@
             [caribou.migration :as mm]))
 
 (defn bootstrap [config]
-  (db/rebuild-database config)
+  ;; (db/rebuild-database config)
   (mm/run-migrations config))
 
 (defn -main [config-file]

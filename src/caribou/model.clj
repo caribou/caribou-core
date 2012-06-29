@@ -1390,7 +1390,8 @@
   "The query to bind all queries.  Returns every facet of every row given an
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
-  (db/query (form-uberquery model opts)))
+  (let [query-mass (form-uberquery model opts)]
+    (db/query query-mass)))
 
 (defn- subfusion
   [model prefix skein opts]
@@ -1411,6 +1412,32 @@
         world (group-by model-key fibers)
         fused (map-vals #(subfusion model prefix % opts) world)]
     (map #(fused %) order)))
+
+;; we want to take something like {:include {:aaa {:xxx {}} :bbb {:yyy {}}}
+;;                                 :where {:aaa {:xxx {:lll 3}}} :bbb {:mmm 55}}}
+;; and turn it into two calls with {:include {:aaa {:xxx {}}} :where {:aaa {:xxx {:lll 3}}}}
+;;             and                 {:include {:bbb {:yyy {}}} :where {:bbb {:mmm 55}}}
+
+(defn beam-splitter
+  "Splits the given options (:include, :where, :order) out into parallel paths to avoid ubercombinatoric explosion!
+   Returns a list of options each of which correspond to an independent set of includes."
+  [opts]
+  (if-let [include-keys (-> opts :include keys)]
+    (map
+     (fn [include]
+       (reduce
+        (fn [split key]
+          (assoc split
+            key {include (-> opts key include)}))
+        opts [:include :order :where]))
+     include-keys)
+    [{}]))
+
+(defn beam-validator
+  [slug opts]
+  "Verify the given options make sense for the model given by slug, ie: all fields correspond to fields the
+   model actually has, and the options map itself is well-formed."
+  )
 
 (defn model-generator
   "Constructs a map of field generator functions for the given model and its fields."
@@ -1460,15 +1487,18 @@
                              :limit 10 :offset 3})
      --> returns 10 models and all their associated fields (and those fields' links if they exist) who have a
          field with the slug of 'name', ordered by the model slug and offset by 3."
-  [slug opts]
-  (let [model ((keyword slug) @models)
-        resurrected (uberquery model opts)]
-    (fusion model (name slug) resurrected opts)))
+  ([slug] (gather slug {}))
+  ([slug opts]
+     (let [model ((keyword slug) @models)
+           beams (beam-splitter opts)
+           resurrected (mapcat (partial uberquery model) beams)]
+       (fusion model (name slug) resurrected opts))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
-  [slug opts]
-  (first (gather slug (assoc opts :limit 1))))
+  ([slug] (pick slug {}))
+  ([slug opts]
+     (first (gather slug (assoc opts :limit 1)))))
 
 (defn impose
   "impose is identical to pick except that if the record with the given :where conditions is not found,
