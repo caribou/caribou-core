@@ -6,6 +6,7 @@
             [clj-time.core :as timecore]
             [clj-time.format :as format]
             [clj-time.coerce :as coerce]
+            [clojure.set :as set]
             [clojure.java.jdbc :as sql]
             [geocoder.core :as geo]
             [clojure.java.io :as io]
@@ -721,7 +722,7 @@
           (fn [down]
             (let [target (@models (-> this :row :target_id))
                   value (fusion target (str prefix "$" (name slug)) skein down)
-                  protected (if (:id (first value)) value [])]
+                  protected (filter :id value)]
               (assoc archetype slug protected))))]
     (or nesting archetype)))
 
@@ -1390,7 +1391,7 @@
   "The query to bind all queries.  Returns every facet of every row given an
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
-  (println "UBEROPTS" (str opts))
+  (println "UBEROPTS" (:slug model) (str opts))
   (let [query-mass (form-uberquery model opts)]
     (db/query query-mass)))
 
@@ -1414,10 +1415,9 @@
         fused (map-vals #(subfusion model prefix % opts) world)]
     (map #(fused %) order)))
 
-;; we want to take something like {:include {:aaa {:xxx {}} :bbb {:yyy {}}}
-;;                                 :where {:aaa {:xxx {:lll 3}}} :bbb {:mmm 55}}}
-;; and turn it into two calls with {:include {:aaa {:xxx {}}} :where {:aaa {:xxx {:lll 3}}}}
-;;             and                 {:include {:bbb {:yyy {}}} :where {:bbb {:mmm 55}}}
+(defn keys-difference
+  [a b]
+  (set/difference (-> a keys set) (-> b keys set)))
 
 (defn beam-splitter
   "Splits the given options (:include, :where, :order) out into parallel paths to avoid ubercombinatoric explosion!
@@ -1425,13 +1425,17 @@
   [opts]
   (if-let [include-keys (-> opts :include keys)]
     (map
-     (fn [include]
+     (fn [include-key]
        (reduce
         (fn [split key]
-          (if-let [inner (-> opts key include)]
-            (assoc split key {include inner})
-            (assoc split key (get opts key))))
-        opts [:include :order :where]))
+          (let [split-opts (if-let [inner (-> opts key include-key)]
+                             (assoc split key {include-key inner})
+                             split)
+                subopts (get opts key)
+                other-keys (keys-difference subopts (:include opts))
+                ultimate (update-in split-opts [key] (fn [a] (merge a (select-keys subopts other-keys))))]
+            ultimate))
+        {} [:include :order :where]))
      include-keys)
     [opts]))
 
