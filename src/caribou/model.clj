@@ -166,7 +166,8 @@
   [this prefix archetype skein opts]
   (let [slug (keyword (-> this :row :slug))
         bit (prefix-key prefix slug)
-        value (get (first skein) bit)]
+        containing (drop-while #(nil? (get % bit)) skein)
+        value (get (first containing) bit)]
     (assoc archetype slug value)))
 
 (defrecord IdField [row env]
