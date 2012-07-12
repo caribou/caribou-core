@@ -6,7 +6,9 @@
   (:require [clojure.java.io :as io]
             [caribou.util :as util]
             [caribou.db.adapter :as db-adapter]
-            [caribou.db.adapter.protocol :as adapter]))
+            [caribou.db.adapter.protocol :as adapter]
+            [caribou.logger :as logger]))
+
 
 (declare config-path)
 
@@ -64,13 +66,16 @@
 
 (defn configure
   [config-map]
-  (let [db-config (config-map :database)]
+  (let [db-config (config-map :database)
+        logging-config (config-map :logging)]
     (dosync
      (ref-set db-adapter (db-adapter/adapter-for db-config)))
     (dosync
      (alter app merge config-map))
     (dosync
      (alter db merge (assoc-subname db-config)))
+    (dosync
+     (alter logger/default-config merge logging-config))
     (adapter/init @db-adapter)
     (load-caribou-properties)
     config-map))
