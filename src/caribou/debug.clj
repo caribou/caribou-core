@@ -4,6 +4,7 @@
 (defmacro debug
   "Simple way to print the value of an expression while still evaluating to the
    same thing.  Example:  (debug (inc 3)) --> 4  *prints 4*"
+  [x]
   `(let [x# ~x] (log/debug (str '~x " -> " x#)) x#))
 
 (defmacro log

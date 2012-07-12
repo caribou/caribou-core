@@ -75,7 +75,7 @@
     (dosync
      (alter db merge (assoc-subname db-config)))
     (dosync
-     (alter logger/default-config merge logging-config))
+     (alter logger/defaults merge logging-config))
     (adapter/init @db-adapter)
     (load-caribou-properties)
     config-map))
