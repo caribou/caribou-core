@@ -81,7 +81,8 @@
         boot (io/resource boot-resource)]
    
     (if (nil? boot)
-      (throw (Exception. (format "Could not find %s on the classpath" boot-resource))))
+      (throw (Exception.
+              (format "Could not find %s on the classpath" boot-resource))))
 
     (load-reader (io/reader boot))))
 
