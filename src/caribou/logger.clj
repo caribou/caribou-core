@@ -2,6 +2,13 @@
   (:require [clj-logging-config.log4j :as logconf]
             [clojure.tools.logging :as logging]))
 
+(def defaults (ref
+               {:log-layout
+                (org.apache.log4j.PatternLayout. "\n%p %m (%x) %n\n")
+                :log-level :warn
+                :log-filter (constantly true)
+                :debug true}))
+
 (defmacro with-config
   "Use our explicit configuration while logging something, with
   dynamic additions in a map. Explicitly using with-config on every
@@ -10,9 +17,9 @@
   [map & body]
   `(logconf/with-logging-config
      [:root (merge
-             {:level (:log-level @config/app)
-              :layout (:log-layout @config/app)
-              :filter (:log-filter @config/app)}
+             {:level (:log-level @defaults)
+              :layout (:log-layout @defaults)
+              :filter (:log-filter @defaults)}
              ~map)]
      ~@body))
 
