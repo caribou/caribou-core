@@ -3,14 +3,15 @@
             [clojure.tools.logging :as logging]))
 
 ;; initialize clj-logging-config
-(logconf/set-logger!)
-
 (def defaults (ref
-               {:log-layout
-                (org.apache.log4j.PatternLayout. "%p %m (%x) %n\n")
+               {:log-pattern "%p %m (%x) %n\n"
                 :log-level :debug
                 :log-filter (constantly true)
                 :debug true}))
+
+(def init (logconf/set-logger! :pattern (:log-pattern @defaults)
+                               :level (:log-level @defaults)
+                               :filter (:log-filter @defaults)))
 
 (defmacro with-config
   "Use our explicit configuration while logging something, with
@@ -21,7 +22,7 @@
   `(logconf/with-logging-config
      [:root (merge
              {:level (:log-level @defaults)
-              :layout (:log-layout @defaults)
+              :pattern (:log-pattern @defaults)
               :filter (:log-filter @defaults)}
              ~map)]
      ~@body))
