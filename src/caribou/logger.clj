@@ -9,9 +9,11 @@
                 :log-filter (constantly true)
                 :debug true}))
 
-(def init (logconf/set-logger! :pattern (:log-pattern @defaults)
-                               :level (:log-level @defaults)
-                               :filter (:log-filter @defaults)))
+(defn init
+  []
+  (logconf/set-logger! :pattern (:log-pattern @defaults)
+                       :level (:log-level @defaults)
+                       :filter (:log-filter @defaults)))
 
 (defmacro with-config
   "Use our explicit configuration while logging something, with
