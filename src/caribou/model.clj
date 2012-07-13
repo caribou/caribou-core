@@ -517,7 +517,7 @@
   "Construct the path this asset will live in."
   [asset]
   (if (and asset (asset :filename))
-    (pathify [(asset-dir asset) (asset :filename)])
+    (pathify [(asset-dir asset) (str "random-" (asset :filename))])
     ""))
 
 (defn- join-order
