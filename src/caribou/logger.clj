@@ -4,8 +4,8 @@
 
 (def defaults (ref
                {:log-layout
-                (org.apache.log4j.PatternLayout. "\n%p %m (%x) %n\n")
-                :log-level :warn
+                (org.apache.log4j.PatternLayout. "%p %m (%x) %n\n")
+                :log-level :debug
                 :log-filter (constantly true)
                 :debug true}))
 
