@@ -2,6 +2,9 @@
   (:require [clj-logging-config.log4j :as logconf]
             [clojure.tools.logging :as logging]))
 
+;; initialize clj-logging-config
+(logconf/set-logger!)
+
 (def defaults (ref
                {:log-layout
                 (org.apache.log4j.PatternLayout. "%p %m (%x) %n\n")
