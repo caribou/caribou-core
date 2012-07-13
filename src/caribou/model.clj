@@ -76,6 +76,22 @@
               (coerce/to-timestamp (impose-time-zone custom))))))
       (coerce/to-timestamp (impose-time-zone default (timecore/default-time-zone))))))
 
+(defn ago
+  "given a timecore/interval, creates a string representing the time passed"
+  [interval]
+  (let [notzero (fn [convert data]
+                  (let [span (convert data)]
+                    (if (== span 0)
+                      false
+                      span)))
+        ago-str (fn [string num]
+                  (str num " " string (if (== num 1) "s" "") " ago"))]
+    (condp notzero interval
+      timecore/in-years :>> #(ago-str "year" %)
+      timecore/in-months :>> #(ago-str "month" %)
+      timecore/in-days :>> #(ago-str "day" %)
+      (constantly 1) (ago-str "hour" (timecore/in-hours interval)))))
+
 (defprotocol Field
   "a protocol for expected behavior of all model fields"
   (table-additions [this field]
@@ -494,15 +510,18 @@
     path))
 
 (defn asset-dir
-  "Construct the dir this asset will live in."
+  "Construct the dir this asset will live in, or look it up."
   [asset]
   (pathify ["assets" (pad-break-id (asset :id))]))
 
 (defn asset-path
-  "Construct the path this asset will live in."
+  "Construct the path this asset will live in, or look it up."
   [asset]
   (if (and asset (asset :filename))
-    (pathify [(asset-dir asset) (asset :filename)])
+    (pathify [(asset-dir asset)
+              ;; this regex is to deal with funky windows file paths
+              (re-find #"[^:\\]*$"
+                       (asset :filename))])
     ""))
 
 (defn- join-order
@@ -1422,7 +1441,7 @@
   (set/difference (-> a keys set) (-> b keys set)))
 
 (defn beam-splitter
-  "Splits the given options (:include, :where, :order) out into parallel paths to avoid ubercombinatoric explosion!
+  "Splits the given options (:include, :where, :order) out into parallel paths to avoid übercombinatoric explosion!
    Returns a list of options each of which correspond to an independent set of includes."
   [opts]
   (if-let [include-keys (-> opts :include keys)]
