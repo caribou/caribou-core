@@ -509,7 +509,7 @@
     path))
 
 (defn asset-dir
-  "Construct the dir this asset will live in."
+  "Construct the dir this asset will live in, or look it up."
   [asset]
   (pathify ["assets" (pad-break-id (asset :id))]))
 
