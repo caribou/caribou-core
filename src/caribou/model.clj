@@ -514,10 +514,13 @@
   (pathify ["assets" (pad-break-id (asset :id))]))
 
 (defn asset-path
-  "Construct the path this asset will live in."
+  "Construct the path this asset will live in, or look it up."
   [asset]
   (if (and asset (asset :filename))
-    (pathify [(asset-dir asset) (str "random-" (asset :filename))])
+    (pathify [(asset-dir asset)
+              ;; this regex is to deal with funky windows file paths
+              (re-find #"[^:\\]*$"
+                       (asset :filename))])
     ""))
 
 (defn- join-order
