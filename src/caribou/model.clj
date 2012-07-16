@@ -1497,7 +1497,12 @@
                              split)
                 subopts (get opts key)
                 other-keys (keys-difference subopts (:include opts))
-                ultimate (update-in split-opts [key] (fn [a] (merge a (select-keys subopts other-keys))))]
+                ultimate (update-in split-opts
+                                    [key]
+                                    (fn [a]
+                                      (merge
+                                       a
+                                       (select-keys subopts other-keys))))]
             ultimate))
         {} [:include :order :where]))
      include-keys)
@@ -1763,7 +1768,8 @@ is not a list of maps but a single map result."
           (let [hook-name (keyword id)]
             (dosync
              (alter hook merge {hook-name func})))
-            (throw (Exception. (format "No model lifecycle hook called %s" timing))))
+          (throw (Exception. (format "No model lifecycle hook called %s"
+                                     timing))))
         (throw (Exception. (format "No model called %s" slug)))))))
 
 (defn create-model-table
@@ -1963,8 +1969,9 @@ triggered."
          (_final :content)))))
 
 (defn rally
-  "Pull a set of content up through the model system with the given options.
-   Avoids the uberquery so is considered deprecated and inferior, left here for historical reasons."
+  "Pull a set of content up through the model system with the given
+options. Avoids the uberquery so is considered deprecated and
+inferior, left here for historical reasons."
   ([slug] (rally slug {}))
   ([slug opts]
      (let [model (models (keyword slug))
