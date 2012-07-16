@@ -691,8 +691,9 @@
   content representation as specified by the supplied opts.
   some opts that are supported:
     include - a nested hash of association includes.  if a key matches
-    the name of an association any content associated to this item through
-    that association will be inserted under that key."
+              the name of an association any content associated to this
+              item through that association will be inserted under that
+              key."
   [model content opts]
   (reduce
    #(assoc-field %1 %2 opts)
@@ -701,7 +702,9 @@
 
 (defn present?
   [x]
-  (and (not (nil? x)) (or (number? x) (not (empty? x)))))
+  (and (not (nil? x))
+       (or (number? x)
+           (not (empty? x)))))
 
 (defn- collection-where
   [field prefix opts]  
