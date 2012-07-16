@@ -12,7 +12,8 @@
             [clojure.java.io :as io]
             [caribou.config :as config]
             [caribou.db.adapter.protocol :as adapter]
-            [caribou.logger :as log]))
+            [caribou.logger :as log]
+            [clojure.tools.logging :as logging]))
 
 (import java.util.Date)
 (import java.text.SimpleDateFormat)
@@ -1500,8 +1501,16 @@
   "Verify the given options make sense for the model given by slug,
    ie: all fields correspond to fields the model actually has, and the
    options map itself is well-formed."
-
-  )
+  ;; TODO (justin smith) - check that the map is well formed
+  (println "validating query keys")
+  (let [valid-keys (set (table-columns slug))
+        requested-keys (set (keys (merge (:where opts) (:order opts))))
+        difference (set/difference requested-keys valid-keys)]
+    
+    (log/debug (str slug "\t" opts "\t<< " (join " " valid-keys) " >>")
+               :VALIDATING)
+    (when-not (empty? difference)
+      (log/error difference :INVALID-KEYS))))
 
 (defn model-generator
   "Constructs a map of field generator functions for the given model
@@ -1560,6 +1569,8 @@
          by the model slug and offset by 3."
   ([slug] (gather slug {}))
   ([slug opts]
+     (when (logging/enabled? :debug)
+       (beam-validator slug opts))
      (let [model ((keyword slug) @models)
            beams (beam-splitter opts)
            resurrected (mapcat (partial uberquery model) beams)]
