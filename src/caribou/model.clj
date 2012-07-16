@@ -89,7 +89,7 @@
                       false
                       span)))
         ago-str (fn [string num]
-                  (str num " " string (if (== num 1) "s" "") " ago"))]
+                  (str num " " string (if (== num 1) "" "s") " ago"))]
     (condp notzero interval
       timecore/in-years :>> #(ago-str "year" %)
       timecore/in-months :>> #(ago-str "month" %)
