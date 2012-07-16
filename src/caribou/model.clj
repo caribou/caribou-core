@@ -2025,36 +2025,30 @@ row, including nested specs which update across associations."
         deleted (db/delete slug "id = %1" id)
         _after (run-hook slug :after_destroy (merge _before {:content pre}))]
     (_after :content)))
+(defn- family
+  "helper to travel up or down a family tree"
+  [slug id opts recur-condition]
+  (let [model (models (keyword slug))]
+    (if (model :nested)
+      (let [field-names (table-columns slug)
+            base-where (db/clause "id = %1" [id])
+            recur-where (db/clause recur-condition [slug])
+            before (db/recursive-query
+                    slug field-names base-where recur-where)]
+        (doall (map #(from model % opts) before)))
+      [(from model (db/choose slug id) opts)])))
 
 (defn progenitors
-  "if the model given by slug is nested,
-  return a list of the item given by this id along with all of its ancestors."
+  "if the model given by slug is nested, return a list of the item
+   given by this id along with all of its ancestors."
   ([slug id] (progenitors slug id {}))
-  ([slug id opts]
-     (let [model (models (keyword slug))]
-       (if (model :nested)
-         (let [field-names (table-columns slug)
-               base-where (db/clause "id = %1" [id])
-               recur-where (db/clause "%1_tree.parent_id = %1.id" [slug])
-               before (db/recursive-query
-                       slug field-names base-where recur-where)]
-           (doall (map #(from model % opts) before)))
-         [(from model (db/choose slug id) opts)]))))
+  ([slug id opts] (family slug id opts "%1_tree.parent_id = %1.id")))
 
 (defn descendents
-  "pull up all the descendents of the item given by id
-  in the nested model given by slug."
+  "pull up all the descendents of the item given by id in the nested
+   model given by slug."
   ([slug id] (descendents slug id {}))
-  ([slug id opts]
-     (let [model (models (keyword slug))]
-       (if (model :nested)
-         (let [field-names (table-columns slug)
-               base-where (db/clause "id = %1" [id])
-               recur-where (db/clause "%1_tree.id = %1.parent_id" [slug])
-               before (db/recursive-query
-                       slug field-names base-where recur-where)]
-           (doall (map #(from model % opts) before)))
-         [(from model (db/choose slug id) opts)]))))
+  ([slug id opts] (family slug id opts "%1_tree.id = %1.parent_id")))
 
 (defn reconstruct
   "mapping is between parent_ids and collections which share a parent_id.
