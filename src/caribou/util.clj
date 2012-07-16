@@ -1,6 +1,7 @@
 (ns caribou.util
   (:use caribou.debug)
   (:require [clojure.string :as string]
+            [clj-time.core :as timecore]
             [clojure.java.io :as io]))
 
 (import java.sql.SQLException)
