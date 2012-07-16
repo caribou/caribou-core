@@ -22,9 +22,12 @@
   [f]
   (db/call f))
 
-(def simple-date-format (java.text.SimpleDateFormat. "MMMMMMMMM dd', 'yyyy HH':'mm"))
+(def simple-date-format
+  (java.text.SimpleDateFormat. "MMMMMMMMM dd', 'yyyy HH':'mm"))
+
 (defn format-date
-  "given a date object, return a string representing the canonical format for that date"
+  "given a date object, return a string representing the canonical
+  format for that date"
   [date]
   (if date
     (.format simple-date-format date)))
@@ -74,7 +77,8 @@
           (let [custom (some #(try-formatter trimmed %) custom-formatters)]
             (if custom
               (coerce/to-timestamp (impose-time-zone custom))))))
-      (coerce/to-timestamp (impose-time-zone default (timecore/default-time-zone))))))
+      (coerce/to-timestamp
+       (impose-time-zone default (timecore/default-time-zone))))))
 
 (defn ago
   "given a timecore/interval, creates a string representing the time passed"
@@ -112,7 +116,9 @@
 
   (join-fields [this prefix opts])
   (join-conditions [this prefix opts])
-  (build-where [this prefix opts] "creates a where clause suitable to this field from the given where map, with fields prefixed by the given prefix.")
+  (build-where [this prefix opts]
+    "creates a where clause suitable to this field from the given
+    where map, with fields prefixed by the given prefix.")
   (natural-orderings [this prefix opts])
   (build-order [this prefix opts])
   (field-generator [this generators])
@@ -120,7 +126,8 @@
 
   (field-from [this content opts]
     "retrieves the value for this field from this content item")
-  (render [this content opts] "renders out a single field from this content item"))
+  (render [this content opts]
+    "renders out a single field from this content item"))
 
 (defn- suffix-prefix
   [prefix]
@@ -140,8 +147,8 @@
           (subfield-names field (-> field :row :slug))))
 
 (defn select-fields
-  "Find all necessary columns for the select query based on the given include nesting
-   and fashion them into sql form."
+  "Find all necessary columns for the select query based on the given
+   include nesting and fashion them into sql form."
   [field prefix opts]
   (let [columns (table-fields field)
         model-fields
@@ -189,7 +196,7 @@
 
 (defrecord IdField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "SERIAL"]]) ;; "PRIMARY KEY"]])
+  (table-additions [this field] [[(keyword field) "SERIAL"]]) ; "PRIMARY KEY"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (cleanup-field [this] nil)
@@ -321,7 +328,8 @@
   (build-order [this prefix opts]
     (pure-order this prefix opts))
   (field-generator [this generators]
-    (assoc generators (keyword (:slug row)) (fn [] (rand-str (inc (rand-int 139))))))
+    (assoc generators (keyword (:slug row))
+           (fn [] (rand-str (inc (rand-int 139))))))
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
@@ -388,7 +396,8 @@
   (build-order [this prefix opts]
     (pure-order this prefix opts))
   (field-generator [this generators]
-    (assoc generators (keyword (:slug row)) (fn [] (rand-str (+ 141 (rand-int 5555))))))
+    (assoc generators (keyword (:slug row))
+           (fn [] (rand-str (+ 141 (rand-int 5555))))))
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts]
@@ -435,19 +444,22 @@
 
 (defn- build-extract
   [prefix field [index value]]
-  (db/clause "extract(%1 from %2.%3) = %4" [(name index) prefix (name field) value]))
+  (db/clause "extract(%1 from %2.%3) = %4"
+             [(name index) prefix (name field) value]))
 
 (defn- timestamp-where
-  "To find something by a certain timestamp you must provide a map with keys into
-   the date or time.  Example:
+  "To find something by a certain timestamp you must provide a map
+   with keys into the date or time.  Example:
      (timestamp-where :created_at {:day 15 :month 7 :year 2020})
    would find all rows who were created on July 15th, 2020."
   [prefix field where]
-  (join " and " (map (partial build-extract (suffix-prefix prefix) field) where)))
+  (join " and "
+        (map (partial build-extract (suffix-prefix prefix) field) where)))
 
 (defrecord TimestampField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL" "DEFAULT current_timestamp"]])
+  (table-additions [this field]
+    [[(keyword field) "timestamp" "NOT NULL" "DEFAULT current_timestamp"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (cleanup-field [this] nil)
@@ -588,7 +600,8 @@
     [this prefix opts]
     (with-propagation :where opts (:slug row)
       (fn [down]
-        (model-where-conditions (:asset @models) (str prefix "$" (:slug row)) down))))
+        (model-where-conditions (:asset @models)
+                                (str prefix "$" (:slug row)) down))))
 
   (natural-orderings [this prefix opts])
 
@@ -662,7 +675,8 @@
     [this prefix opts]
     (with-propagation :where opts (:slug row)
       (fn [down]
-        (model-where-conditions (:location @models) (str prefix "$" (:slug row)) down))))
+        (model-where-conditions (:location @models)
+                                (str prefix "$" (:slug row)) down))))
 
   (natural-orderings [this prefix opts])
 
@@ -715,7 +729,8 @@
               table-alias (str prefix "$" slug)
               subconditions (model-where-conditions target table-alias down)
               params [prefix link (:slug target) table-alias subconditions]]
-          (db/clause "%1.id in (select %4.%2_id from %3 %4 where %5)" params))))))
+          (db/clause "%1.id in (select %4.%2_id from %3 %4 where %5)"
+                     params))))))
 
 (defn- collection-render
   [field content opts]
@@ -765,7 +780,8 @@
                     :target_id (row :model_id)
                     :link_id (row :id)
                     :dependent (row :dependent)})]
-        (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (part :id)}))))
+        (db/update :field ["id = ?" (Integer. (row :id))]
+                   {:link_id (part :id)}))))
 
   (cleanup-field
     [this]
@@ -809,7 +825,8 @@
   (pre-destroy
     [this content]
     (if (or (row :dependent) (-> env :link :dependent))
-      (let [parts (field-from this content {:include {(keyword (:slug row)) {}}})
+      (let [parts (field-from this content
+                              {:include {(keyword (:slug row)) {}}})
             target (keyword ((target-for this) :slug))]
         (doall (map #(destroy target (% :id)) parts))))
     content)
@@ -861,7 +878,9 @@
     (with-propagation :include opts (:slug row)
       (fn [down]
         (let [link (-> this :env :link :slug)
-              parts (db/fetch (-> (target-for this) :slug) (str link "_id = %1 order by %2 asc") (content :id) (str link "_position"))]
+              parts (db/fetch (-> (target-for this) :slug)
+                              (str link "_id = %1 order by %2 asc")
+                              (content :id) (str link "_position"))]
           (map #(from (target-for this) % down) parts)))))
 
   (render
@@ -874,7 +893,8 @@
         fused
         (with-propagation :include opts slug
           (fn [down]
-            (let [value (subfusion target (str prefix "$" (name slug)) skein down)]
+            (let [value (subfusion target (str prefix "$" (name slug))
+                                   skein down)]
               (if (:id value)
                 (assoc archetype slug value)
                 archetype))))]
@@ -911,7 +931,8 @@
                             :model_id (row :target_id)
                             :target_id model_id
                             :link_id (row :id)})]
-          (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (collection :id)})))
+          (db/update :field ["id = ?" (Integer. (row :id))]
+                     {:link_id (collection :id)})))
 
       (update :model model_id
         {:fields
@@ -966,14 +987,16 @@
 
   (natural-orderings [this prefix opts]
     (let [target (@models (:target_id row))
-          downstream (model-natural-orderings target (str prefix "$" (:slug row)) opts)]
+          downstream (model-natural-orderings
+                      target (str prefix "$" (:slug row)) opts)]
       downstream))
 
   (build-order [this prefix opts]
     (join-order this (@models (:target_id row)) prefix opts))
 
   (fuse-field [this prefix archetype skein opts]
-    (part-fusion this (@models (-> this :row :target_id)) prefix archetype skein opts))
+    (part-fusion this (@models (-> this :row :target_id))
+                 prefix archetype skein opts))
 
   (field-from [this content opts]
     (with-propagation :include opts (:slug row)
@@ -1050,7 +1073,8 @@
     generators)
 
   (fuse-field [this prefix archetype skein opts]
-    (part-fusion this (@models (-> this :row :model_id)) prefix archetype skein opts))
+    (part-fusion this (@models (-> this :row :model_id))
+                 prefix archetype skein opts))
 
   (field-from [this content opts]
     (with-propagation :include opts (:slug row)
@@ -1094,7 +1118,10 @@
         target (models (-> field :row :target_id))
         linkage (create (target :slug) b)
         params [join-key from-key (linkage :id) to-key (a :id)]
-        preexisting (apply (partial db/query "select * from %1 where %2 = %3 and %4 = %5") params)]
+        preexisting (apply (partial
+                            db/query
+                            "select * from %1 where %2 = %3 and %4 = %5")
+                           params)]
     (if preexisting
       preexisting
       (create join-key {from-key (linkage :id) to-key (a :id)}))))
@@ -1118,15 +1145,21 @@
         target-slug (target :slug)
         field-names (map #(str target-slug "." %) (table-columns target-slug))
         field-select (join "," field-names)
-        query "select %1 from %2 inner join %3 on (%2.id = %3.%4) where %3.%5 = %6"
-        params [field-select target-slug join-key from-key to-key (content :id)]]
+        query
+        "select %1 from %2 inner join %3 on (%2.id = %3.%4) where %3.%5 = %6"
+        params [field-select target-slug join-key from-key to-key
+                (content :id)]]
     (apply (partial db/query query) params)))
 
 (defn remove-link
   [field from-id to-id]
   (let [{from-key :from to-key :to join-key :join} (link-keys field)
         params [join-key from-key to-id to-key from-id]
-        preexisting (first (apply (partial db/query "select * from %1 where %2 = %3 and %4 = %5") params))]
+        preexisting (first
+                     (apply
+                      (partial db/query
+                               "select * from %1 where %2 = %3 and %4 = %5")
+                      params))]
     (if preexisting
       (destroy join-key (preexisting :id)))))
 
@@ -1146,8 +1179,10 @@
               link-params [(:slug target) table-alias join-alias slug]
               downstream (model-join-conditions target table-alias down)]
           (concat
-           [(db/clause "left outer join %1 %2 on (%2.%3_id = %4.id)" join-params)
-            (db/clause "left outer join %1 %2 on (%2.id = %3.%4_id)" link-params)]
+           [(db/clause "left outer join %1 %2 on (%2.%3_id = %4.id)"
+                       join-params)
+            (db/clause "left outer join %1 %2 on (%2.id = %3.%4_id)"
+                       link-params)]
            downstream))))))
 
 (defn- link-where
@@ -1229,7 +1264,8 @@
                    :dependent true
                    :reciprocal_name (str (spec :name) " Join")
                    :target_id (row :model_id)}]} {:op :migration})
-        (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (link :id)}))))
+        (db/update :field ["id = ?" (Integer. (row :id))]
+                   {:link_id (link :id)}))))
 
   (cleanup-field [this]
     (try
@@ -1250,7 +1286,8 @@
   (post-update [this content]
     (if-let [collection (content (keyword (:slug row)))]
       (let [linked (doall (map #(link this content %) collection))
-            with-links (assoc content (keyword (str (:slug row) "_join")) linked)]
+            with-links (assoc content (keyword (str (:slug row) "_join"))
+                              linked)]
         (assoc content (:slug row) (retrieve-links this content))))
     content)
 
@@ -1330,17 +1367,19 @@
     (join " " ["select" selects "from" (:slug model) (name prefix) joins])))
 
 (defn model-limit-offset
-  "Determine the limit and offset component of the uberquery based on the given where condition."
+  "Determine the limit and offset component of the uberquery based on
+  the given where condition."
   [model prefix where limit offset order]
   (let [condition (if (empty? where)
                     ""
                     (str " where " where))
         params [prefix (:slug model) condition order limit offset]]
-    (db/clause "%1.id in (select %1.id from %2 %1%3%4 limit %5 offset %6)" params)))
+    (db/clause "%1.id in (select %1.id from %2 %1%3%4 limit %5 offset %6)"
+               params)))
 
 (defn model-where-conditions
-  "Builds the where part of the uberquery given the model, prefix and given map of the
-   where conditions."
+  "Builds the where part of the uberquery given the model, prefix and
+   given map of the where conditions."
   [model prefix opts]
   (let [eyes
         (filter
@@ -1352,8 +1391,8 @@
     (join " and " (flatten eyes))))
 
 (defn model-natural-orderings
-  "Find all orderings between included associations that depend on the association position column
-   of the given model."
+  "Find all orderings between included associations that depend on the
+   association position column of the given model."
   [model prefix opts]
   (filter
    identity
@@ -1379,8 +1418,9 @@
      (vals (:fields model))))))
 
 (defn model-order-statement
-  "Joins the natural orderings and the given orderings from the opts map and constructs
-   the order clause to ultimately be used in the uberquery."
+  "Joins the natural orderings and the given orderings from the opts
+   map and constructs the order clause to ultimately be used in the
+   uberquery."
   [model opts]
   (let [ordering (if (:order opts) opts (assoc opts :order {:position :asc}))
         order (model-build-order model (:slug model) ordering)
@@ -1390,8 +1430,8 @@
       (db/clause " order by %1" [statement]))))
 
 (defn form-uberquery
-  "Given the model and map of opts, construct the corresponding uberquery (but don't call it!)"
-  [model opts]
+  "Given the model and map of opts, construct the corresponding
+  uberquery (but don't call it!)"  [model opts]
   (let [query (model-select-query model (:slug model) opts)
         where (model-where-conditions model (:slug model) opts)
         order (model-order-statement model opts)
@@ -1427,8 +1467,9 @@
     archetype))
 
 (defn fusion
-  "Takes the results of the uberquery, which could have a map for each item associated to a given
-   piece of content, and fuses them into a single nested map representing that content."
+  "Takes the results of the uberquery, which could have a map for each
+   item associated to a given piece of content, and fuses them into a
+   single nested map representing that content."
   [model prefix fibers opts]
   (let [model-key (prefix-key prefix "id")
         order (distinct (map model-key fibers))
@@ -1441,8 +1482,10 @@
   (set/difference (-> a keys set) (-> b keys set)))
 
 (defn beam-splitter
-  "Splits the given options (:include, :where, :order) out into parallel paths to avoid übercombinatoric explosion!
-   Returns a list of options each of which correspond to an independent set of includes."
+  "Splits the given options (:include, :where, :order) out into
+   parallel paths to avoid übercombinatoric explosion!  Returns a list
+   of options each of which correspond to an independent set of
+   includes."
   [opts]
   (if-let [include-keys (-> opts :include keys)]
     (map
@@ -1462,20 +1505,23 @@
 
 (defn beam-validator
   [slug opts]
-  "Verify the given options make sense for the model given by slug, ie: all fields correspond to fields the
-   model actually has, and the options map itself is well-formed."
+  "Verify the given options make sense for the model given by slug,
+   ie: all fields correspond to fields the model actually has, and the
+   options map itself is well-formed."
+
   )
 
 (defn model-generator
-  "Constructs a map of field generator functions for the given model and its fields."
+  "Constructs a map of field generator functions for the given model
+  and its fields."
   [model]
   (let [fields (vals (:fields model))]
     (reduce #(field-generator %2 %1) {} fields)))
 
 (defn generate
-  "Given a map of field generator functions, create a new map that has a value in each key
-   given by the field generator for that key."
-  [basis]
+  "Given a map of field generator functions, create a new map that has
+   a value in each key given by the field generator for that key."
+   [basis]
   (loop [basis (seq basis)
          spawn {}]
     (if basis
@@ -1486,14 +1532,16 @@
       spawn)))
 
 (defn generate-model
-  "Given a slug and a number n, generate that number of instances of the model given by that slug."
+  "Given a slug and a number n, generate that number of instances of
+  the model given by that slug."
   [slug n]
   (let [g (model-generator (slug @models))]
     (map (fn [_] (generate g)) (repeat n nil))))
 
 (defn spawn-model
-  "Given a slug and a number n, actually create the given number of model instances in the db given
-   by the field generators for that model."
+  "Given a slug and a number n, actually create the given number of
+   model instances in the db given by the field generators for that
+   model."
   [slug n]
   (let [generated (generate-model slug n)]
     (doall (map #(create slug %) generated))))
@@ -1501,19 +1549,23 @@
 (defn gather
   "The main function to retrieve instances of a model given by the slug.
    The possible keys in the opts map are:
-     :include - a nested map of associated content to include with the found instances.
-     :where - a nested map of conditions given to constrain the results found, which could include associated content.
-     :order - a nested map of ordering statements which may or may not be across associations.
-     :limit - The number of primary results to return (the number of associated instances given by the :include
-              option are not limited).
+     :include - a nested map of associated content to include with the found
+                 instances.
+     :where - a nested map of conditions given to constrain the results found,
+              which could include associated content.
+     :order - a nested map of ordering statements which may or may not be
+              across associations.
+     :limit - The number of primary results to return (the number of associated
+              instances given by the :include option are not limited).
      :offset - how many records into the result set are returned.
 
    Example:  (gather :model {:include {:fields {:link {}}}
                              :where {:fields {:slug \"name\"}}
                              :order {:slug :asc}
                              :limit 10 :offset 3})
-     --> returns 10 models and all their associated fields (and those fields' links if they exist) who have a
-         field with the slug of 'name', ordered by the model slug and offset by 3."
+     --> returns 10 models and all their associated fields (and those fields'
+         links if they exist) who have a field with the slug of 'name', ordered
+         by the model slug and offset by 3."
   ([slug] (gather slug {}))
   ([slug opts]
      (let [model ((keyword slug) @models)
@@ -1522,14 +1574,16 @@
        (fusion model (name slug) resurrected opts))))
 
 (defn pick
-  "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
+  "pick is the same as gather, but returns only the first result, so
+is not a list of maps but a single map result."
   ([slug] (pick slug {}))
   ([slug opts]
      (first (gather slug (assoc opts :limit 1)))))
 
 (defn impose
-  "impose is identical to pick except that if the record with the given :where conditions is not found,
-   it is created according to that :where map."
+  "impose is identical to pick except that if the record with the
+  given :where conditions is not found, it is created according to
+  that :where map."
   [slug opts]
   (or
    (pick slug opts)
@@ -1550,8 +1604,8 @@
     {}))
 
 (defn process-include
-  "The :include option is parsed into a nested map suitable for calling by the uberquery.
-   It translates strings of the form:
+  "The :include option is parsed into a nested map suitable for
+   calling by the uberquery. It translates strings of the form:
      'association.further_association,other_association'
    into -->
      {:association {:further_association {}} :other_association {}}"
@@ -1562,11 +1616,11 @@
      [(map keyword (split include #"\.")) {}])))
 
 (defn process-where
-  "The :where option is parsed into a nested map suitable for calling by the uberquery.
-   It translates strings of the form:
-     'fields.slug=name'
-   into -->
-     {:fields {:slug \"name\"}"
+  "The :where option is parsed into a nested map suitable for calling
+  by the uberquery. It translates strings of the form:
+    'fields.slug=name'
+  into -->
+    {:fields {:slug \"name\"}}"
   [where]
   (translate-directive
    where
@@ -1575,11 +1629,11 @@
        [(map keyword (split path #"\.")) condition]))))
 
 (defn process-order
-  "The :order option is parsed into a nested map suitable for calling by the uberquery.
-   It translates strings of the form:
+  "The :order option is parsed into a nested map suitable for calling
+   by the uberquery.  It translates strings of the form:
      'fields.slug asc,position desc'
    into -->
-     {:fields {:slug :asc} :position :desc}"
+      {:fields {:slug :asc} :position :desc}"
   [order]
   (translate-directive
    order
@@ -1589,8 +1643,10 @@
         (keyword (or condition "asc"))]))))
 
 (defn find-all
-  "This function is the same as gather, but uses strings for all the options that are transformed into
-   the nested maps that gather requires.  See the various process-* functions in this same namespace."
+  "This function is the same as gather, but uses strings for all the
+  options that are transformed into the nested maps that gather
+  requires.  See the various process-* functions in this same
+  namespace."
   [slug opts]
   (let [include (process-include (:include opts))
         where (process-where (:where opts))
@@ -1617,7 +1673,8 @@
    :asset (fn [row] (AssetField. row {}))
    :address (fn [row] (AddressField. row {}))
    :collection (fn [row]
-                 (let [link (if (row :link_id) (db/choose :field (row :link_id)))]
+                 (let [link (if (row :link_id)
+                              (db/choose :field (row :link_id)))]
                    (CollectionField. row {:link link})))
    :part (fn [row]
            (let [link (db/choose :field (row :link_id))]
@@ -1635,7 +1692,8 @@
    {:name "Locale Id" :type "integer" :locked true :editable false}
    {:name "Env Id" :type "integer" :locked true :editable false}
    {:name "Locked" :type "boolean" :locked true :immutable true :editable false}
-   {:name "Created At" :type "timestamp" :locked true :immutable true :editable false}
+   {:name "Created At" :type "timestamp"
+    :locked true :immutable true :editable false}
    {:name "Updated At" :type "timestamp" :locked true :editable false}])
 
 (defn make-field
@@ -1661,11 +1719,14 @@
     :before_create     -- called for create only, before the record is made
     :after_create      -- called for create only, now the record has an id
     :before_update     -- called for update only, before any changes are made
-    :after_update      -- called for update only, now the changes have been committed
+    :after_update      -- called for update only, now the changes have been
+                          committed
     :before_save       -- called for create and update
     :after_save        -- called for create and update
-    :before_destroy    -- only called on destruction, record has not yet been removed
-    :after_destroy     -- only called on destruction, now the db has no record of it"
+    :before_destroy    -- only called on destruction, record has not yet been
+                          removed
+    :after_destroy     -- only called on destruction, now the db has no record
+                          of it"
   [slug]
   (if (not (@lifecycle-hooks (keyword slug)))
     (let [hooks {(keyword slug)
@@ -1681,8 +1742,9 @@
        (alter lifecycle-hooks merge hooks)))))
 
 (defn run-hook
-  "run the hooks for the given model slug given by timing.
-  env contains any necessary additional information for the running of the hook"
+  "run the hooks for the given model slug given by timing. env
+  contains any necessary additional information for the running of the
+  hook"
   [slug timing env]
   (let [kind (lifecycle-hooks (keyword slug))]
     (if kind
@@ -1690,8 +1752,9 @@
         (reduce #((hook %2) %1) env (keys @hook))))))
 
 (defn add-hook
-  "add a hook for the given model slug for the given timing.
-  each hook must have a unique id, or it overwrites the previous hook at that id."
+  "add a hook for the given model slug for the given timing. each hook
+  must have a unique id, or it overwrites the previous hook at that
+  id."
   [slug timings id func]
   (let [timings (if (keyword? timings) [timings] timings)]
     (doseq [timing timings]
@@ -1732,7 +1795,8 @@
   (add-hook :model :after_create :invoke (fn [env]
     (if (-> env :content :nested)
       (create :field
-              {:name "Parent Id" :model_id (-> env :content :id) :type "integer"}))
+              {:name "Parent Id" :model_id (-> env :content :id)
+               :type "integer"}))
     env))
   
   (add-hook :model :after_update :rename (fn [env]
@@ -1752,74 +1816,96 @@
     env)))
   
 (defn- add-field-hooks []
-  (add-hook :field :before_save :check_link_slug (fn [env]
-    (assoc env :values 
-      (if (-> env :spec :link_slug)
-        (let [model_id (-> env :spec :model_id)
-              link_slug (-> env :spec :link_slug)
-              fetch (db/fetch :field "model_id = %1 and slug = '%2'" model_id link_slug)
-              linked (first fetch)]
-          (assoc (env :values) :link_id (linked :id)))
-        (env :values)))))
-  
-  (add-hook :field :after_create :add_columns (fn [env]
-    (let [field (make-field (env :content))
-          model_id (-> env :content :model_id)
-          model (models model_id)
-          slug (if model
-                 (model :slug)
-                 ((db/choose :model model_id) :slug))
-          default (-> env :spec :default_value)]
-      (doall (map #(db/add-column slug (name (first %)) (rest %)) (table-additions field (-> env :content :slug))))
-      (setup-field field (env :spec))
-      (if (present? default)
-        (db/set-default slug (-> env :content :slug) default))
-      env)))
-  
-  (add-hook :field :after_update :reify_field (fn [env]
-    (let [field (make-field (env :content))
-          original (-> env :original :slug)
-          slug (-> env :content :slug)
-          odefault (-> env :original :default_value)
-          default (-> env :content :default_value)
-          model (models (-> field :row :model_id))
-          spawn (apply zipmap (map #(subfield-names field %) [original slug]))
-          transition (apply zipmap (map #(map first (table-additions field %)) [original slug]))]
-      (if (not (= original slug))
-        (do (doall (map #(update :field (-> ((model :fields) (keyword (first %))) :row :id) {:name (last %)}) spawn))
-            (doall (map #(db/rename-column (model :slug) (first %) (last %)) transition))))
-      (if (and (not (empty? default)) (not (= odefault default)))
-        (db/set-default (model :slug) slug default)))
-    env))
+  (add-hook :field :before_save :check_link_slug
+            (fn [env]
+              (assoc env :values 
+                     (if (-> env :spec :link_slug)
+                       (let [model_id (-> env :spec :model_id)
+                             link_slug (-> env :spec :link_slug)
+                             fetch (db/fetch :field
+                                             "model_id = %1 and slug = '%2'"
+                                             model_id link_slug)
+                             linked (first fetch)]
+                         (assoc (env :values) :link_id (linked :id)))
+                       (env :values)))))
+ 
+  (add-hook :field :after_create :add_columns
+            (fn [env]
+              (let [field (make-field (env :content))
+                    model_id (-> env :content :model_id)
+                    model (models model_id)
+                    slug (if model
+                           (model :slug)
+                           ((db/choose :model model_id) :slug))
+                    default (-> env :spec :default_value)]
+                (doall (map #(db/add-column slug (name (first %)) (rest %))
+                            (table-additions field (-> env :content :slug))))
+                (setup-field field (env :spec))
+                (if (present? default)
+                  (db/set-default slug (-> env :content :slug) default))
+                env)))
+ 
+  (add-hook :field :after_update :reify_field
+            (fn [env]
+              (let [field (make-field (env :content))
+                    original (-> env :original :slug)
+                    slug (-> env :content :slug)
+                    odefault (-> env :original :default_value)
+                    default (-> env :content :default_value)
+                    model (models (-> field :row :model_id))
+                    spawn (apply zipmap (map #(subfield-names field %)
+                                             [original slug]))
+                    transition (apply zipmap
+                                      (map #(map first
+                                                 (table-additions field %))
+                                           [original slug]))]
+                (if (not (= original slug))
+                  (do (doall (map #(update :field
+                                           (-> ((model :fields)
+                                                (keyword (first %))) :row :id)
+                                           {:name (last %)})
+                                  spawn))
+                      (doall (map #(db/rename-column (model :slug)
+                                                     (first %) (last %))
+                                  transition))))
+                (if (and (not (empty? default)) (not (= odefault default)))
+                  (db/set-default (model :slug) slug default)))
+              env))
 
-  (add-hook :field :after_destroy :drop_columns (fn [env]
-    (try                                                  
-      (let [model (models (-> env :content :model_id))
-            field ((model :fields) (keyword (-> env :content :slug)))]
-        (do (cleanup-field field))
-        (doall (map #(db/drop-column ((models (-> field :row :model_id)) :slug) (first %)) (table-additions field (-> env :content :slug))))
-        env)
-      (catch Exception e env)))))
+  (add-hook :field :after_destroy :drop_columns
+            (fn [env]
+              (try                                   
+                (let [model (models (-> env :content :model_id))
+                      field ((model :fields) (keyword (-> env :content :slug)))]
+                  (do (cleanup-field field))
+                  (doall (map #(db/drop-column
+                                ((models (-> field :row :model_id)) :slug)
+                                (first %))
+                              (table-additions field (-> env :content :slug))))
+                  env)
+                (catch Exception e env)))))
 
 (defn add-app-model-hooks
-  "reads the hooks/ dir from resources and runs load-file for filenames that match
-  the application's model names"
+  "reads the hooks/ dir from resources and runs load-file for
+filenames that match the application's model names"
   []
   ;; this needs logging when we get it hooked up
   (doseq [model-slug @model-slugs]
-    (let [hooks-filename (str (@config/app :hooks-dir) "/" (name model-slug) ".clj")]
+    (let [hooks-filename (str (@config/app :hooks-dir) "/"
+                              (name model-slug) ".clj")]
       (try
         (if-let [hooks-file (io/resource hooks-filename)]
           (load-reader (io/reader hooks-file)))
         (catch Exception e (.printStackTrace e))))))
 
 (defn invoke-model
-  "translates a row from the model table into a nested hash with references
-  to its fields in a hash with keys being the field slugs
+  "translates a row from the model table into a nested hash with
+  references to its fields in a hash with keys being the field slugs
   and vals being the field invoked as a Field protocol record."
   [model]
   (let [fields (db/query "select * from field where model_id = %1" (model :id))
-        field-map (seq-to-map #(keyword (-> % :row :slug)) (map make-field fields))]
+        field-map (seq-to-map #(keyword (-> % :row :slug))
+                              (map make-field fields))]
     (make-lifecycle-hooks (model :slug))
     (assoc model :fields field-map)))
 
@@ -1831,42 +1917,49 @@
   []
   (let [rows (db/query "select * from model")
         invoked (doall (map invoke-model rows))]
-     (add-model-hooks)
-     (add-field-hooks)
-     (dosync
-      (alter models 
-        (fn [in-ref new-models] new-models)
-        (merge (seq-to-map #(keyword (% :slug)) invoked)
-               (seq-to-map #(% :id) invoked)))))
+    (add-model-hooks)
+    (add-field-hooks)
+    (dosync
+     (alter models 
+            (fn [in-ref new-models] new-models)
+            (merge (seq-to-map #(keyword (% :slug)) invoked)
+                   (seq-to-map #(% :id) invoked)))))
 
-     ;; get all of our model slugs
-     (dosync
-      (ref-set model-slugs (filter keyword? (keys @models))))
-     (add-app-model-hooks))
+  ;; get all of our model slugs
+  (dosync
+   (ref-set model-slugs (filter keyword? (keys @models))))
+  (add-app-model-hooks))
 
 (defn create
-  "slug represents the model to be updated.
-  the spec contains all information about how to update this row,
-  including nested specs which update across associations.
-  the only difference between a create and an update is if an id is supplied,
-  hence this will automatically forward to update if it finds an id in the spec.
-  this means you can use this create method to create or update something,
-  using the presence or absence of an id to signal which operation gets triggered."
+  "slug represents the model to be updated. the spec contains all
+information about how to update this row, including nested specs which
+update across associations.  the only difference between a create and
+an update is if an id is supplied, hence this will automatically
+forward to update if it finds an id in the spec.  this means you can
+use this create method to create or update something, using the
+presence or absence of an id to signal which operation gets
+triggered."
   ([slug spec]
      (create slug spec {}))
   ([slug spec opts]
      (if (present? (spec :id))
        (update slug (spec :id) spec opts)
        (let [model (models (keyword slug))
-             values (reduce #(update-values %2 spec %1) {} (vals (dissoc (model :fields) :updated_at)))
+             values (reduce #(update-values %2 spec %1)
+                            {}
+                            (vals (dissoc (model :fields) :updated_at)))
              env {:model model :values values :spec spec :op :create :opts opts}
              _save (run-hook slug :before_save env)
              _create (run-hook slug :before_create _save)
              content (db/insert slug (dissoc (_create :values) :updated_at))
              merged (merge (_create :spec) content)
-             _after (run-hook slug :after_create (merge _create {:content merged}))
-             post (reduce #(post-update %2 %1) (_after :content) (vals (model :fields)))
-             _final (run-hook slug :after_save (merge _after {:content post}))]
+             _after (run-hook slug :after_create
+                              (merge _create {:content merged}))
+             post (reduce #(post-update %2 %1)
+                          (_after :content)
+                          (vals (model :fields)))
+             _final (run-hook slug :after_save
+                              (merge _after {:content post}))]
          (_final :content)))))
 
 (defn rally
@@ -1880,27 +1973,35 @@
            limit (str (or (opts :limit) 30))
            offset (str (or (opts :offset) 0))
            where (str (or (opts :where) "1=1"))]
-       (doall (map #(from model % opts) (db/query "select * from %1 where %2 order by %3 %4 limit %5 offset %6" slug where order-by order limit offset))))))
+       (doall (map #(from model % opts)
+                   (db/query "select * from %1 where %2 order by %3 %4 limit %5 offset %6"
+                             slug where order-by order limit offset))))))
 
 (defn update
-  "slug represents the model to be updated.
-  id is the specific row to update.
-  the spec contains all information about how to update this row,
-  including nested specs which update across associations."
+  "slug represents the model to be updated. id is the specific row to
+update.  the spec contains all information about how to update this
+row, including nested specs which update across associations."
   ([slug id spec]
      (update slug id spec {}))
   ([slug id spec opts]
      (let [model (models (keyword slug))
            original (db/choose slug id)
-           values (reduce #(update-values %2 (assoc spec :id id) %1) {} (vals (model :fields)))
-           env {:model model :values values :spec spec :original original :op :update :opts opts}
+           values (reduce #(update-values %2 (assoc spec :id id) %1)
+                          {}
+                          (vals (model :fields)))
+           env {:model model :values values
+                :spec spec :original original
+                :op :update :opts opts}
            _save (run-hook slug :before_save env)
            _update (run-hook slug :before_update _save)
            success (db/update slug ["id = ?" (Integer. id)] (_update :values))
            content (db/choose slug id)
            merged (merge (_update :spec) content)
-           _after (run-hook slug :after_update (merge _update {:content merged}))
-           post (reduce #(post-update %2 %1) (_after :content) (vals (model :fields)))
+           _after (run-hook slug :after_update
+                            (merge _update {:content merged}))
+           post (reduce #(post-update %2 %1)
+                        (_after :content)
+                        (vals (model :fields)))
            _final (run-hook slug :after_save (merge _after {:content post}))]
        (_final :content))))
 
@@ -1911,7 +2012,9 @@
         content (db/choose slug id)
         env {:model model :content content :slug slug}
         _before (run-hook slug :before_destroy env)
-        pre (reduce #(pre-destroy %2 %1) (_before :content) (vals (model :fields)))
+        pre (reduce #(pre-destroy %2 %1)
+                    (_before :content)
+                    (vals (model :fields)))
         deleted (db/delete slug "id = %1" id)
         _after (run-hook slug :after_destroy (merge _before {:content pre}))]
     (_after :content)))
@@ -1926,7 +2029,8 @@
          (let [field-names (table-columns slug)
                base-where (db/clause "id = %1" [id])
                recur-where (db/clause "%1_tree.parent_id = %1.id" [slug])
-               before (db/recursive-query slug field-names base-where recur-where)]
+               before (db/recursive-query
+                       slug field-names base-where recur-where)]
            (doall (map #(from model % opts) before)))
          [(from model (db/choose slug id) opts)]))))
 
@@ -1940,7 +2044,8 @@
          (let [field-names (table-columns slug)
                base-where (db/clause "id = %1" [id])
                recur-where (db/clause "%1_tree.id = %1.parent_id" [slug])
-               before (db/recursive-query slug field-names base-where recur-where)]
+               before (db/recursive-query
+                       slug field-names base-where recur-where)]
            (doall (map #(from model % opts) before)))
          [(from model (db/choose slug id) opts)]))))
 
