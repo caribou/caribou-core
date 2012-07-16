@@ -6,6 +6,22 @@
 (import java.sql.SQLException)
 (import java.io.File)
 
+(defn ago
+  "given a timecore/interval, creates a string representing the time passed"
+  [interval]
+  (let [notzero (fn [convert data]
+                  (let [span (convert data)]
+                    (if (== span 0)
+                      false
+                      span)))
+        ago-str (fn [string num]
+                  (str num " " string (if (== num 1) "" "s") " ago"))]
+    (condp notzero interval
+      timecore/in-years :>> #(ago-str "year" %)
+      timecore/in-months :>> #(ago-str "month" %)
+      timecore/in-days :>> #(ago-str "day" %)
+      (constantly 1) (ago-str "hour" (timecore/in-hours interval)))))
+
 (defn seq-to-map [f q]
   (reduce #(assoc %1 (f %2) %2) {} q))
 

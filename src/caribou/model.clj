@@ -80,22 +80,6 @@
       (coerce/to-timestamp
        (impose-time-zone default (timecore/default-time-zone))))))
 
-(defn ago
-  "given a timecore/interval, creates a string representing the time passed"
-  [interval]
-  (let [notzero (fn [convert data]
-                  (let [span (convert data)]
-                    (if (== span 0)
-                      false
-                      span)))
-        ago-str (fn [string num]
-                  (str num " " string (if (== num 1) "" "s") " ago"))]
-    (condp notzero interval
-      timecore/in-years :>> #(ago-str "year" %)
-      timecore/in-months :>> #(ago-str "month" %)
-      timecore/in-days :>> #(ago-str "day" %)
-      (constantly 1) (ago-str "hour" (timecore/in-hours interval)))))
-
 (defprotocol Field
   "a protocol for expected behavior of all model fields"
   (table-additions [this field]
@@ -218,7 +202,7 @@
     (pure-fusion this prefix archetype skein opts))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
-  
+
 (defrecord IntegerField [row env]
   Field
   (table-additions [this field] [[(keyword field) :integer]])
