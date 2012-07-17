@@ -91,7 +91,7 @@
       (catch Exception e
         (try
           (logger/error
-           (str "update " table " failed: " (.getNextException (debug e))))
+           (str "update " table " failed: " (.getNextException e)))
           (catch Exception e (println e)))))))
 
 ;; (defn update
@@ -180,14 +180,17 @@
   "rename a column in the given table to new-name."
   [table column new-name]
   (let [alter-statement (adapter/rename-clause @config/db-adapter)
-        rename (log :db (clause alter-statement (map name [table column new-name])))]
+        rename (clause alter-statement (map name [table column new-name]))]
+    (logger/debug rename :db)
     (sql/do-commands rename)))
 
 (defn drop-column
   "remove the given column from the table."
   [table column]
-  (sql/do-commands
-   (log :db (clause "alter table %1 drop column %2" (map #(zap (name %)) [table column])))))
+  (let [sql-string (clause "alter table %1 drop column %2"
+                           (map #(zap (name %)) [table column]))]
+    (logger/debug sql-string :db)
+    (sql/do-commands sql-string)))
 
 (defn do-sql
   "execute arbitrary sql.  direct proxy to sql/do-commands."
