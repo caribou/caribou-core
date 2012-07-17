@@ -210,7 +210,7 @@
   "drop a database of the given config"
   [config]
   (let [db-name (config :database)]
-    (println "dropping database: " db-name)
+    (logger/debug (str "dropping database: " db-name) :db)
     (try
       (sql/with-connection (change-db-keep-host config "template1")
         (with-open [s (.createStatement (sql/connection))]
@@ -222,7 +222,7 @@
   "create a database of the given name"
   [config]
   (let [db-name (config :database)]
-    (println "creating database: " db-name)
+    (logger/debug (str "creating database: " db-name) :db)
     (try
       (sql/with-connection (change-db-keep-host config "template1") 
         (with-open [s (.createStatement (sql/connection))]
