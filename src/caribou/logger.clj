@@ -29,6 +29,13 @@
              ~map)]
      ~@body))
 
+(defmacro whenlog
+  "run body when level is enabled"
+  [level & body]
+  `(with-config {}
+     (if (logging/enabled? ~level)
+       ~@body)))
+
 (defn debug 
   "Log a debug message (with an optional prefix)"
   ([msg] (with-config {} (logging/debug msg)))
