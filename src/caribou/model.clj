@@ -1502,15 +1502,17 @@
    ie: all fields correspond to fields the model actually has, and the
    options map itself is well-formed."
   ;; TODO (justin smith) - check that the map is well formed
-  (println "validating query keys")
-  (let [valid-keys (set (table-columns slug))
+  (let [model (models (keyword slug))
+        field-keys (map :slug (db/query
+                               "select * from field where model_id = %1"
+                               (:id model)))
+        valid-slugs (filter #(not (re-find #"(.*)_join" %))
+                            field-keys)
+        valid-keys (set (map keyword valid-slugs))
         requested-keys (set (keys (merge (:where opts) (:order opts))))
         difference (set/difference requested-keys valid-keys)]
-    
-    (log/debug (str slug "\t" opts "\t<< " (join " " valid-keys) " >>")
-               :VALIDATING)
     (when-not (empty? difference)
-      (log/error difference :INVALID-KEYS))))
+      (log/error (str "for model " slug " " difference) :INVALID-KEYS))))
 
 (defn model-generator
   "Constructs a map of field generator functions for the given model
@@ -1569,8 +1571,8 @@
          by the model slug and offset by 3."
   ([slug] (gather slug {}))
   ([slug opts]
-     (when (logging/enabled? :debug)
-       (beam-validator slug opts))
+     (log/whenlog :debug
+                  (beam-validator slug opts))
      (let [model ((keyword slug) @models)
            beams (beam-splitter opts)
            resurrected (mapcat (partial uberquery model) beams)]
