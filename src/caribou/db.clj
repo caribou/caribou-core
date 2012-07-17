@@ -1,10 +1,10 @@
 (ns caribou.db
-  (:use [caribou.debug])
   (:use [clojure.string :only (join split)])
   (:require [clojure.string :as string]
             [clojure.java.jdbc :as sql]
             [caribou.util :as util]
             [caribou.config :as config]
+            [caribou.logger :as logger]
             [caribou.db.adapter.protocol :as adapter]))
 
 (import java.util.regex.Matcher)
@@ -76,20 +76,22 @@
   ;;   (sql/with-connection db
   ;;     (sql/do-commands
   ;;       (log :db q)))))
-  (log :db (clause "insert into %1 values %2" [(name table) (value-map values)]))
+  (logger/debug
+   (clause "insert into %1 values %2" [(name table) (value-map values)]) :db)
   (let [result (sql/insert-record table values)]
     (adapter/insert-result @config/db-adapter (name table) result)))
 
 (defn update
   "update the given row with the given values"
   [table where values]
-  (log :db (str "update " table " " where " set " values))
+  (logger/debug (str "update " table " " where " set " values) :db)
   (if (not (empty? values))
     (try
       (sql/update-values table where values)
       (catch Exception e
         (try
-          (println (str "update " table " failed: " (.getNextException (debug e))))
+          (logger/error
+           (str "update " table " failed: " (.getNextException (debug e))))
           (catch Exception e (println e)))))))
 
 ;; (defn update
@@ -104,8 +106,14 @@
 (defn delete
   "delete out of the given table according to the supplied where clause"
   [table & where]
-  (log :db (clause "delete from %1 values %2" [(name table) (clause (first where) (rest where))]))
-  (sql/delete-rows table [(if (not (empty? where)) (clause (first where) (rest where)))]))
+  (let [sql-clause (when (not (empty? where))
+                     (clause (first where)
+                             (rest where)))]
+    (logger/debug
+     (clause "delete from %1 values %2"
+             [(name table) sql-clause])
+     :db)
+    (sql/delete-rows table [sql-clause])))
 
 (defn fetch
   "pull all items from a table according to the given conditions"
@@ -131,7 +139,7 @@
   "create a table with the given columns, of the format
   [:column_name :type & :extra]"
   [table & fields]
-  (log :db (clause "create table %1 %2" [(name table) fields]))
+  (logger/debug (clause "create table %1 %2" [(name table) fields]) :db)
   (try
     (apply sql/create-table (cons table fields))
     (catch Exception e (util/render-exception e))))
@@ -139,28 +147,34 @@
 (defn rename-table
   "change the name of a table to new-name."
   [table new-name]
-  (let [rename (log :db (clause "alter table %1 rename to %2" [(name table) (name new-name)]))]
+  (let [rename
+        (clause "alter table %1 rename to %2" [(name table) (name new-name)])]
+    (logger/debug rename :db)
     (sql/do-commands rename)))
 
 (defn drop-table
   "remove the given table from the database."
   [table]
-  (log :db (clause "drop table %1" [(name table)]))
+  (logger/debug (clause "drop table %1" [(name table)]) :db)
   (sql/drop-table (name table)))
 
 (defn add-column
   "add the given column to the table."
   [table column opts]
-  (let [type (join " " (map name opts))]
-    (sql/do-commands
-     (log :db (clause "alter table %1 add column %2 %3" (map #(zap (name %)) [table column type]))))))
+  (let [type (join " " (map name opts))
+        sql-string (clause "alter table %1 add column %2 %3"
+                           (map #(zap (name %)) [table column type]))]
+    (logger/debug sql-string :db)
+    (sql/do-commands sql-string)))
 
 (defn set-default
   "sets the default for a column"
   [table column default]
-  (let [value (sqlize default)]
-    (sql/do-commands
-     (log :db (clause "alter table %1 alter column %2 set default %3" [(zap table) (zap column) value])))))
+  (let [value (sqlize default)
+        sql-string (clause "alter table %1 alter column %2 set default %3"
+                           [(zap table) (zap column) value])]
+    (logger/debug sql-string :db)
+    (sql/do-commands sql-string)))
 
 (defn rename-column
   "rename a column in the given table to new-name."
