@@ -64,7 +64,8 @@
 (defn value-map
   "build a string of values fit for an insert or update statement"
   [values]
-  (join ", " (map #(str (name %) " = " (sqlize (values %))) (keys values))))
+  (join ", " (map #(str (name (first %)) " = "
+                        (sqlize (second %))) values)))
 
 (defn insert
   "insert a row into the given table with the given values"
