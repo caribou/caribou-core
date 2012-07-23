@@ -1496,6 +1496,14 @@
      include-keys)
     [opts]))
 
+;; TODO (justin smith) - use @models instead of a select statement here
+(defn valid-keys
+  [model]
+  (map :slug
+       (db/query
+        "select * from field where model_id = %1"
+        (:id model))))
+
 (defn beam-validator
   [slug opts]
   "Verify the given options make sense for the model given by slug,
@@ -1503,9 +1511,7 @@
    options map itself is well-formed."
   ;; TODO (justin smith) - check that the map is well formed
   (let [model (models (keyword slug))
-        field-keys (map :slug (db/query
-                               "select * from field where model_id = %1"
-                               (:id model)))
+        field-keys (valid-keys model)
         valid-slugs (filter #(not (re-find #"(.*)_join" %))
                             field-keys)
         valid-keys (set (map keyword valid-slugs))
