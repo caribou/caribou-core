@@ -68,6 +68,7 @@
   [config-map]
   (let [db-config (config-map :database)
         logging-config (config-map :logging)]
+    (load-caribou-properties)
     (dosync
      (ref-set db-adapter (db-adapter/adapter-for db-config)))
     (dosync
@@ -78,14 +79,13 @@
     (dosync
      (alter logger/defaults merge logging-config))
     (logger/init)
-    (load-caribou-properties)
     config-map))
 
 (defn init
   []
   (let [boot-resource "config/boot.clj"
         boot (io/resource boot-resource)]
-   
+
     (if (nil? boot)
       (throw (Exception.
               (format "Could not find %s on the classpath" boot-resource))))
