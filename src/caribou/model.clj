@@ -11,7 +11,8 @@
             [geocoder.core :as geo]
             [clojure.java.io :as io]
             [caribou.config :as config]
-            [caribou.db.adapter.protocol :as adapter]))
+            [caribou.db.adapter.protocol :as adapter]
+            [caribou.logger :as log]))
 
 (import java.util.Date)
 (import java.text.SimpleDateFormat)
@@ -1411,7 +1412,7 @@
   "The query to bind all queries.  Returns every facet of every row given an
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
-  (println "UBEROPTS" (:slug model) (str opts))
+  (log/debug (str (:slug model) " " opts) :UBEROPTS)
   (let [query-mass (form-uberquery model opts)]
     (db/query query-mass)))
 

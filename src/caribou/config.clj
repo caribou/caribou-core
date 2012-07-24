@@ -6,7 +6,9 @@
   (:require [clojure.java.io :as io]
             [caribou.util :as util]
             [caribou.db.adapter :as db-adapter]
-            [caribou.db.adapter.protocol :as adapter]))
+            [caribou.db.adapter.protocol :as adapter]
+            [caribou.logger :as logger]))
+
 
 (declare config-path)
 
@@ -64,7 +66,8 @@
 
 (defn configure
   [config-map]
-  (let [db-config (config-map :database)]
+  (let [db-config (config-map :database)
+        logging-config (config-map :logging)]
     (dosync
      (ref-set db-adapter (db-adapter/adapter-for db-config)))
     (dosync
@@ -72,6 +75,9 @@
     (dosync
      (alter db merge (assoc-subname db-config)))
     (adapter/init @db-adapter)
+    (dosync
+     (alter logger/defaults merge logging-config))
+    (logger/init)
     (load-caribou-properties)
     config-map))
 
@@ -81,7 +87,8 @@
         boot (io/resource boot-resource)]
    
     (if (nil? boot)
-      (throw (Exception. (format "Could not find %s on the classpath" boot-resource))))
+      (throw (Exception.
+              (format "Could not find %s on the classpath" boot-resource))))
 
     (load-reader (io/reader boot))))
 
