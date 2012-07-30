@@ -78,17 +78,16 @@
     (dosync
      (alter logger/defaults merge logging-config))
     (logger/init)
-    (load-caribou-properties)
     config-map))
 
 (defn init
   []
+  (load-caribou-properties)
   (let [boot-resource "config/boot.clj"
         boot (io/resource boot-resource)]
-   
+
     (if (nil? boot)
       (throw (Exception.
               (format "Could not find %s on the classpath" boot-resource))))
-
     (load-reader (io/reader boot))))
 

@@ -60,8 +60,7 @@
   "Spy the value of an expression (with an optional prefix)"
   ([form] `(logconf/with-logging-config {} (logging/spy '~form)))
   ([form prefix] `(logconf/with-logging-config
-                    {:log-layout (org.apache.log4j.PatternLayout.
-                                  (str prefix " "
-                                       (.getConversionPattern
-                                        (:log-layout @config/app))))}
+                    {:pattern 
+                     (str prefix " "
+                          (:log-pattern @config/app))}
                     (logging/spy '~form))))

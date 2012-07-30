@@ -517,7 +517,7 @@
   (if (and asset (asset :filename))
     (pathify [(asset-dir asset)
               ;; this regex is to deal with funky windows file paths
-              (re-find #"[^:\\]*$"
+              (re-find #"[^:\\\/]*$"
                        (asset :filename))])
     ""))
 
