@@ -24,30 +24,40 @@
   `(logconf/with-logging-config
      [:root (merge
              {:level (:log-level @defaults)
-              :pattern (:log-pattern @defaults)
+              ;; pattern is done this way because the java logging tools
+              ;; don't understand where we are in clojure land
+              :pattern ;(-> (:log-pattern @defaults)
+                       ;    ;; location
+                       ;    #(clojure.string/replace % #"%l" "%M : %F (%L)")
+                       ;    ;; method (function?), cannot find this atm
+                       ;                 ;#(clojure.string/replace % #"%M" "")
+                       ;    (clojure.string/replace % #"%F" ~*file*)
+                       ;    (clojure.string/replace % #"%L"
+                       ;                            ~(:line (meta &form)))))
+              (:log-pattern @defaults)
               :filter (:log-filter @defaults)}
              ~map)]
      ~@body))
 
-(defn debug 
+(defmacro debug 
   "Log a debug message (with an optional prefix)"
-  ([msg] (with-config {} (logging/debug msg)))
-  ([msg prefix] (debug (str (name prefix) ": " msg))))
+  ([msg] `(with-config {} (logging/debug ~msg)))
+  ([msg prefix] `(debug (str (name ~prefix) ": " ~msg))))
 
 (defn info 
   "Log an info message (with an optional prefix)"
-  ([msg] (with-config {} (logging/info msg)))
-  ([msg prefix] (info (str (name prefix) ": " msg))))
+  ([msg] `(with-config {} (logging/info ~msg)))
+  ([msg prefix] `(info (str (name ~prefix) ": " ~msg))))
 
 (defn warn 
   "Log a warning message (with an optional prefix)"
-  ([msg] (with-config {} (logging/warn msg)))
-  ([msg prefix] (warn (str (name prefix) ": " msg))))
+  ([msg] `(with-config {} (logging/warn ~msg)))
+  ([msg prefix] `(warn (str (name ~prefix) ": " ~msg))))
 
 (defn error 
   "Log an error message (with an optional prefix)"
-  ([msg] (with-config {} (logging/error msg)))
-  ([msg prefix] (error (str (name prefix) ": " msg))))
+  ([msg] `(with-config {} (logging/error ~msg)))
+  ([msg prefix] `(error (str (name ~prefix) ": " ~msg))))
 
 (defmacro spy
   "Spy the value of an expression (with an optional prefix)"
