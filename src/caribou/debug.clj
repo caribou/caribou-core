@@ -29,6 +29,19 @@
      `(let ~(vec (mapcat #(list % `(*locals* '~%)) (keys locals)))
         ~form))))
 
+(defn symbolize-keys
+  [[k v]]
+  (list (symbol (name k)) v))
+
+(defn eval-with-map
+  [bindings form]
+  (eval
+   `(let ~(vec (mapcat symbolize-keys bindings)) ~(read-string form))))
+
+(defmacro eval-with-map-macro
+  [bindings form]
+  `(let ~(vec (mapcat symbolize-keys bindings)) ~(read-string form)))
+
 (defmacro repl
   "Starts a REPL with the local bindings available."
   []

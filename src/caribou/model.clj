@@ -1412,7 +1412,6 @@
   "The query to bind all queries.  Returns every facet of every row given an
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
-  (log/debug (str (:slug model) " " opts) :UBEROPTS)
   (let [query-mass (form-uberquery model opts)]
     (db/query query-mass)))
 

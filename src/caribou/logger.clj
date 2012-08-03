@@ -4,7 +4,7 @@
 
 ;; initialize clj-logging-config
 (def defaults (ref
-               {:log-pattern "%p %m (%x) %n\n"
+               {:log-pattern "%p %m %n"
                 :log-level :debug
                 :log-filter (constantly true)
                 :debug true}))
