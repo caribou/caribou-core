@@ -20,6 +20,7 @@
     (zipmap (map (fn [sym] `(quote ~sym)) symbols) symbols)))
 
 (declare ^:dynamic *locals*)
+
 (defn eval-with-locals
   "Evals a form with given locals.  The locals should be a map of symbols to
   values."
@@ -28,6 +29,15 @@
     (eval
      `(let ~(vec (mapcat #(list % `(*locals* '~%)) (keys locals)))
         ~form))))
+
+(defn eval-with-bindings
+  "Evals a form with given locals.  The locals should be a map of symbols to
+  values."
+  [locals form]
+  (binding [*locals* locals]
+    (eval
+     `(let ~(vec (mapcat #(list (symbol (name %)) `(*locals* '~%)) (keys locals)))
+        ~(read-string form)))))
 
 (defn symbolize-keys
   [[k v]]
