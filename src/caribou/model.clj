@@ -189,7 +189,7 @@
 
 (defrecord IdField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "SERIAL"]]) ;; "PRIMARY KEY"]])
+  (table-additions [this field] [[(keyword field) "SERIAL" "PRIMARY KEY"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (cleanup-field [this] nil)
@@ -1683,10 +1683,11 @@
   "run the hooks for the given model slug given by timing.
   env contains any necessary additional information for the running of the hook"
   [slug timing env]
-  (let [kind (lifecycle-hooks (keyword slug))]
+  (let [kind (@lifecycle-hooks (keyword slug))]
     (if kind
-      (let [hook (kind (keyword timing))]
-        (reduce #((hook %2) %1) env (keys @hook))))))
+      (let [hook (deref (kind (keyword timing)))]
+        (reduce #((hook %2) %1) env (keys hook)))
+      env)))
 
 (defn add-hook
   "add a hook for the given model slug for the given timing.
