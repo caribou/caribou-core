@@ -567,7 +567,8 @@
     (update :model (row :model_id)
             {:fields [{:name (titleize (str (:slug row) "_id"))
                        :type "integer"
-                       :editable false}]} {:op :migration}))
+                       :editable false
+                       :reference :asset}]} {:op :migration}))
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
           id (keyword (str (:slug row) "_id"))]
@@ -633,7 +634,8 @@
     (update :model (row :model_id)
             {:fields [{:name (titleize (str (:slug row) "_id"))
                        :type "integer"
-                       :editable false}]} {:op :migration}))
+                       :editable false
+                       :reference :location}]} {:op :migration}))
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
           id (keyword (str (:slug row) "_id"))]
@@ -703,7 +705,7 @@
 
 (defn present?
   [x]
-  (and (not (nil? x)) (or (number? x) (not (empty? x)))))
+  (and (not (nil? x)) (or (number? x) (keyword? x) (= (type x) Boolean) (not (empty? x)))))
 
 (defn- collection-where
   [field prefix opts]  
@@ -917,7 +919,9 @@
         {:fields
          [{:name (titleize (str (:slug row) "_id"))
            :type "integer"
-           :editable false}
+           :editable false
+           :reference (:slug target)
+           :dependent (:dependent spec)}
           {:name (titleize (str (:slug row) "_position"))
            :type "integer"
            :editable false}]} {:op :migration})))
@@ -998,7 +1002,8 @@
         {:fields
          [{:name (titleize (str (:slug row) "_id"))
            :type "integer"
-           :editable false}]} {:op :migration})))
+           :editable false
+           :reference (:slug model)}]} {:op :migration})))
 
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
@@ -1633,7 +1638,7 @@
    {:name "Status" :type "integer" :locked true}
    {:name "Locale Id" :type "integer" :locked true :editable false}
    {:name "Env Id" :type "integer" :locked true :editable false}
-   {:name "Locked" :type "boolean" :locked true :immutable true :editable false}
+   {:name "Locked" :type "boolean" :locked true :immutable true :editable false :default_value false}
    {:name "Created At" :type "timestamp" :locked true :immutable true :editable false}
    {:name "Updated At" :type "timestamp" :locked true :editable false}])
 
@@ -1751,6 +1756,72 @@
     (invoke-models)
     env)))
   
+(defn process-default
+  [field-type default]
+  (if (and (= "boolean" field-type) (string? default))
+    (= "true" default)
+    default))
+
+(defn- field-add-columns
+  [env]
+  (let [field (make-field (env :content))
+        model_id (-> env :content :model_id)
+        model (models model_id)
+        model-slug (if model
+                     (model :slug)
+                     ((db/choose :model model_id) :slug))
+        slug (-> env :content :slug)
+        default (process-default (-> env :spec :type) (-> env :spec :default_value))
+
+        reference (-> env :spec :reference)]
+    (doall (map
+            #(db/add-column
+              model-slug
+              (name (first %))
+              (rest %))
+            (table-additions field slug)))
+    (setup-field field (env :spec))
+
+    (if (present? default)
+      (db/set-default model-slug slug default))
+    (if (present? reference)
+      (db/add-reference model-slug slug reference (if (-> env :content :dependent) :destroy :default)))
+    (if (-> env :spec :required)
+      (db/set-required model-slug slug true))
+    (if (-> env :spec :disjoint)
+      (db/set-unique model-slug slug true))
+
+    env))
+
+(defn- field-reify-column
+  [env]
+  (let [field (make-field (env :content))
+        model (models (-> field :row :model_id))
+        model-slug (:slug model)
+
+        original (:original env)
+        content (:content env)
+        
+        oslug (:slug original)
+        slug (:slug content)
+
+        default (process-default (:type content) (:default_value content))
+        required (:required content)
+        unique (:unique content)
+        
+        spawn (apply zipmap (map #(subfield-names field %) [oslug slug]))
+        transition (apply zipmap (map #(map first (table-additions field %)) [oslug slug]))]
+    (if (not (= oslug slug))
+      (do (doall (map #(update :field (-> ((:fields model) (keyword (first %))) :row :id) {:name (last %)}) spawn))
+          (doall (map #(db/rename-column model-slug (first %) (last %)) transition))))
+    (if (and (present? default) (not (= (:default_value original) default)))
+      (db/set-default model-slug slug default))
+    (if (and (present? required) (not= required (:required original)))
+      (db/set-required model-slug slug required))
+    (if (and (present? unique) (not= unique (:unique original)))
+      (db/set-unique model-slug slug unique)))
+  env)
+
 (defn- add-field-hooks []
   (add-hook :field :before_save :check_link_slug (fn [env]
     (assoc env :values 
@@ -1762,35 +1833,8 @@
           (assoc (env :values) :link_id (linked :id)))
         (env :values)))))
   
-  (add-hook :field :after_create :add_columns (fn [env]
-    (let [field (make-field (env :content))
-          model_id (-> env :content :model_id)
-          model (models model_id)
-          slug (if model
-                 (model :slug)
-                 ((db/choose :model model_id) :slug))
-          default (-> env :spec :default_value)]
-      (doall (map #(db/add-column slug (name (first %)) (rest %)) (table-additions field (-> env :content :slug))))
-      (setup-field field (env :spec))
-      (if (present? default)
-        (db/set-default slug (-> env :content :slug) default))
-      env)))
-  
-  (add-hook :field :after_update :reify_field (fn [env]
-    (let [field (make-field (env :content))
-          original (-> env :original :slug)
-          slug (-> env :content :slug)
-          odefault (-> env :original :default_value)
-          default (-> env :content :default_value)
-          model (models (-> field :row :model_id))
-          spawn (apply zipmap (map #(subfield-names field %) [original slug]))
-          transition (apply zipmap (map #(map first (table-additions field %)) [original slug]))]
-      (if (not (= original slug))
-        (do (doall (map #(update :field (-> ((model :fields) (keyword (first %))) :row :id) {:name (last %)}) spawn))
-            (doall (map #(db/rename-column (model :slug) (first %) (last %)) transition))))
-      (if (and (not (empty? default)) (not (= odefault default)))
-        (db/set-default (model :slug) slug default)))
-    env))
+  (add-hook :field :after_create :add_columns field-add-columns)
+  (add-hook :field :after_update :reify_field field-reify-column)
 
   (add-hook :field :after_destroy :drop_columns (fn [env]
     (try                                                  
