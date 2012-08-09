@@ -157,9 +157,38 @@
 (defn set-default
   "sets the default for a column"
   [table column default]
+  (println "SETTING DEFAULT" table column default)
   (let [value (sqlize default)]
     (sql/do-commands
      (log :db (clause "alter table %1 alter column %2 set default %3" [(zap table) (zap column) value])))))
+
+(defn set-required
+  [table column value]
+  (sql/do-commands
+   (log :db (clause
+             (if value
+               "alter table %1 alter column %2 set not null"
+               "alter table %1 alter column %2 drop not null")
+             [(zap table) (zap column)]))))
+
+(defn set-unique
+  [table column value]
+  (sql/do-commands
+   (log :db (clause
+             (if value
+               "alter table %1 add constraint %2_unique unique (%2)"
+               "alter table %1 drop constraint %2_unique")
+             [(zap table) (zap column)]))))
+
+(defn add-reference
+  [table column reference deletion]
+  (sql/do-commands
+   (log :db (clause
+             (condp = deletion
+               :destroy "alter table %1 add foreign key(%2) references %3 on delete cascade"
+               :default "alter table %1 add foreign key(%2) references %3 on delete set default"
+               "alter table %1 add foreign key(%2) references %3 on delete set null")
+             [(zap table) (zap column) (zap reference)]))))
 
 (defn rename-column
   "rename a column in the given table to new-name."

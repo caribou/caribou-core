@@ -36,7 +36,7 @@
    [:type "varchar(256)" "NOT NULL"]
    [:default_value "varchar(256)"]
    [:link_id :integer "DEFAULT NULL"]
-   [:model_id :integer "NOT NULL"]
+   [:model_id :integer "NOT NULL" "REFERENCES model ON DELETE CASCADE"]
    [:model_position :integer "DEFAULT 0"]
    [:target_id :integer "DEFAULT NULL"]
    [:target_type "varchar(55)" "DEFAULT NULL"]
@@ -387,11 +387,11 @@
            :position 3
            :locked true
            :nested true
-           :fields (lock [{:name "Name" :type "string"}
+           :fields (lock [{:name "Name" :type "string" :required true :disjoint true}
                           {:name "Slug" :type "slug" :link_slug "name"}
                           {:name "Path" :type "string"}
-                          {:name "Controller" :type "string"}
-                          {:name "Action" :type "string"}
+                          {:name "Controller" :type "string" :required true}
+                          {:name "Action" :type "string" :required true}
                           {:name "Method" :type "string"}
                           {:name "Template" :type "string"}])})
 
@@ -436,7 +436,7 @@
            :description "maps to a particular set of pages"
            :position 8
            :locked true
-           :fields (lock [{:name "Name" :type "string"}
+           :fields (lock [{:name "Name" :type "string" :required true}
                           {:name "Slug" :type "slug" :link_slug "name"}
                           {:name "Asset" :type "asset"}
                           {:name "Description" :type "text"}])})
@@ -480,6 +480,7 @@
   (model/update :model ((model/models :site) :id)
           {:fields [{:name "Domains"
                      :type "collection"
+                     :dependent true
                      :target_id ((model/models :domain) :id)}
                     {:name "Pages"
                      :type "collection"
