@@ -187,11 +187,16 @@
         value (get (first containing) bit)]
     (assoc archetype slug value)))
 
+(def models (ref {}))
+(def model-slugs (ref {}))
+
 (defrecord IdField [row env]
   Field
   (table-additions [this field] [[(keyword field) "SERIAL" "PRIMARY KEY"]])
   (subfield-names [this field] [])
-  (setup-field [this spec] nil)
+  (setup-field [this spec]
+    (let [model (db/choose :model (:model_id row))]
+      (db/create-index (:slug model) (:slug row))))
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values [this content values] values)
@@ -497,8 +502,6 @@
 (declare model-natural-orderings)
 (declare subfusion)
 (declare fusion)
-(def models (ref {}))
-(def model-slugs (ref {}))
 
 (defn- pad-break-id [id]
   (let [root (str id)
@@ -564,11 +567,14 @@
   (table-additions [this field] [])
   (subfield-names [this field] [(str field "_id")])
   (setup-field [this spec]
-    (update :model (row :model_id)
-            {:fields [{:name (titleize (str (:slug row) "_id"))
+    (let [id-slug (str (:slug row) "_id")
+          model (db/choose :model (:model_id row))]
+      (update :model (:model_id row)
+            {:fields [{:name (titleize id-slug)
                        :type "integer"
                        :editable false
-                       :reference :asset}]} {:op :migration}))
+                       :reference :asset}]} {:op :migration})
+      (db/create-index (:slug model) id-slug)))
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
           id (keyword (str (:slug row) "_id"))]
@@ -631,13 +637,16 @@
   (table-additions [this field] [])
   (subfield-names [this field] [(str field "_id")])
   (setup-field [this spec]
-    (update :model (row :model_id)
-            {:fields [{:name (titleize (str (:slug row) "_id"))
-                       :type "integer"
-                       :editable false
-                       :reference :location}]} {:op :migration}))
+    (let [id-slug (str (:slug row) "_id")
+          model (db/choose :model (:model_id row))]
+      (update :model (:model_id row)
+              {:fields [{:name (titleize id-slug)
+                         :type "integer"
+                         :editable false
+                         :reference :location}]} {:op :migration})
+      (db/create-index (:slug model) id-slug)))
   (cleanup-field [this]
-    (let [fields ((models (row :model_id)) :fields)
+    (let [fields ((models (:model_id row)) :fields)
           id (keyword (str (:slug row) "_id"))]
       (destroy :field (-> fields id :row :id))))
   (target-for [this] nil)
@@ -902,29 +911,31 @@
   (subfield-names [this field] [(str field "_id") (str field "_position")])
 
   (setup-field [this spec]
-    (let [model_id (row :model_id)
+    (let [model_id (:model_id row)
           model (models model_id)
-          target (models (row :target_id))
-          reciprocal-name (or (spec :reciprocal_name) (model :name))]
-      (if (or (nil? (row :link_id)) (zero? (row :link_id)))
+          target (models (:target_id row))
+          reciprocal-name (or (:reciprocal_name spec) (:name model))
+          id-slug (str (:slug row) "_id")]
+      (if (or (nil? (:link_id row)) (zero? (:link_id row)))
         (let [collection (create :field
                            {:name reciprocal-name
                             :type "collection"
-                            :model_id (row :target_id)
+                            :model_id (:target_id row)
                             :target_id model_id
-                            :link_id (row :id)})]
-          (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (collection :id)})))
+                            :link_id (:id row)})]
+          (db/update :field ["id = ?" (Integer. (:id row))] {:link_id (:id collection)})))
 
       (update :model model_id
         {:fields
-         [{:name (titleize (str (:slug row) "_id"))
+         [{:name (titleize id-slug)
            :type "integer"
            :editable false
            :reference (:slug target)
            :dependent (:dependent spec)}
           {:name (titleize (str (:slug row) "_position"))
            :type "integer"
-           :editable false}]} {:op :migration})))
+           :editable false}]} {:op :migration})
+      (db/create-index (:slug model) id-slug)))
 
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
@@ -996,14 +1007,16 @@
   (subfield-names [this field] [(str field "_id")])
 
   (setup-field [this spec]
-    (let [model_id (row :model_id)
-          model (models model_id)]
+    (let [model_id (:model_id row)
+          model (models model_id)
+          id-slug (str (:slug row) "_id")]
       (update :model model_id
         {:fields
-         [{:name (titleize (str (:slug row) "_id"))
+         [{:name (titleize id-slug)
            :type "integer"
            :editable false
-           :reference (:slug model)}]} {:op :migration})))
+           :reference (:slug model)}]} {:op :migration})
+      (db/create-index (:slug model) id-slug)))
 
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
@@ -1156,7 +1169,7 @@
            downstream))))))
 
 (defn- link-where
-  [field prefix opts]  
+  [field prefix opts]
   (let [slug (-> field :row :slug)
         clause "%1.id in (select %4.%2_id from %3 %4 inner join %5 %8 on (%4.%6_id = %8.id) where %7)"]
     (with-propagation :where opts slug
