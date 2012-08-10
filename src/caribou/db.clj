@@ -154,6 +154,11 @@
     (sql/do-commands
      (log :db (clause "alter table %1 add column %2 %3" (map #(zap (name %)) [table column type]))))))
 
+(defn create-index
+  [table column]
+  (sql/do-commands
+   (log :db (clause "create index %1_%2_index on %1 (%2)" (map #(zap (name %)) [table column])))))
+
 (defn set-default
   "sets the default for a column"
   [table column default]
