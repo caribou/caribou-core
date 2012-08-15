@@ -11,6 +11,10 @@
 (def test-config (config/read-config (io/resource "config/test.clj")))
 (config/configure test-config)
 
+(defn test-init
+  []
+  (invoke-models))
+
 (deftest invoke-model-test
   (sql/with-connection @config/db
     (let [model (db/query "select * from model where id = 1")
@@ -19,7 +23,7 @@
 
 (deftest model-lifecycle-test
   (sql/with-connection @config/db
-    (invoke-models)
+    (test-init)
     (let [model (create :model
                         {:name "Yellow"
                          :description "yellowness yellow yellow"
@@ -42,7 +46,7 @@
 
 (deftest model-interaction-test
   (sql/with-connection (debug @config/db)
-    (invoke-models)
+    (test-init)
     (try
       (let [yellow-row (create :model
                                {:name "Yellow"
@@ -113,7 +117,7 @@
 
 (deftest model-link-test
   (sql/with-connection @config/db
-    (invoke-models)
+    (test-init)
     (try
       (let [chartreuse-row
             (create :model
@@ -154,9 +158,9 @@
 
         (is (= 2 (count (retrieve-links cf-link ccc))))
         (let [fff-X (from (models :fuchsia) fff {:include {:chartreusii {}}})
-              cec (first (rally :chartreuse {:where "ondondon = 'ikikik'" :include {:fuchsia {}}}))]
+              cec (pick :chartreuse {:where {:ondondon "ikikik"} :include {:fuchsia {}}})]
           (is (= 2 (count (fff-X :chartreusii))))
-          (is (= "granular" (:zozoz (first (cec :fuchsia)))))))
+          (is (some #(= % "granular") (map :zozoz (:fuchsia cec))))))
       
       (catch Exception e (util/render-exception e))
       (finally
@@ -165,7 +169,7 @@
 
 (deftest nested-model-test
   (sql/with-connection @config/db
-    (invoke-models)
+    (test-init)
     (try
       (let [white (create :model {:name "White" :nested true :fields [{:name "Grey" :type "string"}]})
             aaa (create :white {:grey "obobob"})
@@ -186,4 +190,4 @@
 
 ;; (deftest migration-test
 ;;   (sql/with-connection @config/db
-;;     (invoke-models)))
+;;     (init)))

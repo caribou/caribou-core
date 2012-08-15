@@ -1,6 +1,5 @@
 (ns caribou.test.db
-  (:use [caribou.core]
-        [clojure.test]
+  (:use [clojure.test]
         [caribou.debug])
   (:require [clojure.java.jdbc :as sql]
             [clojure.java.io :as io]

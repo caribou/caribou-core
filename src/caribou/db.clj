@@ -139,30 +139,37 @@
   "change the name of a table to new-name."
   [table new-name]
   (let [rename (log :db (clause "alter table %1 rename to %2" [(name table) (name new-name)]))]
-    (sql/do-commands rename)))
+    (try
+      (sql/do-commands rename)
+      (catch Exception e (util/render-exception e)))))
 
 (defn drop-table
   "remove the given table from the database."
   [table]
-  (log :db (clause "drop table %1" [(name table)]))
-  (sql/drop-table (name table)))
+  (let [drop (log :db (clause "drop table %1 cascade" [(name table)]))]
+    (try
+      (sql/do-commands drop)
+      (catch Exception e (util/render-exception e)))))
 
 (defn add-column
   "add the given column to the table."
   [table column opts]
   (let [type (join " " (map name opts))]
-    (sql/do-commands
-     (log :db (clause "alter table %1 add column %2 %3" (map #(zap (name %)) [table column type]))))))
+    (try
+      (sql/do-commands
+       (log :db (clause "alter table %1 add column %2 %3" (map #(zap (name %)) [table column type]))))
+      (catch Exception e (util/render-exception e)))))
 
 (defn create-index
   [table column]
-  (sql/do-commands
-   (log :db (clause "create index %1_%2_index on %1 (%2)" (map #(zap (name %)) [table column])))))
+  (try
+    (sql/do-commands
+     (log :db (clause "create index %1_%2_index on %1 (%2)" (map #(zap (name %)) [table column]))))
+    (catch Exception e (util/render-exception e))))
 
 (defn set-default
   "sets the default for a column"
   [table column default]
-  (println "SETTING DEFAULT" table column default)
   (let [value (sqlize default)]
     (sql/do-commands
      (log :db (clause "alter table %1 alter column %2 set default %3" [(zap table) (zap column) value])))))
@@ -187,20 +194,24 @@
 
 (defn add-reference
   [table column reference deletion]
-  (sql/do-commands
-   (log :db (clause
-             (condp = deletion
-               :destroy "alter table %1 add foreign key(%2) references %3 on delete cascade"
-               :default "alter table %1 add foreign key(%2) references %3 on delete set default"
-               "alter table %1 add foreign key(%2) references %3 on delete set null")
-             [(zap table) (zap column) (zap reference)]))))
+  (try
+    (sql/do-commands
+     (log :db (clause
+               (condp = deletion
+                 :destroy "alter table %1 add foreign key(%2) references %3 on delete cascade"
+                 :default "alter table %1 add foreign key(%2) references %3 on delete set default"
+                 "alter table %1 add foreign key(%2) references %3 on delete set null")
+               [(zap table) (zap column) (zap reference)])))
+    (catch Exception e (util/render-exception e))))
 
 (defn rename-column
   "rename a column in the given table to new-name."
   [table column new-name]
-  (let [alter-statement (adapter/rename-clause @config/db-adapter)
-        rename (log :db (clause alter-statement (map name [table column new-name])))]
-    (sql/do-commands rename)))
+  (try
+    (let [alter-statement (adapter/rename-clause @config/db-adapter)
+          rename (log :db (clause alter-statement (map name [table column new-name])))]
+      (sql/do-commands rename))
+    (catch Exception e (util/render-exception e))))
 
 (defn drop-column
   "remove the given column from the table."
