@@ -190,12 +190,16 @@
 (def models (ref {}))
 (def model-slugs (ref {}))
 
+(defn find-model
+  [id]
+  (or (get @models id) (db/choose :model id)))
+
 (defrecord IdField [row env]
   Field
   (table-additions [this field] [[(keyword field) "SERIAL" "PRIMARY KEY"]])
   (subfield-names [this field] [])
   (setup-field [this spec]
-    (let [model (db/choose :model (:model_id row))]
+    (let [model (find-model (:model_id row))]
       (db/create-index (:slug model) (:slug row))))
   (cleanup-field [this] nil)
   (target-for [this] nil)
@@ -568,17 +572,19 @@
   (subfield-names [this field] [(str field "_id")])
   (setup-field [this spec]
     (let [id-slug (str (:slug row) "_id")
-          model (db/choose :model (:model_id row))]
+          model (find-model (:model_id row))]
       (update :model (:model_id row)
             {:fields [{:name (titleize id-slug)
                        :type "integer"
                        :editable false
                        :reference :asset}]} {:op :migration})
       (db/create-index (:slug model) id-slug)))
+
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
           id (keyword (str (:slug row) "_id"))]
       (destroy :field (-> fields id :row :id))))
+
   (target-for [this] nil)
   (update-values [this content values] values)
   (post-update [this content] content)
@@ -638,17 +644,19 @@
   (subfield-names [this field] [(str field "_id")])
   (setup-field [this spec]
     (let [id-slug (str (:slug row) "_id")
-          model (db/choose :model (:model_id row))]
+          model (find-model (:model_id row))]
       (update :model (:model_id row)
               {:fields [{:name (titleize id-slug)
                          :type "integer"
                          :editable false
                          :reference :location}]} {:op :migration})
       (db/create-index (:slug model) id-slug)))
+
   (cleanup-field [this]
     (let [fields ((models (:model_id row)) :fields)
           id (keyword (str (:slug row) "_id"))]
       (destroy :field (-> fields id :row :id))))
+
   (target-for [this] nil)
   (update-values [this content values]
     (let [posted (content (keyword (:slug row)))
@@ -765,28 +773,28 @@
 
   (setup-field
     [this spec]
-    (if (or (nil? (row :link_id)) (zero? (row :link_id)))
-      (let [model (models (row :model_id))
-            target (models (row :target_id))
-            reciprocal-name (or (spec :reciprocal_name) (model :name))
+    (if (or (nil? (:link_id row)) (zero? (:link_id row)))
+      (let [model (find-model (:model_id row))
+            target (find-model (:target_id row))
+            reciprocal-name (or (:reciprocal_name spec) (:name model))
             part (create :field
                    {:name reciprocal-name
                     :type "part"
-                    :model_id (row :target_id)
-                    :target_id (row :model_id)
-                    :link_id (row :id)
-                    :dependent (row :dependent)})]
-        (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (part :id)}))))
+                    :model_id (:target_id row)
+                    :target_id (:model_id row)
+                    :link_id (:id row)
+                    :dependent (:dependent row)})]
+        (db/update :field ["id = ?" (Integer. (:id row))] {:link_id (:id part)}))))
 
   (cleanup-field
     [this]
     (try
-      (do (destroy :field (-> env :link :id)))
+      (destroy :field (-> env :link :id))
       (catch Exception e (str e))))
 
   (target-for
     [this]
-    (models (row :target_id)))
+    (models (:target_id row)))
 
   (update-values
     [this content values]
@@ -796,11 +804,11 @@
               part (env :link)
               part-key (keyword (str (part :slug) "_id"))
               target ((models (row :target_id)) :slug)]
-          (if (row :dependent)
-            (doall (map #(destroy target %) ex))
-            (doall (map #(update target % {part-key nil}) ex)))
-          values)
-        values)))
+          (doseq [gone ex]
+            (if (:dependent row)
+              (destroy target gone)
+              (update target gone {part-key nil}))))))
+    values)
 
   (post-update
     [this content]
@@ -821,8 +829,9 @@
     [this content]
     (if (or (row :dependent) (-> env :link :dependent))
       (let [parts (field-from this content {:include {(keyword (:slug row)) {}}})
-            target (keyword ((target-for this) :slug))]
-        (doall (map #(destroy target (% :id)) parts))))
+            target (keyword (get (target-for this) :slug))]
+        (doseq [part parts]
+          (destroy target (:id part)))))
     content)
 
   (join-fields
@@ -911,9 +920,9 @@
   (subfield-names [this field] [(str field "_id") (str field "_position")])
 
   (setup-field [this spec]
-    (let [model_id (:model_id row)
-          model (models model_id)
-          target (models (:target_id row))
+    (let [model-id (:model_id row)
+          model (find-model model-id)
+          target (find-model (:target_id row))
           reciprocal-name (or (:reciprocal_name spec) (:name model))
           id-slug (str (:slug row) "_id")]
       (if (or (nil? (:link_id row)) (zero? (:link_id row)))
@@ -921,11 +930,11 @@
                            {:name reciprocal-name
                             :type "collection"
                             :model_id (:target_id row)
-                            :target_id model_id
+                            :target_id model-id
                             :link_id (:id row)})]
           (db/update :field ["id = ?" (Integer. (:id row))] {:link_id (:id collection)})))
 
-      (update :model model_id
+      (update :model model-id
         {:fields
          [{:name (titleize id-slug)
            :type "integer"
@@ -1090,7 +1099,7 @@
   [field]
   (let [reciprocal (-> field :env :link)
         from-name (-> field :row :name)
-        to-name (reciprocal :slug)]
+        to-name (:slug reciprocal)]
     (keyword (join-table-name from-name to-name))))
 
 (defn link-keys
@@ -1121,11 +1130,14 @@
   "Return a list of all columns for the table corresponding to this model."
   [slug]
   (let [model (models (keyword slug))]
-    (apply concat
-           (map (fn [field]
-                  (map #(name (first %))
-                       (table-additions field (-> field :row :slug))))
-                (vals (model :fields))))))
+    (apply
+     concat
+     (map
+      (fn [field]
+        (map
+         #(name (first %))
+         (table-additions field (-> field :row :slug))))
+      (vals (model :fields))))))
 
 (defn retrieve-links
   "Given a link field and a row, find all target rows linked to the given row
@@ -1221,40 +1233,44 @@
   (subfield-names [this field] [])
 
   (setup-field [this spec]
-    (if (or (nil? (row :link_id)) (zero? (row :link_id)))
-      (let [model (models (row :model_id))
-            target (models (row :target_id))
-            reciprocal-name (or (spec :reciprocal_name) (model :name))
-            join-name (join-table-name (spec :name) reciprocal-name)
-            link (create :field
-                   {:name reciprocal-name
-                    :type "link"
-                    :model_id (row :target_id)
-                    :target_id (row :model_id)
-                    :link_id (row :id)
-                    :dependent (row :dependent)})]
-        (create :model
-                {:name (titleize join-name)
-                 :join_model true
-                 :fields
-                 [{:name (spec :name)
-                   :type "part"
-                   :dependent true
-                   :reciprocal_name (str reciprocal-name " Join")
-                   :target_id (row :target_id)}
+    (if (or (nil? (:link_id row)) (zero? (:link_id row)))
+      (let [model (find-model (:model_id row))
+            target (find-model (:target_id row))
+            reciprocal-name (or (:reciprocal_name spec) (:name model))
+            join-name (join-table-name (:name spec) reciprocal-name)
+            link (create
+                  :field
                   {:name reciprocal-name
-                   :type "part"
-                   :dependent true
-                   :reciprocal_name (str (spec :name) " Join")
-                   :target_id (row :model_id)}]} {:op :migration})
-        (db/update :field ["id = ?" (Integer. (row :id))] {:link_id (link :id)}))))
+                   :type "link"
+                   :model_id (:target_id row)
+                   :target_id (:model_id row)
+                   :link_id (:id row)
+                   :dependent (:dependent row)})
+
+            join-model (create
+                        :model
+                        {:name (titleize join-name)
+                         :join_model true
+                         :fields
+                         [{:name (:name spec)
+                           :type "part"
+                           :dependent true
+                           :reciprocal_name (str reciprocal-name " Join")
+                           :target_id (:target_id row)}
+                          {:name reciprocal-name
+                           :type "part"
+                           :dependent true
+                           :reciprocal_name (str (:name spec) " Join")
+                           :target_id (:model_id row)}]} {:op :migration})]
+
+        (db/update :field ["id = ?" (Integer. (:id row))] {:link_id (:id link)}))))
 
   (cleanup-field [this]
     (try
       (let [join-name (link-join-name this)]
         (destroy :model (-> @models join-name :id))
         (destroy :field (row :link_id)))
-      (catch Exception e (str e))))
+      (catch Exception e (str e)))) 
 
   (target-for [this] (models (row :target_id)))
 
@@ -1724,7 +1740,7 @@
 (defn create-model-table
   "create an table with the given name."
   [name]
-  (db/create-table (keyword name) []))
+  (db/create-table (keyword name) [:id "SERIAL" "PRIMARY KEY"]))
 
 (declare invoke-models)
 
@@ -1764,6 +1780,12 @@
     (invoke-models)
     env))
 
+  ;; (add-hook :model :before_destroy :cleanup-fields (fn [env]
+  ;;   (let [model (get @models (-> env :content :slug))]
+  ;;     (doseq [field (-> model :fields vals)]
+  ;;       (destroy :field (-> field :row :id))))
+  ;;   env))
+
   (add-hook :model :after_destroy :cleanup (fn [env]
     (db/drop-table (-> env :content :slug))
     (invoke-models)
@@ -1777,22 +1799,20 @@
 
 (defn- field-add-columns
   [env]
-  (let [field (make-field (env :content))
-        model_id (-> env :content :model_id)
-        model (models model_id)
-        model-slug (if model
-                     (model :slug)
-                     ((db/choose :model model_id) :slug))
+  (let [field (make-field (:content env))
+        model-id (-> env :content :model_id)
+        model (find-model model-id)
+        model-slug (:slug model)
         slug (-> env :content :slug)
         default (process-default (-> env :spec :type) (-> env :spec :default_value))
-
         reference (-> env :spec :reference)]
-    (doall (map
-            #(db/add-column
-              model-slug
-              (name (first %))
-              (rest %))
-            (table-additions field slug)))
+
+    (doseq [addition (table-additions field slug)]
+      (if-not (= slug "id")
+        (db/add-column
+         model-slug
+         (name (first addition))
+         (rest addition))))
     (setup-field field (env :spec))
 
     (if (present? default)
@@ -1809,8 +1829,10 @@
 (defn- field-reify-column
   [env]
   (let [field (make-field (env :content))
-        model (models (-> field :row :model_id))
+        model-id (-> field :row :model_id)
+        model (db/choose :model model-id)
         model-slug (:slug model)
+        model-fields (get (get @models model-id) :fields)
 
         original (:original env)
         content (:content env)
@@ -1825,7 +1847,7 @@
         spawn (apply zipmap (map #(subfield-names field %) [oslug slug]))
         transition (apply zipmap (map #(map first (table-additions field %)) [oslug slug]))]
     (if (not (= oslug slug))
-      (do (doall (map #(update :field (-> ((:fields model) (keyword (first %))) :row :id) {:name (last %)}) spawn))
+      (do (doall (map #(update :field (-> (get model-fields (keyword (first %))) :row :id) {:name (last %)}) spawn))
           (doall (map #(db/rename-column model-slug (first %) (last %)) transition))))
     (if (and (present? default) (not (= (:default_value original) default)))
       (db/set-default model-slug slug default))
@@ -1851,12 +1873,17 @@
 
   (add-hook :field :after_destroy :drop_columns (fn [env]
     (try                                                  
-      (let [model (models (-> env :content :model_id))
-            field ((model :fields) (keyword (-> env :content :slug)))]
-        (do (cleanup-field field))
-        (doall (map #(db/drop-column ((models (-> field :row :model_id)) :slug) (first %)) (table-additions field (-> env :content :slug))))
-        env)
-      (catch Exception e env)))))
+      (if-let [content (:content env)]
+        (let [field (make-field content)]
+          (cleanup-field field)))
+      ;; (let [model (get @models (-> env :content :model_id))
+      ;;       fields (get model :fields)
+      ;;       field (fields (keyword (-> env :content :slug)))]
+      ;;   (cleanup-field field)
+      ;;   (doall (map #(db/drop-column ((models (-> field :row :model_id)) :slug) (first %)) (table-additions field (-> env :content :slug))))
+      ;;  env)
+      (catch Exception e (render-exception e)))
+    env)))
 
 (defn add-app-model-hooks
   "reads the hooks/ dir from resources and runs load-file for filenames that match
@@ -1964,11 +1991,11 @@
 (defn destroy
   "destroy the item of the given model with the given id."
   [slug id]
-  (let [model (models (keyword slug))
+  (let [model (get @models (keyword slug))
         content (db/choose slug id)
         env {:model model :content content :slug slug}
         _before (run-hook slug :before_destroy env)
-        pre (reduce #(pre-destroy %2 %1) (_before :content) (vals (model :fields)))
+        pre (reduce #(pre-destroy %2 %1) (_before :content) (-> model :fields vals))
         deleted (db/delete slug "id = %1" id)
         _after (run-hook slug :after_destroy (merge _before {:content pre}))]
     (_after :content)))

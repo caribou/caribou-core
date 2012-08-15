@@ -53,13 +53,21 @@
   (let [[_ after] (re-find r s)]
     after))
 
+(defn print-exception
+  [e]
+  (.printStackTrace e))
+
+(defn print-sql-exception
+  [e]
+  (try 
+    (let [next (.getNextException e)]
+      (print-exception next))
+    (catch Exception o (print-exception e))))
+
 (defn render-exception [e]
   (if-let [cause (.getCause e)]
-    (if (isa? cause SQLException)
-      (let [next (.getNextException cause)]
-        (str next (.printStackTrace next)))
-      (str cause (.printStackTrace cause)))
-    (str e (.printStackTrace e))))
+    (print-sql-exception cause)
+    (print-sql-exception e)))
 
 (defn get-file-extension [file]
   (let [filename (.getName file)]
