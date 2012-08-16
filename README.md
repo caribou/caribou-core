@@ -33,7 +33,7 @@ of your new model in exactly the same way (since everything is a model):
 ```clj
 (model/db 
   (fn []
-    (model/create :model {:name "Tree" :fields [{:name "Limbs" :type :integer} {:name "Species" :type :string}]})
+    (model/create :model {:name "Tree" :fields [{:name "Limbs" :type "integer"} {:name "Species" :type "string"}]})
     (model/create :tree {:limbs 3 :species "Acer circinatum"})
     (model/create :tree {:limbs 8 :species "Liquidambar styraciflua"})
     (println (map :species (model/gather :tree {:order {:limbs :desc}})))))
@@ -47,9 +47,9 @@ to another model.  Links are just fields, with the added effect that they have a
   (fn []
     (let [tree-id (-> @model/models :tree :id) ;; there is a Ref containing all the models in memory.
           bird-model (model/create :model {:name "Bird" 
-                                           :fields [{:name "Species" :type :string} 
-                                                    {:name "Portrait" :type :asset}
-                                                    {:name "Nests" :type :link 
+                                           :fields [{:name "Species" :type "string"} 
+                                                    {:name "Portrait" :type "asset"}
+                                                    {:name "Nests" :type "link" 
                                                      :target_id tree-id 
                                                      :reciprocal_name "Inhabitors"}]})
           bird (model/create :bird {:species "Monticola gularis"})
