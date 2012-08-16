@@ -103,7 +103,7 @@
 
         (is (empty? (-> @models :purple :fields :green_id)))
 
-        (destroy :model (debug (-> @models :purple :id)))
+        (destroy :model (-> @models :purple :id))
 
         (is (and (not (db/table? :purple))
                  (not (db/table? :yellow))
@@ -151,18 +151,33 @@
             fef (create :fuchsia {:zozoz "bluish"})
 
             ]
+        ;; make some links
         (link cf-link ccc fff)
         (link cf-link cdc fff)
         (link fc-link fgf cbc)
+
+        ;; create links through update rather than directly
         (update :fuchsia (fef :id) {:chartreusii [cbc ccc {:ondondon "ikikik" :fuchsia [{:zozoz "granular"}]}]})
 
         (is (= 2 (count (retrieve-links cf-link ccc))))
         (let [fff-X (from (models :fuchsia) fff {:include {:chartreusii {}}})
               cec (pick :chartreuse {:where {:ondondon "ikikik"} :include {:fuchsia {}}})]
           (is (= 2 (count (fff-X :chartreusii))))
-          (is (some #(= % "granular") (map :zozoz (:fuchsia cec))))))
-      
+          (is (some #(= % "granular") (map :zozoz (:fuchsia cec))))
+
+          (update :model (:id chartreuse)
+                  {:fields [{:id (-> cf-link :row :id) :name "Nightpurple" :slug "nightpurple"}]})
+
+          (let [chartreuse (models :chartreuse)
+                cec (pick :chartreuse {:where {:ondondon "ikikik"} :include {:nightpurple {}}})]
+            (is (= 2 (count (:nightpurple cec))))
+            (is (present? (models :chartreusii_nightpurple))))))
+
+          ;; ))
       (catch Exception e (util/render-exception e))
+
+      ;; )))
+
       (finally
        (if (db/table? :chartreuse) (destroy :model (-> @models :chartreuse :id)))
        (if (db/table? :fuchsia) (destroy :model (-> @models :fuchsia :id)))))))

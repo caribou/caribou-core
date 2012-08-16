@@ -101,6 +101,7 @@
     by this field given this name")
 
   (setup-field [this spec] "further processing on creation of field")
+  (rename-field [this old-slug new-slug] "further processing on creation of field")
   (cleanup-field [this] "further processing on removal of field")
   (target-for [this] "retrieves the model this field points to, if applicable")
   (update-values [this content values]
@@ -201,6 +202,7 @@
   (setup-field [this spec]
     (let [model (find-model (:model_id row))]
       (db/create-index (:slug model) (:slug row))))
+  (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values [this content values] values)
@@ -226,6 +228,7 @@
   (table-additions [this field] [[(keyword field) :integer]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
+  (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
 
@@ -261,6 +264,7 @@
   (table-additions [this field] [[(keyword field) :decimal]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
+  (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
 
@@ -311,6 +315,7 @@
   (table-additions [this field] [[(keyword field) "varchar(256)"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
+  (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values [this content values]
@@ -341,6 +346,7 @@
   (table-additions [this field] [[(keyword field) "varchar(256)"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
+  (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values [this content values]
@@ -379,6 +385,7 @@
   (table-additions [this field] [[(keyword field) :text]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
+  (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values [this content values]
@@ -412,6 +419,7 @@
   (table-additions [this field] [[(keyword field) :boolean]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
+  (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values [this content values]
@@ -459,6 +467,7 @@
   (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL" "DEFAULT current_timestamp"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
+  (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values
@@ -580,6 +589,8 @@
                        :reference :asset}]} {:op :migration})
       (db/create-index (:slug model) id-slug)))
 
+  (rename-field [this old-slug new-slug])
+
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
           id (keyword (str (:slug row) "_id"))]
@@ -651,6 +662,8 @@
                          :editable false
                          :reference :location}]} {:op :migration})
       (db/create-index (:slug model) id-slug)))
+
+  (rename-field [this old-slug new-slug])
 
   (cleanup-field [this]
     (let [fields ((models (:model_id row)) :fields)
@@ -785,6 +798,8 @@
                     :link_id (:id row)
                     :dependent (:dependent row)})]
         (db/update :field ["id = ?" (Integer. (:id row))] {:link_id (:id part)}))))
+
+  (rename-field [this old-slug new-slug])
 
   (cleanup-field
     [this]
@@ -946,6 +961,8 @@
            :editable false}]} {:op :migration})
       (db/create-index (:slug model) id-slug)))
 
+  (rename-field [this old-slug new-slug])
+
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
           id (keyword (str (:slug row) "_id"))
@@ -1026,6 +1043,8 @@
            :editable false
            :reference (:slug model)}]} {:op :migration})
       (db/create-index (:slug model) id-slug)))
+
+  (rename-field [this old-slug new-slug])
 
   (cleanup-field [this]
     (let [fields ((models (row :model_id)) :fields)
@@ -1226,13 +1245,32 @@
         content))
     content))
 
+(defn link-rename-field
+  [field old-slug new-slug]
+  (let [model (get @models (:model_id (:row field)))
+        target (get @models (:target_id (:row field)))
+        reciprocal (-> field :env :link)
+        reciprocal-slug (:slug reciprocal)
+        old-join-key (keyword (str (name old-slug) "_join"))
+        old-join-name (join-table-name (name old-slug) reciprocal-slug)
+        new-join-key (keyword (str (name new-slug) "_join"))
+        new-join-name (join-table-name (name new-slug) reciprocal-slug)
+        join-model (get @models (keyword old-join-name))
+        join-collection (-> model :fields old-join-key)
+        old-key (keyword old-slug)
+        join-target (-> join-model :fields old-key)]
+    (update :field (-> join-collection :row :id) {:name (titleize new-join-key) :slug (name new-join-key)})
+    (update :field (-> join-target :row :id) {:name (titleize new-slug) :slug (name new-slug)})
+    (update :model (:id join-model) {:name (titleize new-join-name) :slug new-join-name})))
+
 (defrecord LinkField [row env]
   Field
 
   (table-additions [this field] [])
   (subfield-names [this field] [])
 
-  (setup-field [this spec]
+  (setup-field
+    [this spec]
     (if (or (nil? (:link_id row)) (zero? (:link_id row)))
       (let [model (find-model (:model_id row))
             target (find-model (:target_id row))
@@ -1265,12 +1303,16 @@
 
         (db/update :field ["id = ?" (Integer. (:id row))] {:link_id (:id link)}))))
 
+  (rename-field
+    [this old-slug new-slug]
+    (link-rename-field this old-slug new-slug))
+
   (cleanup-field [this]
     (try
       (let [join-name (link-join-name this)]
         (destroy :model (-> @models join-name :id))
         (destroy :field (row :link_id)))
-      (catch Exception e (str e)))) 
+      (catch Exception e (str e))))
 
   (target-for [this] (models (row :target_id)))
 
@@ -1846,15 +1888,27 @@
         
         spawn (apply zipmap (map #(subfield-names field %) [oslug slug]))
         transition (apply zipmap (map #(map first (table-additions field %)) [oslug slug]))]
+
     (if (not (= oslug slug))
-      (do (doall (map #(update :field (-> (get model-fields (keyword (first %))) :row :id) {:name (last %)}) spawn))
-          (doall (map #(db/rename-column model-slug (first %) (last %)) transition))))
+      (do
+        (doseq [[old-name new-name] spawn]
+          (let [field-id (-> (get model-fields (keyword old-name)) :row :id)]
+            (update :field field-id {:name new-name :slug (slugify new-name)})))
+
+        (doseq [[old-name new-name] transition]
+          (db/rename-column model-slug old-name new-name) transition)
+
+        (rename-field field oslug slug)))
+
     (if (and (present? default) (not (= (:default_value original) default)))
       (db/set-default model-slug slug default))
+
     (if (and (present? required) (not= required (:required original)))
       (db/set-required model-slug slug required))
+
     (if (and (present? unique) (not= unique (:unique original)))
       (db/set-unique model-slug slug unique)))
+
   env)
 
 (defn- add-field-hooks []
