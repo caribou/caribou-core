@@ -10,10 +10,10 @@
   (reduce #(assoc %1 (f %2) %2) {} q))
 
 (defn slugify [s]
-  (.toLowerCase (string/replace (string/join "_" (re-seq #"[a-zA-Z0-9]+" s)) #"^[0-9]" "_")))
+  (.toLowerCase (string/replace (string/join "_" (re-seq #"[a-zA-Z0-9]+" (name s))) #"^[0-9]" "_")))
 
 (defn titleize [s]
-  (string/join " " (map string/capitalize (string/split s #"[^a-zA-Z]+"))))
+  (string/join " " (map string/capitalize (string/split (name s) #"[^a-zA-Z]+"))))
 
 (def file-separator
   (str (.get (java.lang.System/getProperties) "file.separator")))
