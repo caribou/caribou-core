@@ -1276,30 +1276,33 @@
             target (find-model (:target_id row))
             reciprocal-name (or (:reciprocal_name spec) (:name model))
             join-name (join-table-name (:name spec) reciprocal-name)
-            link (create
-                  :field
-                  {:name reciprocal-name
-                   :type "link"
-                   :model_id (:target_id row)
-                   :target_id (:model_id row)
-                   :link_id (:id row)
-                   :dependent (:dependent row)})
 
-            join-model (create
-                        :model
-                        {:name (titleize join-name)
-                         :join_model true
-                         :fields
-                         [{:name (:name spec)
-                           :type "part"
-                           :dependent true
-                           :reciprocal_name (str reciprocal-name " Join")
-                           :target_id (:target_id row)}
-                          {:name reciprocal-name
-                           :type "part"
-                           :dependent true
-                           :reciprocal_name (str (:name spec) " Join")
-                           :target_id (:model_id row)}]} {:op :migration})]
+            link
+            (create
+             :field
+             {:name reciprocal-name
+              :type "link"
+              :model_id (:target_id row)
+              :target_id (:model_id row)
+              :link_id (:id row)
+              :dependent (:dependent row)})
+
+            join-model
+            (create
+             :model
+             {:name (titleize join-name)
+              :join_model true
+              :fields
+              [{:name (:name spec)
+                :type "part"
+                :dependent true
+                :reciprocal_name (str reciprocal-name " Join")
+                :target_id (:target_id row)}
+               {:name reciprocal-name
+                :type "part"
+                :dependent true
+                :reciprocal_name (str (:name spec) " Join")
+                :target_id (:model_id row)}]} {:op :migration})]
 
         (db/update :field ["id = ?" (Integer. (:id row))] {:link_id (:id link)}))))
 

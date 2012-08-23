@@ -48,5 +48,14 @@
     (catch Exception e
       (println "Caught an exception attempting to run migrations: " (.getMessage e) (.printStackTrace e)))))
 
-
+(defn add-primary-keys
+  []
+  (try
+    (model/init)
+    (model/db
+     (fn []
+       (doseq [model (vals @model/models)]
+         (db/add-primary-key (:slug model) "id"))))
+    (catch Exception e
+      (util/render-exception e))))
 

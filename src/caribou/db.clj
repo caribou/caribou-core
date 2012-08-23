@@ -192,6 +192,15 @@
                "alter table %1 drop constraint %2_unique")
              [(zap table) (zap column)]))))
 
+(defn add-primary-key
+  [table column]
+  (try
+    (sql/do-commands
+     (log
+      :db
+      (clause "alter table %1 add primary key (%2)" [(zap table) (zap column)])))
+    (catch Exception e (util/render-exception e))))
+
 (defn add-reference
   [table column reference deletion]
   (try
