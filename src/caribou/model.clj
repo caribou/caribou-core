@@ -22,6 +22,10 @@
   [f]
   (db/call f))
 
+(defn current-timestamp
+  []
+  (coerce/to-timestamp (timecore/now)))
+
 (def simple-date-format (java.text.SimpleDateFormat. "MMMMMMMMM dd', 'yyyy HH':'mm"))
 (defn format-date
   "given a date object, return a string representing the canonical format for that date"
@@ -464,7 +468,7 @@
 
 (defrecord TimestampField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL" "DEFAULT current_timestamp"]])
+  (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL" "DEFAULT NULL"]]) ;; "DEFAULT current_timestamp"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
@@ -779,6 +783,20 @@
               (assoc archetype slug protected))))]
     (or nesting archetype)))
 
+(defn collection-post-update
+  [field content]
+  (if-let [collection (content (keyword (-> field :row :slug)))]
+    (let [part-field (-> field :env :link)
+          part-key (keyword (str (:slug part-field) "_id"))
+          model (models (:model_id part-field))
+          updated
+          (doseq [part collection]
+            (create
+             (keyword (:slug model))
+             (assoc part part-key (:id content))))]
+      (assoc content (keyword (-> field :row :slug)) updated))
+    content))
+
 (defrecord CollectionField [row env]
   Field
   (table-additions [this field] [])
@@ -827,18 +845,7 @@
 
   (post-update
     [this content]
-    (if-let [collection (content (keyword (:slug row)))]
-      (let [part (env :link)
-            part-key (keyword (str (part :slug) "_id"))
-            model (models (part :model_id))
-            updated (doall
-                     (map
-                      #(create
-                        (model :slug)
-                        (merge % {part-key (content :id)}))
-                      collection))]
-        (assoc content (keyword (:slug row)) updated))
-      content))
+    (collection-post-update this content))
 
   (pre-destroy
     [this content]
@@ -1713,7 +1720,7 @@
    {:name "Locale Id" :type "integer" :locked true :editable false}
    {:name "Env Id" :type "integer" :locked true :editable false}
    {:name "Locked" :type "boolean" :locked true :immutable true :editable false :default_value false}
-   {:name "Created At" :type "timestamp" :locked true :immutable true :editable false}
+   {:name "Created At" :type "timestamp" :default_value "current_timestamp" :locked true :immutable true :editable false}
    {:name "Updated At" :type "timestamp" :locked true :editable false}])
 
 (defn make-field
@@ -2003,7 +2010,7 @@
              env {:model model :values values :spec spec :op :create :opts opts}
              _save (run-hook slug :before_save env)
              _create (run-hook slug :before_create _save)
-             content (db/insert slug (dissoc (_create :values) :updated_at))
+             content (db/insert slug (assoc (_create :values) :updated_at (current-timestamp))) ;; (dissoc (_create :values) :updated_at))
              merged (merge (_create :spec) content)
              _after (run-hook slug :after_create (merge _create {:content merged}))
              post (reduce #(post-update %2 %1) (_after :content) (vals (model :fields)))
@@ -2037,7 +2044,7 @@
            env {:model model :values values :spec spec :original original :op :update :opts opts}
            _save (run-hook slug :before_save env)
            _update (run-hook slug :before_update _save)
-           success (db/update slug ["id = ?" (Integer. id)] (_update :values))
+           success (db/update slug ["id = ?" (Integer. id)] (assoc (_update :values) :updated_at (current-timestamp))) ;; (_update :values))
            content (db/choose slug id)
            merged (merge (_update :spec) content)
            _after (run-hook slug :after_update (merge _update {:content merged}))

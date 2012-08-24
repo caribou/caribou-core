@@ -38,12 +38,19 @@
 
 (defn run-migrations [config]
   (try
-    (sql/with-connection config ;; (merge config {:subname (str "//localhost/" db-name)})
-      (if (not (db/table? "migration"))
-        (premigrations/migrate))
+    (let [blank (sql/with-connection config (not (db/table? "migration")))]
+      (if blank
+    ;; (sql/with-connection config
+    ;;   (if (not (db/table? "migration"))
+        (do
+          (sql/with-connection config
+            (premigrations/migrate))
+          (sql/with-connection config
+            (premigrations/build-models)))))
         ;; (doall (map run-migration premigration-list)))
       ;; (doall (map #(if (not (some #{%} (migration-names))) (run-migration %))
       ;;             @migration-list))
+    (sql/with-connection config
       (load-user-migrations "app/migrations"))
     (catch Exception e
       (println "Caught an exception attempting to run migrations: " (.getMessage e) (.printStackTrace e)))))
