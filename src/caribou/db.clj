@@ -119,6 +119,10 @@
     (first (query "select * from %1 where id = %2" (zap (name table)) (zap (str id))))
     nil))
 
+(defn commit
+  []
+  (sql/do-commands "commit"))
+
 ;; table operations -------------------------------------------
 
 (defn table?
