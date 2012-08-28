@@ -27,6 +27,15 @@
                  "alter table %1 modify %2 %3")
                [(zap table) (zap column) field-type])))))
 
+(defn mysql-rename-column
+  [table column new-name]
+  (try
+    (let [field-type (find-column-type table column)
+          alter-statement "alter table %1 change %2 %3 %4"
+          rename (log :db (clause alter-statement (map name [table column new-name field-type])))]
+      (sql/do-commands rename))
+    (catch Exception e (render-exception e))))
+
 (defrecord MysqlAdapter [config]
   DatabaseAdapter
   (init [this])
@@ -41,8 +50,8 @@
       [(str "select * from " (name table)
             " where id = " (result (first (keys result))))]
       (first (doall res))))
-  (rename-clause [this]
-    "alter table %1 rename column %2 to %3")
+  (rename-column [this table column new-name]
+    (mysql-rename-column table column new-name))
   (set-required [this table column value]
     (mysql-set-required table column value))
   (text-value [this text]

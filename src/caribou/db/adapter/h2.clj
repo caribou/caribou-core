@@ -45,6 +45,14 @@
 
 (def h2-server (ref nil))
 
+(defn h2-rename-column
+  [table column new-name]
+  (try
+    (let [alter-statement "alter table %1 alter column %2 rename to %3"
+          rename (log :db (clause alter-statement (map name [table column new-name])))]
+      (sql/do-commands rename))
+    (catch Exception e (render-exception e))))
+
 (defrecord H2Adapter [config]
   DatabaseAdapter
 
@@ -74,8 +82,8 @@
             " where id = " (result (first (keys result))))]
       (first (doall res))))
 
-  (rename-clause [this]
-    "alter table %1 alter column %2 rename to %3")
+  (rename-column [this table column new-name]
+    (h2-rename-column table column new-name))
 
   (set-required [this table column value]
     (h2-set-required table column value))

@@ -23,6 +23,14 @@
                "alter table %1 alter column %2 drop not null")
              [(zap table) (zap column)]))))
 
+(defn postgres-rename-column
+  [table column new-name]
+  (try
+    (let [alter-statement "alter table %1 rename column %2 to %3"
+          rename (log :db (clause alter-statement (map name [table column new-name])))]
+      (sql/do-commands rename))
+    (catch Exception e (render-exception e))))
+
 (defrecord PostgresAdapter [config]
   DatabaseAdapter
   (init [this])
@@ -34,8 +42,8 @@
       (assoc config :subname subname)))
   (insert-result [this table result]
     result)
-  (rename-clause [this]
-    "alter table %1 rename column %2 to %3")
+  (rename-column [this table column new-name]
+    (postgres-rename-column table column new-name))
   (set-required [this table column value]
     (postgres-set-required table column value))
   (text-value [this text]

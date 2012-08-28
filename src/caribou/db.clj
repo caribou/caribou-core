@@ -189,11 +189,7 @@
 (defn rename-column
   "rename a column in the given table to new-name."
   [table column new-name]
-  (try
-    (let [alter-statement (adapter/rename-clause @config/db-adapter)
-          rename (log :db (clause alter-statement (map name [table column new-name])))]
-      (sql/do-commands rename))
-    (catch Exception e (render-exception e))))
+  (adapter/rename-column @config/db-adapter table column new-name))
 
 (defn drop-column
   "remove the given column from the table."
