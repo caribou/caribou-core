@@ -1,4 +1,6 @@
 (ns caribou.db.adapter.h2
+  (:use caribou.debug
+        caribou.util)
   (:require [clojure.java.jdbc :as sql]
             [clojure.string :as string])
   (:use [caribou.db.adapter.protocol :only (DatabaseAdapter)]))
@@ -31,6 +33,15 @@
   (let [tables (h2-tables)
         table-name (name table)]
     (some #(= % table-name) tables)))
+
+(defn h2-set-required
+  [table column value]
+  (sql/do-commands
+   (log :db (clause
+             (if value
+               "alter table %1 alter column %2 set not null"
+               "alter table %1 alter column %2 drop not null")
+             [(zap table) (zap column)]))))
 
 (def h2-server (ref nil))
 
@@ -65,6 +76,9 @@
 
   (rename-clause [this]
     "alter table %1 alter column %2 rename to %3")
+
+  (set-required [this table column value]
+    (h2-set-required table column value))
 
   (text-value [this text]
     (string/replace (string/replace (str text) #"^'" "") #"'$" "")))

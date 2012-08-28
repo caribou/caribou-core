@@ -1,47 +1,31 @@
 (ns caribou.db.adapter.mysql
   (:use caribou.debug
+        caribou.util
         [caribou.db.adapter.protocol :only (DatabaseAdapter)])
   (:require [clojure.java.jdbc :as sql]))
 
 (import java.util.regex.Matcher)
-
-(defn- zap
-  "quickly sanitize a potentially dirty string in preparation for a sql query"
-  [s]
-  (cond
-   (string? s) (.replaceAll (re-matcher #"[\\\";#%]" (.replaceAll (str s) "'" "''")) "")
-   (keyword? s) (zap (name s))
-   :else s))
-
-(defn- clause
-  "substitute values into a string template based on numbered % parameters"
-  [pred args]
-  (letfn [(rep [s i] (.replaceAll s (str "%" (inc i))
-                                  (let [item (nth args i)]
-                                    (Matcher/quoteReplacement
-                                     (cond
-                                      (keyword? item) (name item)
-                                      :else
-                                      (str item))))))]
-    (if (empty? args)
-      pred
-      (loop [i 0 retr pred]
-        (if (= i (-> args count dec))
-          (rep retr i)
-          (recur (inc i) (rep retr i)))))))
-
-(defn- query
-  "make an arbitrary query, substituting in extra args as % parameters"
-  [q & args]
-  (sql/with-query-results res
-    [(log :db (clause q args))]
-    (doall res)))
 
 (defn mysql-table?
   "Determine if this table exists in the mysql database."
   [table]
   (if (query "show tables like '%1'" (zap (name table)))
     true false))
+
+(defn find-column-type
+  [table column]
+  (let [result (query "show fields from %1 where Field = '%2'" (zap table) (zap column))]
+    (-> result first :type)))
+
+(defn mysql-set-required
+  [table column value]
+  (let [field-type (find-column-type table column)]
+    (sql/do-commands
+     (log :db (clause
+               (if value
+                 "alter table %1 modify %2 %3 not null"
+                 "alter table %1 modify %2 %3")
+               [(zap table) (zap column) field-type])))))
 
 (defrecord MysqlAdapter [config]
   DatabaseAdapter
@@ -59,5 +43,7 @@
       (first (doall res))))
   (rename-clause [this]
     "alter table %1 rename column %2 to %3")
+  (set-required [this table column value]
+    (mysql-set-required table column value))
   (text-value [this text]
     text))

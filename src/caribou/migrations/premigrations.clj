@@ -1,6 +1,7 @@
 (ns ^{:skip-wiki true}
   caribou.migrations.premigrations
   (:require [caribou.db :as db]
+            [caribou.util :as util]
             [caribou.model :as model]))
 
 (defn create-migration-table []
@@ -74,7 +75,7 @@
     :locked true}))
 
 (defn create-model-fields []
-  (let [model-id ((first (db/query "select id from model where slug = 'model'")) :id)]
+  (let [model-id ((first (util/query "select id from model where slug = 'model'")) :id)]
     (db/insert
      :field
      {:name "Id"
@@ -200,7 +201,7 @@
       :model_id model-id})))
 
 (defn create-field-fields []
-  (let [model-id ((first (db/query "select id from model where slug = 'field'")) :id)]
+  (let [model-id ((first (util/query "select id from model where slug = 'field'")) :id)]
     (db/insert
      :field
      {:name "Id"

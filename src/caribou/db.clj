@@ -1,45 +1,13 @@
 (ns caribou.db
-  (:use [caribou.debug])
-  (:use [clojure.string :only (join split)])
+  (:use caribou.debug
+        caribou.util
+        [clojure.string :only (join split)])
   (:require [clojure.string :as string]
             [clojure.java.jdbc :as sql]
-            [caribou.util :as util]
             [caribou.config :as config]
             [caribou.db.adapter.protocol :as adapter]))
 
 (import java.util.regex.Matcher)
-
-(defn zap
-  "quickly sanitize a potentially dirty string in preparation for a sql query"
-  [s]
-  (cond
-   (string? s) (.replaceAll (re-matcher #"[\\\";#%]" (.replaceAll (str s) "'" "''")) "")
-   (keyword? s) (zap (name s))
-   :else s))
-
-(defn clause
-  "substitute values into a string template based on numbered % parameters"
-  [pred args]
-  (letfn [(rep [s i] (.replaceAll s (str "%" (inc i))
-                                  (let [item (nth args i)]
-                                    (Matcher/quoteReplacement
-                                     (cond
-                                      (keyword? item) (name item)
-                                      :else
-                                      (str item))))))]
-    (if (empty? args)
-      pred
-      (loop [i 0 retr pred]
-        (if (= i (-> args count dec))
-          (rep retr i)
-          (recur (inc i) (rep retr i)))))))
-
-(defn query
-  "make an arbitrary query, substituting in extra args as % parameters"
-  [q & args]
-  (sql/with-query-results res
-    [(clause q args)]
-    (doall res)))
 
 (defn recursive-query [table fields base-where recur-where]
   (let [field-names (distinct (map name (concat [:id :parent_id] fields)))
@@ -137,7 +105,7 @@
   (log :db (clause "create table %1 %2" [(name table) fields]))
   (try
     (apply sql/create-table (cons table fields))
-    (catch Exception e (util/render-exception e))))
+    (catch Exception e (render-exception e))))
 
 (defn rename-table
   "change the name of a table to new-name."
@@ -145,7 +113,7 @@
   (let [rename (log :db (clause "alter table %1 rename to %2" [(name table) (name new-name)]))]
     (try
       (sql/do-commands rename)
-      (catch Exception e (util/render-exception e)))))
+      (catch Exception e (render-exception e)))))
 
 (defn drop-table
   "remove the given table from the database."
@@ -153,7 +121,7 @@
   (let [drop (log :db (clause "drop table %1 cascade" [(name table)]))]
     (try
       (sql/do-commands drop)
-      (catch Exception e (util/render-exception e)))))
+      (catch Exception e (render-exception e)))))
 
 (defn add-column
   "add the given column to the table."
@@ -162,14 +130,14 @@
     (try
       (sql/do-commands
        (log :db (clause "alter table %1 add column %2 %3" (map #(zap (name %)) [table column type]))))
-      (catch Exception e (util/render-exception e)))))
+      (catch Exception e (render-exception e)))))
 
 (defn create-index
   [table column]
   (try
     (sql/do-commands
      (log :db (clause "create index %1_%2_index on %1 (%2)" (map #(zap (name %)) [table column]))))
-    (catch Exception e (util/render-exception e))))
+    (catch Exception e (render-exception e))))
 
 (defn set-default
   "sets the default for a column"
@@ -180,12 +148,13 @@
 
 (defn set-required
   [table column value]
-  (sql/do-commands
-   (log :db (clause
-             (if value
-               "alter table %1 alter column %2 set not null"
-               "alter table %1 alter column %2 drop not null")
-             [(zap table) (zap column)]))))
+  (adapter/set-required @config/db-adapter (name table) (name column) value))
+  ;; (sql/do-commands
+  ;;  (log :db (clause
+  ;;            (if value
+  ;;              "alter table %1 alter column %2 set not null"
+  ;;              "alter table %1 alter column %2 drop not null")
+  ;;            [(zap table) (zap column)]))))
 
 (defn set-unique
   [table column value]
@@ -203,7 +172,7 @@
      (log
       :db
       (clause "alter table %1 add primary key (%2)" [(zap table) (zap column)])))
-    (catch Exception e (util/render-exception e))))
+    (catch Exception e (render-exception e))))
 
 (defn add-reference
   [table column reference deletion]
@@ -215,7 +184,7 @@
                  :default "alter table %1 add foreign key(%2) references %3 on delete set default"
                  "alter table %1 add foreign key(%2) references %3 on delete set null")
                [(zap table) (zap column) (zap reference)])))
-    (catch Exception e (util/render-exception e))))
+    (catch Exception e (render-exception e))))
 
 (defn rename-column
   "rename a column in the given table to new-name."
@@ -224,7 +193,7 @@
     (let [alter-statement (adapter/rename-clause @config/db-adapter)
           rename (log :db (clause alter-statement (map name [table column new-name])))]
       (sql/do-commands rename))
-    (catch Exception e (util/render-exception e))))
+    (catch Exception e (render-exception e))))
 
 (defn drop-column
   "remove the given column from the table."
@@ -256,7 +225,7 @@
         (with-open [s (.createStatement (sql/connection))]
           (.addBatch s (str "drop database " (zap db-name)))
           (seq (.executeBatch s))))
-      (catch Exception e (util/render-exception e)))))
+      (catch Exception e (render-exception e)))))
 
 (defn create-database
   "create a database of the given name"
@@ -268,7 +237,7 @@
         (with-open [s (.createStatement (sql/connection))]
           (.addBatch s (str "create database " (zap db-name)))
           (seq (.executeBatch s))))
-      (catch Exception e (util/render-exception e)))))
+      (catch Exception e (render-exception e)))))
 
 (defn rebuild-database
   "drop and recreate the given database"

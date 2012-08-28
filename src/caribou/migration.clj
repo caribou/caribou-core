@@ -22,7 +22,7 @@
   (dosync (alter migration-list #(cons name %))))
 
 (defn migration-names []
-  (map #(% :name) (db/query "select * from migration")))
+  (map #(% :name) (util/query "select * from migration")))
 
 (defn migrations-to-run []
   (set/difference @migration-list (migration-names)))
