@@ -821,7 +821,7 @@
                     :target_id (:model_id row)
                     :link_id (:id row)
                     :dependent (:dependent row)})]
-        (db/update :field ["id = ?" (Integer. (:id row))] {:link_id (:id part)}))))
+        (db/update :field ["id = ?" (convert-int (:id row))] {:link_id (:id part)}))))
 
   (rename-field [this old-slug new-slug])
 
@@ -839,7 +839,7 @@
     [this content values]
     (let [removed (keyword (str "removed_" (:slug row)))]
       (if (present? (content removed))
-        (let [ex (map #(Integer. %) (split (content removed) #","))
+        (let [ex (map convert-int (split (content removed) #","))
               part (env :link)
               part-key (keyword (str (part :slug) "_id"))
               target ((models (row :target_id)) :slug)]
@@ -960,7 +960,7 @@
                             :model_id (:target_id row)
                             :target_id model-id
                             :link_id (:id row)})]
-          (db/update :field ["id = ?" (Integer. (:id row))] {:link_id (:id collection)})))
+          (db/update :field ["id = ?" (convert-int (:id row))] {:link_id (:id collection)})))
 
       (update :model model-id
         {:fields
@@ -1317,7 +1317,7 @@
                 :reciprocal_name (str (:name spec) " Join")
                 :target_id (:model_id row)}]} {:op :migration})]
 
-        (db/update :field ["id = ?" (Integer. (:id row))] {:link_id (:id link)}))))
+        (db/update :field ["id = ?" (convert-int (:id row))] {:link_id (:id link)}))))
 
   (rename-field
     [this old-slug new-slug]
@@ -1335,7 +1335,7 @@
   (update-values [this content values]
     (let [removed (content (keyword (str "removed_" (:slug row))))]
       (if (present? removed)
-        (let [ex (map #(Integer. %) (split removed #","))]
+        (let [ex (map convert-int (split removed #","))]
           (doall (map #(remove-link this (content :id) %) ex)))))
     values)
 
@@ -1720,14 +1720,14 @@
    })
 
 (def base-fields
-  [{:name "Id" :type "id" :locked true :immutable true :editable false}
-   {:name "Position" :type "integer" :locked true}
-   {:name "Status" :type "integer" :locked true}
-   {:name "Locale Id" :type "integer" :locked true :editable false}
-   {:name "Env Id" :type "integer" :locked true :editable false}
-   {:name "Locked" :type "boolean" :locked true :immutable true :editable false :default_value false}
-   {:name "Created At" :type "timestamp" :default_value "current_timestamp" :locked true :immutable true :editable false}
-   {:name "Updated At" :type "timestamp" :locked true :editable false}])
+  [{:name "Id" :slug "id" :type "id" :locked true :immutable true :editable false}
+   {:name "Position" :slug "position" :type "integer" :locked true}
+   {:name "Status" :slug "status" :type "integer" :locked true}
+   ;; {:name "Locale Id" :slug "locale_id" :type "integer" :locked true :editable false}
+   {:name "Env Id" :slug "env_id" :type "integer" :locked true :editable false}
+   {:name "Locked" :slug "locked" :type "boolean" :locked true :immutable true :editable false :default_value false}
+   {:name "Created At" :slug "created_at" :type "timestamp" :default_value "current_timestamp" :locked true :immutable true :editable false}
+   {:name "Updated At" :slug "updated_at" :type "timestamp" :locked true :editable false}])
 
 (defn make-field
   "turn a row from the field table into a full fledged Field record"
@@ -1796,9 +1796,17 @@
         (throw (Exception. (format "No model called %s" slug)))))))
 
 (defn create-model-table
-  "create an table with the given name."
+  "create a table with the given name."
   [name]
-  (db/create-table (keyword name) [:id "SERIAL" "PRIMARY KEY"]))
+  (db/create-table
+   (keyword name)
+   [:id "SERIAL" "PRIMARY KEY"]
+   [:position :integer "DEFAULT 0"]
+   [:status :integer "DEFAULT 1"]
+   [:env_id :integer "DEFAULT 1"]
+   [:locked :boolean "DEFAULT false"]
+   [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
+   [:updated_at "timestamp" "NOT NULL"]))
 
 (defn add-parent-id
   [env]
@@ -1808,6 +1816,18 @@
      {:name "Parent Id" :model_id (-> env :content :id) :type "integer"}))
   env)
 
+                                                    
+(defn add-base-fields
+  [env]
+  (doseq [field base-fields]
+    (db/insert
+     :field
+     (merge
+      field
+      {:model_id (-> env :content :id)
+       :updated_at (current-timestamp)})))
+  env)
+
 (declare invoke-models)
 
 (defn- add-model-hooks []
@@ -1815,8 +1835,9 @@
     (create-model-table (slugify (-> env :spec :name)))
     env))
   
-  (add-hook :model :before_create :add_base_fields (fn [env]
-    (assoc-in env [:spec :fields] (concat (-> env :spec :fields) base-fields))))
+  (add-hook :model :after_create :add_base_fields (fn [env] (add-base-fields env)))
+
+    ;; (assoc-in env [:spec :fields] (concat (-> env :spec :fields) base-fields))))
 
   ;; (add-hook :model :before_save :write_migrations (fn [env]
   ;;   (try                                                 
@@ -1931,19 +1952,31 @@
 
   env)
 
+(defn field-check-link-slug
+  [env]
+  (assoc env
+    :values 
+    (if (-> env :spec :link_slug)
+      (let [model_id (-> env :spec :model_id)
+            link_slug (-> env :spec :link_slug)
+            fetch (db/fetch :field "model_id = %1 and slug = '%2'" model_id link_slug)
+            linked (first fetch)]
+        (assoc (env :values) :link_id (linked :id)))
+      (env :values))))
+
 (defn- add-field-hooks []
-  (add-hook :field :before_save :check_link_slug (fn [env]
-    (assoc env :values 
-      (if (-> env :spec :link_slug)
-        (let [model_id (-> env :spec :model_id)
-              link_slug (-> env :spec :link_slug)
-              fetch (db/fetch :field "model_id = %1 and slug = '%2'" model_id link_slug)
-              linked (first fetch)]
-          (assoc (env :values) :link_id (linked :id)))
-        (env :values)))))
+  (add-hook :field :before_save :check_link_slug (fn [env] (field-check-link-slug env)))
+    ;; (assoc env :values 
+    ;;   (if (-> env :spec :link_slug)
+    ;;     (let [model_id (-> env :spec :model_id)
+    ;;           link_slug (-> env :spec :link_slug)
+    ;;           fetch (db/fetch :field "model_id = %1 and slug = '%2'" model_id link_slug)
+    ;;           linked (first fetch)]
+    ;;       (assoc (env :values) :link_id (linked :id)))
+    ;;     (env :values)))))
   
   (add-hook :field :after_create :add_columns (fn [env] (field-add-columns env)))
-  (add-hook :field :after_update :reify_field (fn [env] (field-reify-column)))
+  (add-hook :field :after_update :reify_field (fn [env] (field-reify-column env)))
 
   (add-hook :field :after_destroy :drop_columns (fn [env]
     (try                                                  
@@ -2059,7 +2092,7 @@
            env {:model model :values values :spec spec :original original :op :update :opts opts}
            _save (run-hook slug :before_save env)
            _update (run-hook slug :before_update _save)
-           success (db/update slug ["id = ?" (Integer. id)] (assoc (_update :values) :updated_at (current-timestamp))) ;; (_update :values))
+           success (db/update slug ["id = ?" (convert-int id)] (assoc (_update :values) :updated_at (current-timestamp))) ;; (_update :values))
            content (db/choose slug id)
            merged (merge (_update :spec) content)
            _after (run-hook slug :after_update (merge _update {:content merged}))

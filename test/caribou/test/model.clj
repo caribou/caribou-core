@@ -17,7 +17,7 @@
 
 (deftest invoke-model-test
   (sql/with-connection @config/db
-    (let [model (db/query "select * from model where id = 1")
+    (let [model (util/query "select * from model where id = 1")
           invoked (invoke-model (first model))]
       (is (= "name" (-> invoked :fields :name :row :slug))))))
 
@@ -32,12 +32,12 @@
                                   {:name "Wibib" :type "boolean"}]})
           yellow (create :yellow {:gogon "obobo" :wibib true})]
 
-      (is (<= 8 (count (model :fields))))
+      (is (<= 8 (count (-> @models :yellow :fields))))
       (is (= (model :name) "Yellow"))
       (is ((models :yellow) :name "Yellow"))
       (is (db/table? :yellow))
       (is (yellow :wibib))
-      (is (= 1 (count (db/query "select * from yellow"))))
+      (is (= 1 (count (util/query "select * from yellow"))))
       
       (destroy :model (model :id))
 
@@ -96,7 +96,7 @@
             (is (= (purple :green_id) (zappo :id))))
 
           (destroy :zap (zap-reload :id))
-          (let [purples (db/query "select * from purple")]
+          (let [purples (util/query "select * from purple")]
             (is (empty? purples))))
 
         (destroy :model (zap :id))

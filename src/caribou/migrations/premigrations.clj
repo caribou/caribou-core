@@ -518,14 +518,14 @@
 
 (defn build-links []
   (model/invoke-models)
-  (model/update :model ((model/models :site) :id)
+  (model/update :model (-> @model/models :site :id)
           {:fields [{:name "Domains"
                      :type "collection"
                      :dependent true
-                     :target_id ((model/models :domain) :id)}
+                     :target_id (-> @model/models :domain :id)}
                     {:name "Pages"
                      :type "collection"
-                     :target_id ((model/models :page) :id)}]}
+                     :target_id (-> @model/models :page :id)}]}
           {:op :migration}))
 
 (defn migrate
