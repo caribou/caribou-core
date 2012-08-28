@@ -230,7 +230,9 @@
 (defn convert-int
   [whatever]
   (if (= (type whatever) java.lang.String)
-    (Integer. whatever)
+    (try
+      (Integer. whatever)
+      (catch Exception e nil))
     (.intValue whatever)))
 
 (defn integer-update-values
