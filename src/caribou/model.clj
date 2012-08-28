@@ -166,11 +166,11 @@
 
 (defn- pure-where
   [prefix field where]
-  (db/clause "%1.%2 = %3" [prefix field where]))
+  (clause "%1.%2 = %3" [prefix field where]))
 
 (defn- string-where
   [prefix field where]
-  (db/clause "%1.%2 = '%3'" [prefix field where]))
+  (clause "%1.%2 = '%3'" [prefix field where]))
 
 (defn- field-where
   [field prefix opts do-where]
@@ -227,6 +227,21 @@
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
   
+(defn convert-int
+  [whatever]
+  (if (= (type whatever) java.lang.String)
+    (Integer. whatever)
+    (.intValue whatever)))
+
+(defn integer-update-values
+  [field content values]
+  (let [key (-> field :row :slug keyword)]
+    (if (contains? content key)
+      (let [value (get content key)
+            tval (convert-int value)]
+        (assoc values key tval))
+      values)))
+
 (defrecord IntegerField [row env]
   Field
   (table-additions [this field] [[(keyword field) :integer]])
@@ -236,15 +251,7 @@
   (cleanup-field [this] nil)
   (target-for [this] nil)
 
-  (update-values [this content values]
-    (let [key (keyword (:slug row))]
-      (if (contains? content key)
-        (try
-          (let [value (content key)
-                tval (Integer. value)]
-            (assoc values key tval))
-          (catch Exception e values))
-        values)))
+  (update-values [this content values] (integer-update-values this content values))
 
   (post-update [this content] content)
   (pre-destroy [this content] content)
@@ -456,7 +463,7 @@
 
 (defn- build-extract
   [prefix field [index value]]
-  (db/clause "extract(%1 from %2.%3) = %4" [(name index) prefix (name field) value]))
+  (clause "extract(%1 from %2.%3) = %4" [(name index) prefix (name field) value]))
 
 (defn- timestamp-where
   "To find something by a certain timestamp you must provide a map with keys into
@@ -468,7 +475,7 @@
 
 (defrecord TimestampField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL" "DEFAULT NULL"]]) ;; "DEFAULT current_timestamp"]])
+  (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL"]]) ;; "DEFAULT NULL"]]) ;; "DEFAULT current_timestamp"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
@@ -609,7 +616,7 @@
     (model-select-fields (:asset @models) (str prefix "$" (:slug row)) opts))
 
   (join-conditions [this prefix opts]
-    [(db/clause "left outer join asset %2$%1 on (%2.%1_id = %2$%1.id)"
+    [(clause "left outer join asset %2$%1 on (%2.%1_id = %2$%1.id)"
                 [(:slug row) prefix])])
 
   (build-where
@@ -691,7 +698,7 @@
   (join-fields [this prefix opts]
     (model-select-fields (:location @models) (str prefix "$" (:slug row)) opts))
   (join-conditions [this prefix opts]
-    [(db/clause "left outer join location %2$%1 on (%2.%1_id = %2$%1.id)"
+    [(clause "left outer join location %2$%1 on (%2.%1_id = %2$%1.id)"
                 [(:slug row) prefix])])
 
   (build-where
@@ -751,7 +758,7 @@
               table-alias (str prefix "$" slug)
               subconditions (model-where-conditions target table-alias down)
               params [prefix link (:slug target) table-alias subconditions]]
-          (db/clause "%1.id in (select %4.%2_id from %3 %4 where %5)" params))))))
+          (clause "%1.id in (select %4.%2_id from %3 %4 where %5)" params))))))
 
 (defn- collection-render
   [field content opts]
@@ -785,15 +792,14 @@
 
 (defn collection-post-update
   [field content]
-  (if-let [collection (content (keyword (-> field :row :slug)))]
+  (if-let [collection (get content (-> field :row :slug keyword))]
     (let [part-field (-> field :env :link)
-          part-key (keyword (str (:slug part-field) "_id"))
-          model (models (:model_id part-field))
-          updated
-          (doseq [part collection]
-            (create
-             (keyword (:slug model))
-             (assoc part part-key (:id content))))]
+          part-key (-> part-field :slug (str "_id") keyword) ;; (str (:slug part-field) "_id"))
+          model (get @models (:model_id part-field))
+          model-key (-> model :slug keyword)
+          updated (doseq [part collection]
+                    (let [part-opts (assoc part part-key (:id content))]
+                      (create model-key part-opts)))]
       (assoc content (keyword (-> field :row :slug)) updated))
     content))
 
@@ -873,7 +879,7 @@
               downstream (model-join-conditions target table-alias down)
               params [(:slug target) table-alias prefix link]]
           (concat
-           [(db/clause "left outer join %1 %2 on (%3.id = %2.%4_id)" params)]
+           [(clause "left outer join %1 %2 on (%3.id = %2.%4_id)" params)]
            downstream)))))
 
   (build-where
@@ -886,7 +892,7 @@
           link (-> this :env :link :slug)
           table-alias (str prefix "$" (:slug row))
           downstream (model-natural-orderings target table-alias opts)]
-      [(db/clause "%1.%2_position asc" [table-alias link]) downstream]))
+      [(clause "%1.%2_position asc" [table-alias link]) downstream]))
 
   (build-order [this prefix opts]
     (join-order this (@models (row :target_id)) prefix opts))
@@ -1002,7 +1008,7 @@
               downstream (model-join-conditions target table-alias down)
               params [(:slug target) table-alias prefix (:slug row)]]
           (concat
-           [(db/clause "left outer join %1 %2 on (%3.%4_id = %2.id)" params)]
+           [(clause "left outer join %1 %2 on (%3.%4_id = %2.id)" params)]
            downstream)))))
 
   (build-where
@@ -1080,7 +1086,7 @@
               downstream (model-join-conditions target table-alias down)
               params [(:slug target) table-alias prefix (:slug row)]]
           (concat
-           [(db/clause "left outer join %1 %2 on (%3.%4_id = %2.id)" params)]
+           [(clause "left outer join %1 %2 on (%3.%4_id = %2.id)" params)]
            downstream)))))
 
   (build-where
@@ -1147,7 +1153,7 @@
         target (models (-> field :row :target_id))
         linkage (create (target :slug) b)
         params [join-key from-key (linkage :id) to-key (a :id)]
-        preexisting (apply (partial db/query "select * from %1 where %2 = %3 and %4 = %5") params)]
+        preexisting (apply (partial query "select * from %1 where %2 = %3 and %4 = %5") params)]
     (if preexisting
       preexisting
       (create join-key {from-key (linkage :id) to-key (a :id)}))))
@@ -1174,15 +1180,15 @@
         target-slug (target :slug)
         field-names (map #(str target-slug "." %) (table-columns target-slug))
         field-select (join "," field-names)
-        query "select %1 from %2 inner join %3 on (%2.id = %3.%4) where %3.%5 = %6"
+        join-query "select %1 from %2 inner join %3 on (%2.id = %3.%4) where %3.%5 = %6"
         params [field-select target-slug join-key from-key to-key (content :id)]]
-    (apply (partial db/query query) params)))
+    (apply (partial query join-query) params)))
 
 (defn remove-link
   [field from-id to-id]
   (let [{from-key :from to-key :to join-key :join} (link-keys field)
         params [join-key from-key to-id to-key from-id]
-        preexisting (first (apply (partial db/query "select * from %1 where %2 = %3 and %4 = %5") params))]
+        preexisting (first (apply (partial query "select * from %1 where %2 = %3 and %4 = %5") params))]
     (if preexisting
       (destroy join-key (preexisting :id)))))
 
@@ -1202,8 +1208,8 @@
               link-params [(:slug target) table-alias join-alias slug]
               downstream (model-join-conditions target table-alias down)]
           (concat
-           [(db/clause "left outer join %1 %2 on (%2.%3_id = %4.id)" join-params)
-            (db/clause "left outer join %1 %2 on (%2.id = %3.%4_id)" link-params)]
+           [(clause "left outer join %1 %2 on (%2.%3_id = %4.id)" join-params)
+            (clause "left outer join %1 %2 on (%2.id = %3.%4_id)" link-params)]
            downstream))))))
 
 (defn- link-where
@@ -1223,7 +1229,7 @@
               join-alias (str prefix "$" from-name "_join")
               params [prefix link join-key join-alias
                       (:slug target) slug subconditions table-alias]]
-          (db/clause clause params))))))
+          (clause clause params))))))
 
 (defn- link-natural-orderings
   [this prefix opts]
@@ -1232,7 +1238,7 @@
         join-alias (str prefix "$" slug "_join")
         target (@models (-> this :row :target_id))
         downstream (model-natural-orderings target (str prefix "$" slug) opts)]
-    [(db/clause "%1.%2_position asc" [join-alias slug]) downstream]))
+    [(clause "%1.%2_position asc" [join-alias slug]) downstream]))
 
 (defn- link-render
   [this content opts]
@@ -1422,7 +1428,7 @@
                     ""
                     (str " where " where))
         params [prefix (:slug model) condition order limit offset]]
-    (db/clause "%1.id in (select %1.id from %2 %1%3%4 limit %5 offset %6)" params)))
+    (clause "%1.id in (select %1.id from %2 %1%3%4 limit %5 offset %6)" params)))
 
 (defn model-where-conditions
   "Builds the where part of the uberquery given the model, prefix and given map of the
@@ -1473,7 +1479,7 @@
         natural (model-natural-orderings model (:slug model) opts)
         statement (join ", " (concat order natural))]
     (if (not (empty? statement))
-      (db/clause " order by %1" [statement]))))
+      (clause " order by %1" [statement]))))
 
 (defn form-uberquery
   "Given the model and map of opts, construct the corresponding uberquery (but don't call it!)"
@@ -1499,7 +1505,7 @@
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
   (let [query-mass (form-uberquery model opts)]
-    (db/query query-mass)))
+    (query query-mass)))
 
 (defn- subfusion
   [model prefix skein opts]
@@ -1794,6 +1800,14 @@
   [name]
   (db/create-table (keyword name) [:id "SERIAL" "PRIMARY KEY"]))
 
+(defn add-parent-id
+  [env]
+  (if (-> env :content :nested)
+    (create
+     :field
+     {:name "Parent Id" :model_id (-> env :content :id) :type "integer"}))
+  env)
+
 (declare invoke-models)
 
 (defn- add-model-hooks []
@@ -1815,11 +1829,7 @@
   ;;     (catch Exception e env))
   ;;   env))
 
-  (add-hook :model :after_create :invoke (fn [env]
-    (if (-> env :content :nested)
-      (create :field
-              {:name "Parent Id" :model_id (-> env :content :id) :type "integer"}))
-    env))
+  (add-hook :model :after_create :invoke (fn [env] (add-parent-id env)))
   
   (add-hook :model :after_update :rename (fn [env]
     (let [original (-> env :original :slug)
@@ -1932,8 +1942,8 @@
           (assoc (env :values) :link_id (linked :id)))
         (env :values)))))
   
-  (add-hook :field :after_create :add_columns field-add-columns)
-  (add-hook :field :after_update :reify_field field-reify-column)
+  (add-hook :field :after_create :add_columns (fn [env] (field-add-columns env)))
+  (add-hook :field :after_update :reify_field (fn [env] (field-reify-column)))
 
   (add-hook :field :after_destroy :drop_columns (fn [env]
     (try                                                  
@@ -1966,7 +1976,7 @@
   to its fields in a hash with keys being the field slugs
   and vals being the field invoked as a Field protocol record."
   [model]
-  (let [fields (db/query "select * from field where model_id = %1" (model :id))
+  (let [fields (query "select * from field where model_id = %1" (model :id))
         field-map (seq-to-map #(keyword (-> % :row :slug)) (map make-field fields))]
     (make-lifecycle-hooks (model :slug))
     (assoc model :fields field-map)))
@@ -1977,7 +1987,7 @@
   this also means if a model or field is changed in any way that model will
   have to be reinvoked to reflect the current state."
   []
-  (let [rows (db/query "select * from model")
+  (let [rows (query "select * from model")
         invoked (doall (map invoke-model rows))]
      (add-model-hooks)
      (add-field-hooks)
@@ -1991,6 +2001,11 @@
      (dosync
       (ref-set model-slugs (filter keyword? (keys @models))))
      (add-app-model-hooks))
+
+(defn update-values-reduction
+  [spec]
+  (fn [values field]
+    (update-values field spec values)))
 
 (defn create
   "slug represents the model to be updated.
@@ -2006,7 +2021,7 @@
      (if (present? (spec :id))
        (update slug (spec :id) spec opts)
        (let [model (models (keyword slug))
-             values (reduce #(update-values %2 spec %1) {} (vals (dissoc (model :fields) :updated_at)))
+             values (reduce (update-values-reduction spec) {} (vals (dissoc (model :fields) :updated_at)))
              env {:model model :values values :spec spec :op :create :opts opts}
              _save (run-hook slug :before_save env)
              _create (run-hook slug :before_create _save)
@@ -2028,7 +2043,7 @@
            limit (str (or (opts :limit) 30))
            offset (str (or (opts :offset) 0))
            where (str (or (opts :where) "1=1"))]
-       (doall (map #(from model % opts) (db/query "select * from %1 where %2 order by %3 %4 limit %5 offset %6" slug where order-by order limit offset))))))
+       (doall (map #(from model % opts) (query "select * from %1 where %2 order by %3 %4 limit %5 offset %6" slug where order-by order limit offset))))))
 
 (defn update
   "slug represents the model to be updated.
@@ -2072,8 +2087,8 @@
      (let [model (models (keyword slug))]
        (if (model :nested)
          (let [field-names (table-columns slug)
-               base-where (db/clause "id = %1" [id])
-               recur-where (db/clause "%1_tree.parent_id = %1.id" [slug])
+               base-where (clause "id = %1" [id])
+               recur-where (clause "%1_tree.parent_id = %1.id" [slug])
                before (db/recursive-query slug field-names base-where recur-where)]
            (doall (map #(from model % opts) before)))
          [(from model (db/choose slug id) opts)]))))
@@ -2086,8 +2101,8 @@
      (let [model (models (keyword slug))]
        (if (model :nested)
          (let [field-names (table-columns slug)
-               base-where (db/clause "id = %1" [id])
-               recur-where (db/clause "%1_tree.id = %1.parent_id" [slug])
+               base-where (clause "id = %1" [id])
+               recur-where (clause "%1_tree.id = %1.parent_id" [slug])
                before (db/recursive-query slug field-names base-where recur-where)]
            (doall (map #(from model % opts) before)))
          [(from model (db/choose slug id) opts)]))))

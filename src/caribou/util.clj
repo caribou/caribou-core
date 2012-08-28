@@ -1,8 +1,10 @@
 (ns caribou.util
   (:use caribou.debug)
   (:require [clojure.string :as string]
+            [clojure.java.jdbc :as sql]
             [clojure.java.io :as io]))
 
+(import java.util.regex.Matcher)
 (import java.sql.SQLException)
 (import java.io.File)
 
@@ -119,3 +121,38 @@
   (let [f (fn [[k v]] (if (keyword? k) [(name k) v] [k v]))]
     ;; only apply to maps (not records)
     (postwalk (fn [x] (if (and (map? x) (not (instance? clojure.lang.IRecord x))) (into {} (map f x)) x)) m)))
+
+;; db support -------------------------------
+
+(defn zap
+  "quickly sanitize a potentially dirty string in preparation for a sql query"
+  [s]
+  (cond
+   (string? s) (.replaceAll (re-matcher #"[\\\";#%]" (.replaceAll (str s) "'" "''")) "")
+   (keyword? s) (zap (name s))
+   :else s))
+
+(defn clause
+  "substitute values into a string template based on numbered % parameters"
+  [pred args]
+  (letfn [(rep [s i] (.replaceAll s (str "%" (inc i))
+                                  (let [item (nth args i)]
+                                    (Matcher/quoteReplacement
+                                     (cond
+                                      (keyword? item) (name item)
+                                      :else
+                                      (str item))))))]
+    (if (empty? args)
+      pred
+      (loop [i 0 retr pred]
+        (if (= i (-> args count dec))
+          (rep retr i)
+          (recur (inc i) (rep retr i)))))))
+
+(defn query
+  "make an arbitrary query, substituting in extra args as % parameters"
+  [q & args]
+  (sql/with-query-results res
+    [(clause q args)]
+    (doall res)))
+
