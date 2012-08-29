@@ -1217,7 +1217,7 @@
 (defn- link-where
   [field prefix opts]
   (let [slug (-> field :row :slug)
-        clause "%1.id in (select %4.%2_id from %3 %4 inner join %5 %8 on (%4.%6_id = %8.id) where %7)"]
+        join-clause "%1.id in (select %4.%2_id from %3 %4 inner join %5 %8 on (%4.%6_id = %8.id) where %7)"]
     (with-propagation :where opts slug
       (fn [down]
         (let [target (@models (-> field :row :target_id))
@@ -1231,7 +1231,7 @@
               join-alias (str prefix "$" from-name "_join")
               params [prefix link join-key join-alias
                       (:slug target) slug subconditions table-alias]]
-          (clause clause params))))))
+          (clause join-clause params))))))
 
 (defn- link-natural-orderings
   [this prefix opts]
