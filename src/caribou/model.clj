@@ -7,9 +7,9 @@
             [clj-time.format :as format]
             [clj-time.coerce :as coerce]
             [clojure.set :as set]
+            [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
             [geocoder.core :as geo]
-            [clojure.java.io :as io]
             [caribou.config :as config]
             [caribou.db.adapter.protocol :as adapter]
             [caribou.logger :as log]))
@@ -66,7 +66,7 @@
   (timecore/from-time-zone timestamp (timecore/default-time-zone)))
 
 (defn read-date
-  "Given a date string try every imaginable thing to parse it into something
+  "Given a string try every imaginable thing to parse it into something
    resembling a date."
   [date-string]
   (let [trimmed (trim date-string)
@@ -1430,7 +1430,7 @@
                     ""
                     (str " where " where))
         params [prefix (:slug model) condition order limit offset]]
-    (clause "%1.id in (select %1.id from %2 %1%3%4 limit %5 offset %6)" params)))
+    (clause "%1.id in (select * from (select %1.id from %2 %1%3%4 limit %5 offset %6) as %1%2)" params)))
 
 (defn model-where-conditions
   "Builds the where part of the uberquery given the model, prefix and given map of the
@@ -2069,7 +2069,8 @@
 
 (defn rally
   "Pull a set of content up through the model system with the given options.
-   Avoids the uberquery so is considered deprecated and inferior, left here for historical reasons."
+   Avoids the uberquery so is considered deprecated and inferior, left here for historical reasons
+   (and as a hedge in case the uberquery really does explode someday!)"
   ([slug] (rally slug {}))
   ([slug opts]
      (let [model (models (keyword slug))
