@@ -11,9 +11,6 @@
 (def supported-dbs [:postgres :mysql])
 (def db-configs (doall (map #(config/read-config (io/resource (str "config/test-" (name %) ".clj"))) supported-dbs)))
 
-;; (def test-config (config/read-config (io/resource "config/test.clj")))
-;; (config/configure test-config)
-
 (defn test-init
   []
   (invoke-models))
@@ -184,15 +181,14 @@
                        :chartreuse
                        {:where {:nightpurple {:zozoz "granular"}}
                         :order {:nightpurple {:id :desc}}
-                        :include {:nightpurple {}}})]
+                        :include {:nightpurple {}}
+                        :limit 5
+                        :offset 0})]
               (is (= 1 (count coc)))
               (is (= 2 (count (:nightpurple (first coc)))))
               (is (present? (models :chartreusii_nightpurple))))))
 
-        ;; ))
         (catch Exception e (util/render-exception e))
-
-        ;; )))
 
         (finally
           (if (db/table? :chartreuse) (destroy :model (-> @models :chartreuse :id)))
