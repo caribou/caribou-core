@@ -32,7 +32,7 @@
 
 (defn environment
   []
-  (keyword (or (system-property :environment) "development")))
+  (keyword (or (system-property :environment) (system-property :PARAM1) "development")))
 
 (defn app-value-eq
   [kw value]
