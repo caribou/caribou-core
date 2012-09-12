@@ -649,18 +649,17 @@
 (defn- full-address [address]
   (join " " [(address :address)
              (address :address_two)
-             (address :postal_code)
              (address :city)
              (address :state)
+             (address :postal_code)
              (address :country)]))
 
 (defn geocode-address [address]
-  ;; (let [code (geo/geocode (full-address address))]
-  (let [code (geo/geocode address)]
-    (if (empty? code)
-      {}
-      {:lat (-> (first code) :location :latitude)
-       :lng (-> (first code) :location :longitude)})))
+ (let [code (geo/geocode (full-address address))]
+   (if (empty? code)
+     {}
+     {:lat (-> (first code) :location :latitude)
+      :lng (-> (first code) :location :longitude)})))
 
 (defrecord AddressField [row env]
   Field
