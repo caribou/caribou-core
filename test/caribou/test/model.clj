@@ -150,9 +150,9 @@
               cf-link (-> chartreuse :fields :fuchsia)
               fc-link (-> fuchsia :fields :chartreusii)
 
-              ccc (create :chartreuse {:ondondon "obobob"})
-              cdc (create :chartreuse {:ondondon "ikkik"})
-              cbc (create :chartreuse {:ondondon "zozoozozoz"})
+              ccc (create :chartreuse {:ondondon "obobob" :kokok true})
+              cdc (create :chartreuse {:ondondon "ikkik" :kokok false})
+              cbc (create :chartreuse {:ondondon "zozoozozoz" :kokok false})
 
               fff (create :fuchsia {:zozoz "glowing"})
               fgf (create :fuchsia {:zozoz "torpid"})
@@ -165,7 +165,7 @@
           (link fc-link fgf cbc)
 
           ;; create links through update rather than directly
-          (update :fuchsia (fef :id) {:chartreusii [cbc ccc {:ondondon "ikikik" :fuchsia [{:zozoz "granular"}]}]})
+          (update :fuchsia (fef :id) {:chartreusii [cbc ccc {:ondondon "ikikik" :kokok false :fuchsia [{:zozoz "granular"}]}]})
 
           (is (= 2 (count (retrieve-links cf-link ccc))))
           (let [fff-X (from (models :fuchsia) fff {:include {:chartreusii {}}})
@@ -186,7 +186,9 @@
                         :offset 0})]
               (is (= 1 (count coc)))
               (is (= 2 (count (:nightpurple (first coc)))))
-              (is (present? (models :chartreusii_nightpurple))))))
+              (is (present? (models :chartreusii_nightpurple)))
+              (let [falses (gather :chartreuse {:where {:kokok false}})]
+                (is (= 3 (count falses)))))))
 
         (catch Exception e (util/render-exception e))
 
