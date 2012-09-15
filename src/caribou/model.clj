@@ -175,8 +175,9 @@
 (defn- field-where
   [field prefix opts do-where]
   (let [slug (keyword (-> field :row :slug))]
-    (if-let [where (-> opts :where slug)]
-      (do-where prefix slug where))))
+    (let [where (-> opts :where slug)]
+      (if-not (nil? where)
+        (do-where prefix slug where)))))
 
 (defn- pure-order
   [field prefix opts]
