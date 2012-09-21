@@ -1812,13 +1812,24 @@
 
 (defn add-parent-id
   [env]
-  (if (-> env :content :nested)
+  (if (and (-> env :content :nested) (not (contains? (-> env :content) :parent_id)))
     (create
      :field
      {:name "Parent Id" :model_id (-> env :content :id) :type "integer"}))
   env)
 
-                                                    
+(defn localize-model
+  [model]
+  (println "LLLLLOOOOCALIZING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" (:slug model)))
+
+(defn add-localization
+  [env]
+  (println "!!!!!!!!!!!!!!" (-> env :content :localized))
+  (println "***************" (-> env :original :localized))
+  (if (and (-> env :content :localized) (not (-> env :original :localized)))
+    (localize-model (get @models (-> env :content :slug keyword))))
+  env)
+
 (defn add-base-fields
   [env]
   (doseq [field base-fields]
@@ -1852,7 +1863,8 @@
   ;;     (catch Exception e env))
   ;;   env))
 
-  (add-hook :model :after_create :invoke (fn [env] (add-parent-id env)))
+  (add-hook :model :after_update :add_parent (fn [env] (add-parent-id env)))
+  (add-hook :model :after_update :add_localization (fn [env] (add-localization env)))
   
   (add-hook :model :after_update :rename (fn [env]
     (let [original (-> env :original :slug)

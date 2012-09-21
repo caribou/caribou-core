@@ -23,6 +23,7 @@
    [:locked :boolean "DEFAULT false"]
    [:join_model :boolean "DEFAULT false"]
    [:abstract :boolean "DEFAULT false"]
+   [:localized :boolean "DEFAULT false"]
    [:searchable :boolean "DEFAULT false"]
    [:ancestor_id :integer "DEFAULT NULL"]
    [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
@@ -159,6 +160,14 @@
      :field
      {:name "Abstract"
       :slug "abstract"
+      :type "boolean"
+      :locked true
+      :updated_at (model/current-timestamp)
+      :model_id model-id})
+    (db/insert
+     :field
+     {:name "Localized"
+      :slug "localized"
       :type "boolean"
       :locked true
       :updated_at (model/current-timestamp)

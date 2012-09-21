@@ -196,6 +196,24 @@
           (if (db/table? :chartreuse) (destroy :model (-> @models :chartreuse :id)))
           (if (db/table? :fuchsia) (destroy :model (-> @models :fuchsia :id))))))))
 
+(deftest localized-model-test
+  (doseq [config db-configs]
+    (config/configure config)
+    (sql/with-connection @config/db
+      (test-init)
+      (try
+        (let [place (create :locale {:language "Ibeo" :region "Glass" :code "ib_or"})
+              other (create :locale {:language "Gornon" :region "Ipipip" :code "go_xb"})
+              between (create
+                       :model
+                       {:name "Everywhere" :localized true
+                        :fields [{:name "Up" :type "string"}
+                                 {:name "Through" :type "boolean"}]})])
+        (catch Exception e (util/render-exception e))
+        (finally
+         (if (db/table? :everywhere)
+           (destroy :model (-> @models :everywhere :id))))))))
+
 (deftest nested-model-test
   (doseq [config db-configs]
     (config/configure config)
