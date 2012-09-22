@@ -1812,7 +1812,7 @@
 
 (defn add-parent-id
   [env]
-  (if (and (-> env :content :nested) (not (contains? (-> env :content) :parent_id)))
+  (if (and (-> env :content :nested) (not (-> env :original :nested)))
     (create
      :field
      {:name "Parent Id" :model_id (-> env :content :id) :type "integer"}))
@@ -1843,6 +1843,13 @@
 
 (declare invoke-models)
 
+(defn model-after-save
+  [env]
+  (add-parent-id env)
+  (add-localization env)
+  (invoke-models)
+  env)
+
 (defn- add-model-hooks []
   (add-hook :model :before_create :build_table (fn [env]
     (create-model-table (slugify (-> env :spec :name)))
@@ -1863,9 +1870,6 @@
   ;;     (catch Exception e env))
   ;;   env))
 
-  (add-hook :model :after_update :add_parent (fn [env] (add-parent-id env)))
-  (add-hook :model :after_update :add_localization (fn [env] (add-localization env)))
-  
   (add-hook :model :after_update :rename (fn [env]
     (let [original (-> env :original :slug)
           slug (-> env :content :slug)]
@@ -1874,9 +1878,12 @@
     env))
 
   (add-hook :model :after_save :invoke_all (fn [env]
-    (invoke-models)
+    (model-after-save env) ;; (invoke-models)
     env))
 
+  ;; (add-hook :model :after_save :add_parent (fn [env] (add-parent-id env)))
+  ;; (add-hook :model :after_save :add_localization (fn [env] (add-localization env)))
+  
   ;; (add-hook :model :before_destroy :cleanup-fields (fn [env]
   ;;   (let [model (get @models (-> env :content :slug))]
   ;;     (doseq [field (-> model :fields vals)]

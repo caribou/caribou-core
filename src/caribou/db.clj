@@ -72,7 +72,7 @@
   "delete out of the given table according to the supplied where clause"
   [table & where]
   (log :db (clause "delete from %1 values %2" [(name table) (clause (first where) (rest where))]))
-  (sql/delete-rows table [(if (not (empty? where)) (clause (first where) (rest where)))]))
+  (sql/delete-rows (name table) [(if (not (empty? where)) (clause (first where) (rest where)))]))
 
 (defn fetch
   "pull all items from a table according to the given conditions"
