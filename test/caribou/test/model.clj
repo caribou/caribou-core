@@ -212,7 +212,9 @@
         (catch Exception e (util/render-exception e))
         (finally
          (if (db/table? :everywhere)
-           (destroy :model (-> @models :everywhere :id))))))))
+           (do
+             (db/do-sql "delete from locale")
+             (destroy :model (-> @models :everywhere :id)))))))))
 
 (deftest nested-model-test
   (doseq [config db-configs]
@@ -233,6 +235,8 @@
           ;; bbb_children (descendents :white (bbb :id))]
           ;; (is (= 4 (count fff_path)))
           ;; (is (= 4 (count bbb_children))))
+          (doseq [branch tree]
+            (println (str tree)))
           (is (= 1 (count tree))))
         (catch Exception e (util/render-exception e))
         (finally (if (db/table? :white) (destroy :model (-> @models :white :id))))))))
