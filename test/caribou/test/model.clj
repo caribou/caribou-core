@@ -208,7 +208,9 @@
                        :model
                        {:name "Everywhere" :localized true
                         :fields [{:name "Up" :type "string"}
-                                 {:name "Through" :type "boolean"}]})])
+                                 {:name "Through" :type "boolean"}]})
+              outer (create :locale {:language "Obooe" :region "Xorxox" :code "xo_ub"})]
+          (update :locale (:id other) {:code "bx_pa"}))
         (catch Exception e (util/render-exception e))
         (finally
          (if (db/table? :everywhere)
@@ -236,7 +238,7 @@
           ;; (is (= 4 (count fff_path)))
           ;; (is (= 4 (count bbb_children))))
           (doseq [branch tree]
-            (println (str tree)))
+            (println (doall (str tree))))
           (is (= 1 (count tree))))
         (catch Exception e (util/render-exception e))
         (finally (if (db/table? :white) (destroy :model (-> @models :white :id))))))))

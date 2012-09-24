@@ -123,6 +123,8 @@
   (field-generator [this generators])
   (fuse-field [this prefix archetype skein opts])
 
+  (localized? [this])
+
   (field-from [this content opts]
     "retrieves the value for this field from this content item")
   (render [this content opts] "renders out a single field from this content item"))
@@ -225,6 +227,7 @@
     generators)
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
+  (localized? [this] false)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
   
@@ -270,6 +273,7 @@
     (assoc generators (keyword (:slug row)) (fn [] (rand-int 777777777))))
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
+  (localized? [this] true)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
   
@@ -308,6 +312,7 @@
     (assoc generators (keyword (:slug row)) (fn [] (rand))))
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
+  (localized? [this] true)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
     (update-in content [(keyword (:slug row))] str)))
@@ -352,6 +357,7 @@
     (assoc generators (keyword (:slug row)) (fn [] (rand-str (inc (rand-int 139))))))
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
+  (localized? [this] true)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
@@ -391,6 +397,7 @@
               "_abcdefghijklmnopqrstuvwxyz_"))))
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
+  (localized? [this] true)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
@@ -421,6 +428,7 @@
     (assoc generators (keyword (:slug row)) (fn [] (rand-str (+ 141 (rand-int 5555))))))
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
+  (localized? [this] true)
   (field-from [this content opts]
     (adapter/text-value @config/db-adapter (content (keyword (:slug row)))))
   (render [this content opts]
@@ -461,6 +469,7 @@
     (assoc generators (keyword (:slug row)) (fn [] (= 1 (rand-int 2)))))
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
+  (localized? [this] (not (:locked row)))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
@@ -510,6 +519,7 @@
     generators)
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
+  (localized? [this] (not (:locked row)))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
     (update-in content [(keyword (:slug row))] format-date)))
@@ -639,6 +649,8 @@
   (fuse-field [this prefix archetype skein opts]
     (asset-fusion this prefix archetype skein opts))
 
+  (localized? [this] false)
+
   (field-from [this content opts]
     (let [asset-id (content (keyword (str (:slug row) "_id")))
           asset (or (db/choose :asset asset-id) {})]
@@ -719,6 +731,8 @@
 
   (fuse-field [this prefix archetype skein opts]
     (join-fusion this (:location @models) prefix archetype skein opts))
+
+  (localized? [this] false)
 
   (field-from [this content opts]
     (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
@@ -906,6 +920,8 @@
     [this prefix archetype skein opts]
     (collection-fusion this prefix archetype skein opts))
 
+  (localized? [this] false)
+
   (field-from
     [this content opts]
     (with-propagation :include opts (:slug row)
@@ -1031,6 +1047,8 @@
   (fuse-field [this prefix archetype skein opts]
     (part-fusion this (@models (-> this :row :target_id)) prefix archetype skein opts))
 
+  (localized? [this] false)
+
   (field-from [this content opts]
     (with-propagation :include opts (:slug row)
       (fn [down]
@@ -1112,6 +1130,8 @@
 
   (fuse-field [this prefix archetype skein opts]
     (part-fusion this (@models (-> this :row :model_id)) prefix archetype skein opts))
+
+  (localized? [this] false)
 
   (field-from [this content opts]
     (with-propagation :include opts (:slug row)
@@ -1375,6 +1395,8 @@
 
   (fuse-field [this prefix archetype skein opts]
     (collection-fusion this prefix archetype skein opts))
+
+  (localized? [this] false)
 
   (field-from [this content opts]
     (with-propagation :include opts (:slug row)
@@ -1725,7 +1747,6 @@
   [{:name "Id" :slug "id" :type "id" :locked true :immutable true :editable false}
    {:name "Position" :slug "position" :type "integer" :locked true}
    {:name "Status" :slug "status" :type "integer" :locked true}
-   ;; {:name "Locale Id" :slug "locale_id" :type "integer" :locked true :editable false}
    {:name "Env Id" :slug "env_id" :type "integer" :locked true :editable false}
    {:name "Locked" :slug "locked" :type "boolean" :locked true :immutable true :editable false :default_value false}
    {:name "Created At" :slug "created_at" :type "timestamp" :default_value "current_timestamp" :locked true :immutable true :editable false}
@@ -1818,17 +1839,40 @@
      {:name "Parent Id" :model_id (-> env :content :id) :type "integer"}))
   env)
 
+(defn localized-slug
+  [code slug]
+  (keyword (str code "_" (name slug))))
+
+(defn localize-field
+  [model-slug field locale]
+  (let [local-slug (localized-slug (:code locale) (-> field :row :slug))]
+    (doseq [additions (table-additions field local-slug)]
+      (db/add-column model-slug (name (first additions)) (rest additions)))))
+
 (defn localize-model
   [model]
-  (println "LLLLLOOOOCALIZING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" (:slug model)))
+  (doseq [field (filter localized? (-> model :fields vals))]
+    (doseq [locale (gather :locale)]
+      (localize-field (:slug model) field locale))))
 
-(defn add-localization
-  [env]
-  (println "!!!!!!!!!!!!!!" (-> env :content :localized))
-  (println "***************" (-> env :original :localized))
-  (if (and (-> env :content :localized) (not (-> env :original :localized)))
-    (localize-model (get @models (-> env :content :slug keyword))))
-  env)
+(defn local-models
+  []
+  (filter :localized (map #(-> @models %) @model-slugs)))
+
+(defn add-locale
+  [locale]
+  (doseq [model (local-models)]
+    (doseq [field (filter localized? (-> model :fields vals))]
+      (localize-field (:slug model) field locale))))
+
+(defn update-locale
+  [old-code new-code]
+  (doseq [model (local-models)]
+    (doseq [field (filter localized? (-> model :fields vals))]
+      (let [field-slug (-> field :row :slug)
+            old-slug (localized-slug old-code field-slug)
+            new-slug (localized-slug new-code field-slug)]
+        (db/rename-column (:slug model) old-slug new-slug)))))
 
 (defn add-base-fields
   [env]
@@ -1843,11 +1887,31 @@
 
 (declare invoke-models)
 
+(defn add-localization
+  [env]
+  (if (and (-> env :content :localized) (not (-> env :original :localized)))
+    (let [slug (-> env :content :slug keyword)]
+      (localize-model (get @models slug))))
+  env)
+
+(defn propagate-new-locale
+  [env]
+  (add-locale (:content env))
+  env)
+
+(defn rename-updated-locale
+  [env]
+  (let [old-code (-> env :original :code)
+        new-code (-> env :content :code)]
+    (if (not= old-code new-code)
+      (update-locale old-code new-code)))
+  env)
+
 (defn model-after-save
   [env]
   (add-parent-id env)
-  (add-localization env)
   (invoke-models)
+  (add-localization env)
   env)
 
 (defn- add-model-hooks []
@@ -1893,7 +1957,12 @@
   (add-hook :model :after_destroy :cleanup (fn [env]
     (db/drop-table (-> env :content :slug))
     (invoke-models)
-    env)))
+    env))
+
+  (add-hook :locale :after_create :add_to_localized_models (fn [env] (propagate-new-locale env)))
+  (add-hook :locale :after_update :rename_localized_fields (fn [env] (rename-updated-locale env)))
+
+  )
   
 (defn process-default
   [field-type default]
