@@ -203,19 +203,41 @@
       (test-init)
       (try
         (let [place (create :locale {:language "Ibeo" :region "Glass" :code "ib_or"})
+              everywhere (create
+                          :model
+                          {:name "Everywhere" :localized true
+                           :fields [{:name "Up" :type "string"}
+                                    {:name "Grass" :type "text"}
+                                    {:name "Through" :type "boolean"}
+                                    {:name "Form Structure" :type "asset"}
+                                    {:name "Colocate" :type "address"}
+                                    ;; {:name "Whentime" :type "timestamp"}
+                                    {:name "Under" :type "decimal"}]})
               other (create :locale {:language "Gornon" :region "Ipipip" :code "go_xb"})
-              between (create
+              nowhere (create
                        :model
-                       {:name "Everywhere" :localized true
-                        :fields [{:name "Up" :type "string"}
-                                 {:name "Through" :type "boolean"}]})
+                       {:name "Nowhere" :localized true
+                        :fields [{:name "Down" :type "string"}
+                                 {:name "Everywhere" :type "link" :dependent true :target_id (everywhere :id)}]})
+              a (create :everywhere {:up "Hey" :grass "On" :through true :under 10.1})
+              b (create :everywhere {:up "What" :grass "Bead" :through true :under 33.333})
+              c (create :everywhere {:up "Is" :grass "Growth" :through false :under 22222})
+              xxx (create :nowhere {:down "Ylel" :everywhere [{:id (:id a)} {:id (:id c)}]})
               outer (create :locale {:language "Obooe" :region "Xorxox" :code "xo_ub"})]
-          (update :locale (:id other) {:code "bx_pa"}))
+          (update :locale (:id other) {:code "bx_pa"})
+          (println (form-uberquery
+                    (@models :everywhere)
+                    {:include {:nowhere {}}
+                     :where {:nowhere {:down "Ylel"}}
+                     :order {:nowhere {:down :desc}}
+                     :limit 3
+                     :locale "xo_ub"})))
         (catch Exception e (util/render-exception e))
         (finally
          (if (db/table? :everywhere)
            (do
              (db/do-sql "delete from locale")
+             (destroy :model (-> @models :nowhere :id))
              (destroy :model (-> @models :everywhere :id)))))))))
 
 (deftest nested-model-test

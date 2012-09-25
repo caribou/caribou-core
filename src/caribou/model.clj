@@ -186,25 +186,27 @@
         (includer down)))))
 
 (defn- pure-where
-  [prefix field where]
-  (clause "%1.%2 = %3" [prefix field where]))
+  [field prefix slug opts where]
+  (let [field-select (field-for-locale field prefix slug opts)]
+    (clause "%1 = %2" [field-select where])))
 
 (defn- string-where
-  [prefix field where]
-  (clause "%1.%2 = '%3'" [prefix field where]))
+  [field prefix slug opts where]
+  (let [field-select (field-for-locale field prefix slug opts)]
+    (clause "%1 = '%2'" [field-select where])))
 
 (defn- field-where
   [field prefix opts do-where]
   (let [slug (keyword (-> field :row :slug))]
     (let [where (-> opts :where slug)]
       (if-not (nil? where)
-        (do-where prefix slug where)))))
+        (do-where field prefix slug opts where)))))
 
 (defn- pure-order
   [field prefix opts]
   (let [slug (-> field :row :slug)]
     (if-let [by (get (:order opts) (keyword slug))]
-      (str (name prefix) "." slug " " (name by)))))
+      (str (field-for-locale field prefix slug opts) " " (name by)))))
 
 (defn- pure-fusion
   [this prefix archetype skein opts]
@@ -493,20 +495,21 @@
   (render [this content opts] content))
 
 (defn- build-extract
-  [prefix field [index value]]
-  (clause "extract(%1 from %2.%3) = %4" [(name index) prefix (name field) value]))
+  [field prefix slug opts [index value]]
+  (let [field-select (field-for-locale field prefix slug opts)]
+    (clause "extract(%1 from %2) = %3" [(name index) field-select value])))
 
 (defn- timestamp-where
   "To find something by a certain timestamp you must provide a map with keys into
    the date or time.  Example:
      (timestamp-where :created_at {:day 15 :month 7 :year 2020})
    would find all rows who were created on July 15th, 2020."
-  [prefix field where]
-  (join " and " (map (partial build-extract (suffix-prefix prefix) field) where)))
+  [field prefix slug opts where]
+  (join " and " (map (partial build-extract field (suffix-prefix prefix) slug opts) where)))
 
 (defrecord TimestampField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL"]]) ;; "DEFAULT NULL"]]) ;; "DEFAULT current_timestamp"]])
+  (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
@@ -516,7 +519,6 @@
     [this content values]
     (let [key (keyword (:slug row))]
       (cond
-       ;; (= key :updated_at) (assoc values key :current_timestamp)
        (contains? content key)
        (let [value (content key)
              timestamp (if (string? value) (read-date value) value)]
@@ -648,8 +650,13 @@
     (model-select-fields (:asset @models) (str prefix "$" (:slug row)) opts))
 
   (join-conditions [this prefix opts]
-    [(clause "left outer join asset %2$%1 on (%2.%1_id = %2$%1.id)"
-                [(:slug row) prefix])])
+    (let [model (@models (:model_id row))
+          slug (:slug row)
+          id-slug (keyword (str slug "_id"))
+          id-field (-> model :fields id-slug)
+          field-select (field-for-locale id-field prefix (name id-slug) opts)]
+      [(clause "left outer join asset %2$%1 on (%3 = %2$%1.id)"
+               [(:slug row) prefix field-select])]))
 
   (build-where
     [this prefix opts]
@@ -730,9 +737,18 @@
 
   (join-fields [this prefix opts]
     (model-select-fields (:location @models) (str prefix "$" (:slug row)) opts))
+
   (join-conditions [this prefix opts]
-    [(clause "left outer join location %2$%1 on (%2.%1_id = %2$%1.id)"
-                [(:slug row) prefix])])
+    (let [model (@models (:model_id row))
+          slug (:slug row)
+          id-slug (keyword (str slug "_id"))
+          id-field (-> model :fields id-slug)
+          field-select (field-for-locale id-field prefix (name id-slug) opts)]
+      [(clause "left outer join location %2$%1 on (%3 = %2$%1.id)"
+               [(:slug row) prefix field-select])]))
+
+    ;; [(clause "left outer join location %2$%1 on (%2.%1_id = %2$%1.id)"
+    ;;             [(:slug row) prefix])])
 
   (build-where
     [this prefix opts]
@@ -790,10 +806,13 @@
       (fn [down]
         (let [target (@models (-> field :row :target_id))
               link (-> field :env :link :slug)
+              link-id-slug (str link "_id")
+              id-field (-> target :fields (keyword link-id-slug))
               table-alias (str prefix "$" slug)
+              field-select (field-for-locale id-field table-alias link-id-slug opts)
               subconditions (model-where-conditions target table-alias down)
-              params [prefix link (:slug target) table-alias subconditions]]
-          (clause "%1.id in (select %4.%2_id from %3 %4 where %5)" params))))))
+              params [prefix field-select (:slug target) table-alias subconditions]]
+          (clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
 
 (defn- collection-render
   [field content opts]
@@ -829,7 +848,7 @@
   [field content]
   (if-let [collection (get content (-> field :row :slug keyword))]
     (let [part-field (-> field :env :link)
-          part-key (-> part-field :slug (str "_id") keyword) ;; (str (:slug part-field) "_id"))
+          part-key (-> part-field :slug (str "_id") keyword)
           model (get @models (:model_id part-field))
           model-key (-> model :slug keyword)
           updated (doseq [part collection]
@@ -910,11 +929,14 @@
       (fn [down]
         (let [target (@models (:target_id row))
               link (-> this :env :link :slug)
+              link-id-slug (str link "_id")
+              id-field (-> target :fields (keyword link-id-slug))
               table-alias (str prefix "$" (:slug row))
+              field-select (field-for-locale id-field table-alias link-id-slug opts)
               downstream (model-join-conditions target table-alias down)
-              params [(:slug target) table-alias prefix link]]
+              params [(:slug target) table-alias prefix field-select]]
           (concat
-           [(clause "left outer join %1 %2 on (%3.id = %2.%4_id)" params)]
+           [(clause "left outer join %1 %2 on (%3.id = %4)" params)]
            downstream)))))
 
   (build-where
@@ -925,9 +947,12 @@
     [this prefix opts]
     (let [target (@models (:target_id row))
           link (-> this :env :link :slug)
+          link-id-slug (str link "_id")
+          id-field (-> target :fields (keyword link-id-slug))
           table-alias (str prefix "$" (:slug row))
+          field-select (field-for-locale id-field table-alias link-id-slug opts)
           downstream (model-natural-orderings target table-alias opts)]
-      [(clause "%1.%2_position asc" [table-alias link]) downstream]))
+      [(str field-select "asc") downstream]))
 
   (build-order [this prefix opts]
     (join-order this (@models (row :target_id)) prefix opts))
@@ -1040,12 +1065,16 @@
   (join-conditions [this prefix opts]
     (with-propagation :include opts (:slug row)
       (fn [down]
-        (let [target (@models (:target_id row))
+        (let [model (@models (:model_id row))
+              target (@models (:target_id row))
+              id-slug (str (:slug row) "_id")
+              id-field (-> model :fields (keyword id-slug))
               table-alias (str prefix "$" (:slug row))
+              field-select (field-for-locale id-field prefix id-slug opts)
               downstream (model-join-conditions target table-alias down)
-              params [(:slug target) table-alias prefix (:slug row)]]
+              params [(:slug target) table-alias field-select]]
           (concat
-           [(clause "left outer join %1 %2 on (%3.%4_id = %2.id)" params)]
+           [(clause "left outer join %1 %2 on (%3 = %2.id)" params)]
            downstream)))))
 
   (build-where
@@ -1121,11 +1150,14 @@
     (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))
+              id-slug (str (:slug row) "_id")
+              id-field (-> target :fields (keyword id-slug))
               table-alias (str prefix "$" (:slug row))
+              field-select (field-for-locale id-field prefix id-slug opts)
               downstream (model-join-conditions target table-alias down)
-              params [(:slug target) table-alias prefix (:slug row)]]
+              params [(:slug target) table-alias field-select]]
           (concat
-           [(clause "left outer join %1 %2 on (%3.%4_id = %2.id)" params)]
+           [(clause "left outer join %1 %2 on (%3 = %2.id)" params)]
            downstream)))))
 
   (build-where
@@ -1242,9 +1274,11 @@
               from-name slug
               to-name (reciprocal :slug)
               join-key (join-table-name from-name to-name)
+              join-model (@models (keyword join-key))
               join-alias (str prefix "$" from-name "_join")
               table-alias (str prefix "$" slug)
               target (@models (-> this :row :target_id))
+              join-select (field-for-locale )
               join-params [join-key join-alias to-name prefix]
               link-params [(:slug target) table-alias join-alias slug]
               downstream (model-join-conditions target table-alias down)]
