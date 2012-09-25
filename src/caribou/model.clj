@@ -146,17 +146,36 @@
   (concat (map first (table-additions field (-> field :row :slug)))
           (subfield-names field (-> field :row :slug))))
 
+(defn build-select-field
+  [prefix slug]
+  (str prefix "." (name slug)))
+
+(defn build-coalesce
+  [prefix slug locale]
+  (let [global (str prefix "." (name slug))
+        local (str prefix "." (name locale) "_" (name slug))]
+    (str "coalesce(" local ", " global ")")))
+
+(defn field-for-locale
+  [field prefix slug opts]
+  (let [locale (:locale opts)]
+    (if (and locale (localized? field))
+      (build-coalesce prefix slug locale)
+      (build-select-field prefix slug))))
+
+(defn build-alias
+  [field prefix slug opts]
+  (let [select-field (field-for-locale field prefix slug opts)]
+    (str select-field " as " prefix "$" (name slug))))
+
 (defn select-fields
   "Find all necessary columns for the select query based on the given include nesting
    and fashion them into sql form."
   [field prefix opts]
   (let [columns (table-fields field)
-        model-fields
-        (map
-         (fn [slug]
-           (str prefix "." (name slug) " as " prefix "$" (name slug))) columns)
-        join-model-fields
-        (join-fields field (str prefix (:slug field)) opts)]
+        next-prefix (str prefix (:slug field))
+        model-fields (map #(build-alias field prefix % opts) columns)
+        join-model-fields (join-fields field next-prefix opts)]
     (concat model-fields join-model-fields)))
 
 (defn- with-propagation
@@ -1408,11 +1427,6 @@
 
   (render [this content opts]
     (link-render this content opts)))
-
-(defn model-table-fields
-  "All rows in the table governed by this model."
-  [model]
-  (map table-fields (vals (:fields model))))
 
 (defn model-select-fields
   "Build a set of select fields based on the given model."
