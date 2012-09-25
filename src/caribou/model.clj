@@ -1272,19 +1272,24 @@
       (fn [down]
         (let [reciprocal (-> this :env :link)
               from-name slug
-              to-name (reciprocal :slug)
+              from-key (keyword (str slug "_id"))
+              to-name (:slug reciprocal)
+              to-key (keyword (str to-name "_id"))
               join-key (join-table-name from-name to-name)
               join-model (@models (keyword join-key))
               join-alias (str prefix "$" from-name "_join")
+              join-field (-> join-model :fields to-key)
+              link-field (-> join-model :fields from-key)
               table-alias (str prefix "$" slug)
               target (@models (-> this :row :target_id))
-              join-select (field-for-locale )
-              join-params [join-key join-alias to-name prefix]
-              link-params [(:slug target) table-alias join-alias slug]
+              join-select (field-for-locale join-field join-alias (name to-key) opts)
+              link-select (field-for-locale link-field join-alias (name from-key) opts)
+              join-params [join-key join-alias join-select prefix]
+              link-params [(:slug target) table-alias link-select]
               downstream (model-join-conditions target table-alias down)]
           (concat
-           [(clause "left outer join %1 %2 on (%2.%3_id = %4.id)" join-params)
-            (clause "left outer join %1 %2 on (%2.id = %3.%4_id)" link-params)]
+           [(clause "left outer join %1 %2 on (%3 = %4.id)" join-params)
+            (clause "left outer join %1 %2 on (%2.id = %3)" link-params)]
            downstream))))))
 
 (defn- link-where
