@@ -150,31 +150,42 @@
   [prefix slug]
   (str prefix "." (name slug)))
 
+(defn build-locale-field
+  [prefix slug locale]
+  (str prefix "." (name locale) "_" (name slug)))
+
 (defn build-coalesce
   [prefix slug locale]
-  (let [global (str prefix "." (name slug))
-        local (str prefix "." (name locale) "_" (name slug))]
+  (let [global (build-select-field prefix slug)
+        local (build-locale-field prefix slug locale)]
     (str "coalesce(" local ", " global ")")))
 
-(defn field-for-locale
-  [field prefix slug opts]
+(defn select-locale
+  [model field prefix slug opts]
   (let [locale (:locale opts)]
-    (if (and locale (localized? field))
+    (if (and locale (:localized model) (localized? field))
+      (build-locale-field prefix slug locale)
+      (build-select-field prefix slug))))
+
+(defn coalesce-locale
+  [model field prefix slug opts]
+  (let [locale (:locale opts)]
+    (if (and locale (:localized model) (localized? field))
       (build-coalesce prefix slug locale)
       (build-select-field prefix slug))))
 
 (defn build-alias
-  [field prefix slug opts]
-  (let [select-field (field-for-locale field prefix slug opts)]
+  [model field prefix slug opts]
+  (let [select-field (coalesce-locale model field prefix slug opts)]
     (str select-field " as " prefix "$" (name slug))))
 
 (defn select-fields
   "Find all necessary columns for the select query based on the given include nesting
    and fashion them into sql form."
-  [field prefix opts]
+  [model field prefix opts]
   (let [columns (table-fields field)
         next-prefix (str prefix (:slug field))
-        model-fields (map #(build-alias field prefix % opts) columns)
+        model-fields (map #(build-alias model field prefix % opts) columns)
         join-model-fields (join-fields field next-prefix opts)]
     (concat model-fields join-model-fields)))
 
@@ -185,28 +196,37 @@
       (let [down (assoc opts sign inner)]
         (includer down)))))
 
+(def models (ref {}))
+(def model-slugs (ref {}))
+
 (defn- pure-where
   [field prefix slug opts where]
-  (let [field-select (field-for-locale field prefix slug opts)]
+  (let [model-id (-> field :row :model_id)
+        model (@models model-id)
+        field-select (coalesce-locale model field prefix slug opts)]
     (clause "%1 = %2" [field-select where])))
 
 (defn- string-where
   [field prefix slug opts where]
-  (let [field-select (field-for-locale field prefix slug opts)]
+  (let [model-id (-> field :row :model_id)
+        model (@models model-id)
+        field-select (coalesce-locale model field prefix slug opts)]
     (clause "%1 = '%2'" [field-select where])))
 
 (defn- field-where
   [field prefix opts do-where]
-  (let [slug (keyword (-> field :row :slug))]
-    (let [where (-> opts :where slug)]
-      (if-not (nil? where)
-        (do-where field prefix slug opts where)))))
+  (let [slug (keyword (-> field :row :slug))
+        where (-> opts :where slug)]
+    (if-not (nil? where)
+      (do-where field prefix slug opts where))))
 
 (defn- pure-order
   [field prefix opts]
   (let [slug (-> field :row :slug)]
     (if-let [by (get (:order opts) (keyword slug))]
-      (str (field-for-locale field prefix slug opts) " " (name by)))))
+      (let [model-id (-> field :row :model_id)
+            model (@models model-id)]
+        (str (coalesce-locale model field prefix slug opts) " " (name by))))))
 
 (defn- pure-fusion
   [this prefix archetype skein opts]
@@ -215,9 +235,6 @@
         containing (drop-while #(nil? (get % bit)) skein)
         value (get (first containing) bit)]
     (assoc archetype slug value)))
-
-(def models (ref {}))
-(def model-slugs (ref {}))
 
 (defn find-model
   [id]
@@ -496,7 +513,9 @@
 
 (defn- build-extract
   [field prefix slug opts [index value]]
-  (let [field-select (field-for-locale field prefix slug opts)]
+  (let [model-id (-> field :row :model_id)
+        model (@models model-id)
+        field-select (coalesce-locale model field prefix slug opts)]
     (clause "extract(%1 from %2) = %3" [(name index) field-select value])))
 
 (defn- timestamp-where
@@ -654,7 +673,7 @@
           slug (:slug row)
           id-slug (keyword (str slug "_id"))
           id-field (-> model :fields id-slug)
-          field-select (field-for-locale id-field prefix (name id-slug) opts)]
+          field-select (coalesce-locale model id-field prefix (name id-slug) opts)]
       [(clause "left outer join asset %2$%1 on (%3 = %2$%1.id)"
                [(:slug row) prefix field-select])]))
 
@@ -743,7 +762,7 @@
           slug (:slug row)
           id-slug (keyword (str slug "_id"))
           id-field (-> model :fields id-slug)
-          field-select (field-for-locale id-field prefix (name id-slug) opts)]
+          field-select (coalesce-locale model id-field prefix (name id-slug) opts)]
       [(clause "left outer join location %2$%1 on (%3 = %2$%1.id)"
                [(:slug row) prefix field-select])]))
 
@@ -804,12 +823,13 @@
   (let [slug (-> field :row :slug)]
     (with-propagation :where opts slug
       (fn [down]
-        (let [target (@models (-> field :row :target_id))
+        (let [model (@models (-> field :row :model_id))
+              target (@models (-> field :row :target_id))
               link (-> field :env :link :slug)
               link-id-slug (str link "_id")
               id-field (-> target :fields (keyword link-id-slug))
               table-alias (str prefix "$" slug)
-              field-select (field-for-locale id-field table-alias link-id-slug opts)
+              field-select (coalesce-locale model id-field table-alias link-id-slug opts)
               subconditions (model-where-conditions target table-alias down)
               params [prefix field-select (:slug target) table-alias subconditions]]
           (clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
@@ -927,12 +947,13 @@
     [this prefix opts]
     (with-propagation :include opts (:slug row)
       (fn [down]
-        (let [target (@models (:target_id row))
+        (let [model (@models (:model_id row))
+              target (@models (:target_id row))
               link (-> this :env :link :slug)
               link-id-slug (str link "_id")
               id-field (-> target :fields (keyword link-id-slug))
               table-alias (str prefix "$" (:slug row))
-              field-select (field-for-locale id-field table-alias link-id-slug opts)
+              field-select (coalesce-locale model id-field table-alias link-id-slug opts)
               downstream (model-join-conditions target table-alias down)
               params [(:slug target) table-alias prefix field-select]]
           (concat
@@ -945,12 +966,13 @@
 
   (natural-orderings
     [this prefix opts]
-    (let [target (@models (:target_id row))
+    (let [model (@models (:model_id row))
+          target (@models (:target_id row))
           link (-> this :env :link :slug)
           link-id-slug (str link "_id")
           id-field (-> target :fields (keyword link-id-slug))
           table-alias (str prefix "$" (:slug row))
-          field-select (field-for-locale id-field table-alias link-id-slug opts)
+          field-select (coalesce-locale model id-field table-alias link-id-slug opts)
           downstream (model-natural-orderings target table-alias opts)]
       [(str field-select "asc") downstream]))
 
@@ -1070,7 +1092,7 @@
               id-slug (str (:slug row) "_id")
               id-field (-> model :fields (keyword id-slug))
               table-alias (str prefix "$" (:slug row))
-              field-select (field-for-locale id-field prefix id-slug opts)
+              field-select (coalesce-locale model id-field prefix id-slug opts)
               downstream (model-join-conditions target table-alias down)
               params [(:slug target) table-alias field-select]]
           (concat
@@ -1153,7 +1175,7 @@
               id-slug (str (:slug row) "_id")
               id-field (-> target :fields (keyword id-slug))
               table-alias (str prefix "$" (:slug row))
-              field-select (field-for-locale id-field prefix id-slug opts)
+              field-select (coalesce-locale target id-field prefix id-slug opts)
               downstream (model-join-conditions target table-alias down)
               params [(:slug target) table-alias field-select]]
           (concat
@@ -1265,25 +1287,31 @@
     (if preexisting
       (destroy join-key (preexisting :id)))))
 
-(defn- link-join-conditions
+(defn- link-join-keys
   [this prefix opts]
-  (let [slug (-> this :row :slug)]
+  (let [{from-key :from to-key :to join-key :join} (link-keys this)
+        from-name (-> this :row :slug)
+        join-model (get @models join-key)
+        join-alias (str prefix "$" from-name "_join")
+        join-field (-> join-model :fields to-key)
+        link-field (-> join-model :fields from-key)
+        table-alias (str prefix "$" from-name)
+        join-select (select-locale join-model join-field join-alias (name to-key) opts)
+        link-select (select-locale join-model link-field join-alias (name from-key) opts)]
+    {:join-key (name join-key)
+     :join-alias join-alias
+     :join-select join-select
+     :table-alias table-alias
+     :link-select link-select}))
+
+(defn- link-join-conditions
+  [field prefix opts]
+  (let [slug (-> field :row :slug)]
     (with-propagation :include opts slug
       (fn [down]
-        (let [reciprocal (-> this :env :link)
-              from-name slug
-              from-key (keyword (str slug "_id"))
-              to-name (:slug reciprocal)
-              to-key (keyword (str to-name "_id"))
-              join-key (join-table-name from-name to-name)
-              join-model (@models (keyword join-key))
-              join-alias (str prefix "$" from-name "_join")
-              join-field (-> join-model :fields to-key)
-              link-field (-> join-model :fields from-key)
-              table-alias (str prefix "$" slug)
-              target (@models (-> this :row :target_id))
-              join-select (field-for-locale join-field join-alias (name to-key) opts)
-              link-select (field-for-locale link-field join-alias (name from-key) opts)
+        (let [{:keys [join-key join-alias join-select table-alias link-select]}
+              (link-join-keys field prefix opts)
+              target (@models (-> field :row :target_id))
               join-params [join-key join-alias join-select prefix]
               link-params [(:slug target) table-alias link-select]
               downstream (model-join-conditions target table-alias down)]
@@ -1295,30 +1323,32 @@
 (defn- link-where
   [field prefix opts]
   (let [slug (-> field :row :slug)
-        join-clause "%1.id in (select %4.%2_id from %3 %4 inner join %5 %8 on (%4.%6_id = %8.id) where %7)"]
+        join-clause "%1.id in (select %2 from %3 %4 inner join %5 %8 on (%6 = %8.id) where %7)"]
     (with-propagation :where opts slug
       (fn [down]
-        (let [target (@models (-> field :row :target_id))
-              link (-> field :env :link :slug)
-              table-alias (str prefix "$" slug)
+        (let [{:keys [join-key join-alias join-select table-alias link-select]}
+              (link-join-keys field prefix opts)
+              target (@models (-> field :row :target_id))
               subconditions (model-where-conditions target table-alias down)
-              reciprocal (-> field :env :link)
-              from-name slug
-              to-name (reciprocal :slug)
-              join-key (join-table-name from-name to-name)
-              join-alias (str prefix "$" from-name "_join")
-              params [prefix link join-key join-alias
-                      (:slug target) slug subconditions table-alias]]
+              params [prefix join-select join-key join-alias
+                      (:slug target) link-select subconditions table-alias]]
           (clause join-clause params))))))
 
 (defn- link-natural-orderings
-  [this prefix opts]
-  (let [slug (-> this :row :slug)
-        reciprocal (-> this :env :link)
+  [field prefix opts]
+  (let [slug (-> field :row :slug)
+        reciprocal (-> field :env :link)
+        model (@models (-> field :row :model_id))
+        target (@models (-> field :row :target_id))
+        to-name (reciprocal :slug)
+        from-key (keyword (str slug "_position"))
         join-alias (str prefix "$" slug "_join")
-        target (@models (-> this :row :target_id))
+        join-key (keyword (join-table-name slug to-name))
+        join-model (@models join-key)
+        join-field (-> join-model :fields from-key)
+        join-select (coalesce-locale model join-field join-alias (name from-key) opts)
         downstream (model-natural-orderings target (str prefix "$" slug) opts)]
-    [(clause "%1.%2_position asc" [join-alias slug]) downstream]))
+    [(str join-select " asc") downstream]))
 
 (defn- link-render
   [this content opts]
@@ -1385,6 +1415,7 @@
              :model
              {:name (titleize join-name)
               :join_model true
+              :localized (or (:localized model) (:localized target))
               :fields
               [{:name (:name spec)
                 :type "part"
@@ -1472,7 +1503,7 @@
   [model prefix opts]
   (let [fields (vals (:fields model))
         sf (fn [field]
-             (select-fields field (name prefix) opts))
+             (select-fields model field (name prefix) opts))
         model-fields (map sf fields)]
     (set (apply concat model-fields))))
 
@@ -1532,7 +1563,8 @@
        (if-let [field (-> model :fields order-key)]
          (natural-orderings
           field (name prefix)
-          {:include (-> opts :include order-key)})))
+          (assoc opts :include (-> opts :include order-key)))))
+          ;; {:include (-> opts :include order-key)})))
      (keys (:include opts))))))
 
 (defn model-build-order
