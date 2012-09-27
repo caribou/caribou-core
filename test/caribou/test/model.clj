@@ -226,6 +226,9 @@
               outer (create :locale {:language "Obooe" :region "Xorxox" :code "xo_ub"})
               other-other (update :locale (:id other) {:code "bx_pa"})
 
+              _ (update :model (:id everywhere) {:fields [{:id (-> @models :everywhere :fields :grass :row :id)
+                                                           :name "Blade" :slug "blade"}]})
+
               xxx-other (update :nowhere (:id xxx) {:down "IiiiiiIIIIIII"} {:locale "xo_ub"})
               xxx-other (update :nowhere (:id xxx) {:down "Prortrobr"
                                                     :everywhere [{:id (:id b)} {:id (:id c)}]} {:locale "bx_pa"})
@@ -262,7 +265,7 @@
               ordered-everywhere
               (gather
                :everywhere
-               {:order {:grass :desc}
+               {:order {:blade :desc}
                 :limit 2
                 :offset 1})
 
@@ -297,7 +300,7 @@
           (is (= 1 (count xo-ub-eees)))
           (is (= 3 (count bx-pa-eees)))
           (is (= 1 (count ib-or-eees)))
-          (is (= '("Growth" "Bead") (map :grass ordered-everywhere)))
+          (is (= '("Growth" "Bead") (map :blade ordered-everywhere)))
           (is (= 1 (count joins)))
           (is (= "Hey" (-> joins first :everywhere :up)))
           (is (= "Prortrobr" (:down nowhat)))
