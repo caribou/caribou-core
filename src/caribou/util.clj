@@ -36,6 +36,10 @@
   [f m]
   (into {} (for [[k v] m] [k (f v)])))
 
+(defn map-map
+  [f m]
+  (into {} (for [[k v] m] (f k v))))
+
 (defn re-replace
   [r s f]
   (let [between (string/split s r)
@@ -152,7 +156,12 @@
 (defn query
   "make an arbitrary query, substituting in extra args as % parameters"
   [q & args]
-  (sql/with-query-results res
-    [(clause q args)]
-    (doall res)))
+  ;; (try 
+    (sql/with-query-results res
+      [(clause q args)]
+      (doall res)))
+    ;; (catch Exception e
+    ;;   (do
+    ;;     (render-exception e)
+    ;;     (println q args)))))
 

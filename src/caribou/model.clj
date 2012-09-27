@@ -110,7 +110,7 @@
   (target-for [this] "retrieves the model this field points to, if applicable")
   (update-values [this content values]
     "adds to the map of values that will be committed to the db for this row")
-  (post-update [this content]
+  (post-update [this content opts]
     "any processing that is required after the content is created/updated")
   (pre-destroy [this content]
     "prepare this content item for destruction")
@@ -251,7 +251,7 @@
   (cleanup-field [this] nil)
   (target-for [this] nil)
   (update-values [this content values] values)
-  (post-update [this content] content)
+  (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
@@ -297,7 +297,7 @@
 
   (update-values [this content values] (integer-update-values this content values))
 
-  (post-update [this content] content)
+  (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
@@ -336,7 +336,7 @@
           (catch Exception e values))
         values)))
 
-  (post-update [this content] content)
+  (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
@@ -381,7 +381,7 @@
         (assoc values key (content key))
         values)))
 
-  (post-update [this content] content)
+  (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
@@ -417,7 +417,7 @@
              values))
        (contains? content key) (assoc values key (slugify (content key)))
        :else values)))
-  (post-update [this content] content)
+  (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
@@ -452,7 +452,7 @@
       (if (contains? content key)
         (assoc values key (content key))
         values)))
-  (post-update [this content] content)
+  (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
@@ -493,7 +493,7 @@
             (assoc values key tval))
           (catch Exception e values))
         values)))
-  (post-update [this content] content)
+  (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
@@ -545,7 +545,7 @@
            (assoc values key timestamp)
            values))
        :else values)))
-  (post-update [this content] content)
+  (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
@@ -577,6 +577,7 @@
 (declare model-build-order)
 (declare model-where-conditions)
 (declare model-natural-orderings)
+(declare model-order-statement)
 (declare subfusion)
 (declare fusion)
 
@@ -662,7 +663,7 @@
 
   (target-for [this] nil)
   (update-values [this content values] values)
-  (post-update [this content] content)
+  (post-update [this content opts] content)
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
@@ -751,7 +752,7 @@
               location (create :location (merge address geocode))]
           (assoc values idkey (location :id)))
         values)))
-  (post-update [this content] content)
+  (post-update [this content opts] content)
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
@@ -765,9 +766,6 @@
           field-select (coalesce-locale model id-field prefix (name id-slug) opts)]
       [(clause "left outer join location %2$%1 on (%3 = %2$%1.id)"
                [(:slug row) prefix field-select])]))
-
-    ;; [(clause "left outer join location %2$%1 on (%2.%1_id = %2$%1.id)"
-    ;;             [(:slug row) prefix])])
 
   (build-where
     [this prefix opts]
@@ -826,13 +824,14 @@
         (let [model (@models (-> field :row :model_id))
               target (@models (-> field :row :target_id))
               link (-> field :env :link :slug)
-              link-id-slug (str link "_id")
-              id-field (-> target :fields (keyword link-id-slug))
+              link-id-slug (keyword (str link "_id"))
+              id-field (-> target :fields link-id-slug)
               table-alias (str prefix "$" slug)
-              field-select (coalesce-locale model id-field table-alias link-id-slug opts)
+              field-select (coalesce-locale model id-field table-alias (name link-id-slug) opts)
               subconditions (model-where-conditions target table-alias down)
-              params [prefix field-select (:slug target) table-alias subconditions]]
-          (clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
+              order (model-order-statement model opts)
+              params [prefix field-select (:slug target) table-alias subconditions order]]
+          (clause "%1.id in (select %2 from %3 %4 where %5%6)" params))))))
 
 (defn- collection-render
   [field content opts]
@@ -865,7 +864,7 @@
     (or nesting archetype)))
 
 (defn collection-post-update
-  [field content]
+  [field content opts]
   (if-let [collection (get content (-> field :row :slug keyword))]
     (let [part-field (-> field :env :link)
           part-key (-> part-field :slug (str "_id") keyword)
@@ -924,8 +923,8 @@
     values)
 
   (post-update
-    [this content]
-    (collection-post-update this content))
+    [this content opts]
+    (collection-post-update this content opts))
 
   (pre-destroy
     [this content]
@@ -950,10 +949,10 @@
         (let [model (@models (:model_id row))
               target (@models (:target_id row))
               link (-> this :env :link :slug)
-              link-id-slug (str link "_id")
-              id-field (-> target :fields (keyword link-id-slug))
+              link-id-slug (keyword (str link "_id"))
+              id-field (-> target :fields link-id-slug)
               table-alias (str prefix "$" (:slug row))
-              field-select (coalesce-locale model id-field table-alias link-id-slug opts)
+              field-select (coalesce-locale model id-field table-alias (name link-id-slug) opts)
               downstream (model-join-conditions target table-alias down)
               params [(:slug target) table-alias prefix field-select]]
           (concat
@@ -969,12 +968,12 @@
     (let [model (@models (:model_id row))
           target (@models (:target_id row))
           link (-> this :env :link :slug)
-          link-id-slug (str link "_id")
-          id-field (-> target :fields (keyword link-id-slug))
+          link-id-slug (keyword (str link "_id"))
+          id-field (-> target :fields link-id-slug)
           table-alias (str prefix "$" (:slug row))
-          field-select (coalesce-locale model id-field table-alias link-id-slug opts)
+          field-select (coalesce-locale model id-field table-alias (name link-id-slug) opts)
           downstream (model-natural-orderings target table-alias opts)]
-      [(str field-select "asc") downstream]))
+      [(str field-select " asc") downstream]))
 
   (build-order [this prefix opts]
     (join-order this (@models (row :target_id)) prefix opts))
@@ -993,7 +992,11 @@
     (with-propagation :include opts (:slug row)
       (fn [down]
         (let [link (-> this :env :link :slug)
-              parts (db/fetch (-> (target-for this) :slug) (str link "_id = %1 order by %2 asc") (content :id) (str link "_position"))]
+              parts (db/fetch
+                     (-> (target-for this) :slug)
+                     (str link "_id = %1 order by %2 asc")
+                     (content :id)
+                     (str link "_position"))]
           (map #(from (target-for this) % down) parts)))))
 
   (render
@@ -1074,7 +1077,7 @@
 
   (update-values [this content values] values)
 
-  (post-update [this content] content)
+  (post-update [this content opts] content)
 
   (pre-destroy [this content] content)
 
@@ -1158,7 +1161,7 @@
 
   (update-values [this content values] values)
 
-  (post-update [this content] content)
+  (post-update [this content opts] content)
 
   (pre-destroy [this content] content)
 
@@ -1240,18 +1243,38 @@
         join-key (keyword (join-table-name from-name to-name))]
     {:from from-key :to to-key :join join-key}))
 
+(defn link-join-keys
+  [this prefix opts]
+  (let [{from-key :from to-key :to join-key :join} (link-keys this)
+        from-name (-> this :row :slug)
+        join-model (get @models join-key)
+        join-alias (str prefix "$" from-name "_join")
+        join-field (-> join-model :fields to-key)
+        link-field (-> join-model :fields from-key)
+        table-alias (str prefix "$" from-name)
+        join-select (select-locale join-model join-field join-alias (name to-key) opts)
+        link-select (select-locale join-model link-field join-alias (name from-key) opts)]
+    {:join-key (name join-key)
+     :join-alias join-alias
+     :join-select join-select
+     :table-alias table-alias
+     :link-select link-select}))
+
 (defn link
   "Link two rows by the given LinkField.  This function accepts its arguments
    in order, so that 'a' is a row from the model containing the given field."
-  [field a b]
-  (let [{from-key :from to-key :to join-key :join} (link-keys field)
-        target (models (-> field :row :target_id))
-        linkage (create (target :slug) b)
-        params [join-key from-key (linkage :id) to-key (a :id)]
-        preexisting (apply (partial query "select * from %1 where %2 = %3 and %4 = %5") params)]
-    (if preexisting
-      preexisting
-      (create join-key {from-key (linkage :id) to-key (a :id)}))))
+  ([field a b]
+     (link field a b {}))
+  ([field a b opts]
+     (let [{from-key :from to-key :to join-key :join} (link-keys field)
+           target (models (-> field :row :target_id))
+           locale (if (:locale opts) (str (name (:locale opts)) "_") "")
+           linkage (create (:slug target) b opts)
+           params [join-key from-key (:id linkage) to-key (:id a) locale]
+           preexisting (apply (partial query "select * from %1 where %6%2 = %3 and %6%4 = %5") params)]
+       (if preexisting
+         preexisting
+         (create join-key {from-key (:id linkage) to-key (:id a)} opts)))))
 
 (defn table-columns
   "Return a list of all columns for the table corresponding to this model."
@@ -1269,15 +1292,17 @@
 (defn retrieve-links
   "Given a link field and a row, find all target rows linked to the given row
    by this field."
-  [field content]
-  (let [{from-key :from to-key :to join-key :join} (link-keys field)
-        target (models (-> field :row :target_id))
-        target-slug (target :slug)
-        field-names (map #(str target-slug "." %) (table-columns target-slug))
-        field-select (join "," field-names)
-        join-query "select %1 from %2 inner join %3 on (%2.id = %3.%4) where %3.%5 = %6"
-        params [field-select target-slug join-key from-key to-key (content :id)]]
-    (apply (partial query join-query) params)))
+  ([field content]
+     (retrieve-links field content {}))
+  ([field content opts]
+     (let [{from-key :from to-key :to join-key :join} (link-keys field)
+           target (models (-> field :row :target_id))
+           target-slug (target :slug)
+           field-names (map #(str target-slug "." %) (table-columns target-slug))
+           field-select (join "," field-names)
+           join-query "select %1 from %2 inner join %3 on (%2.id = %3.%4) where %3.%5 = %6"
+           params [field-select target-slug join-key from-key to-key (content :id)]]
+       (apply (partial query join-query) params))))
 
 (defn remove-link
   [field from-id to-id]
@@ -1286,23 +1311,6 @@
         preexisting (first (apply (partial query "select * from %1 where %2 = %3 and %4 = %5") params))]
     (if preexisting
       (destroy join-key (preexisting :id)))))
-
-(defn- link-join-keys
-  [this prefix opts]
-  (let [{from-key :from to-key :to join-key :join} (link-keys this)
-        from-name (-> this :row :slug)
-        join-model (get @models join-key)
-        join-alias (str prefix "$" from-name "_join")
-        join-field (-> join-model :fields to-key)
-        link-field (-> join-model :fields from-key)
-        table-alias (str prefix "$" from-name)
-        join-select (select-locale join-model join-field join-alias (name to-key) opts)
-        link-select (select-locale join-model link-field join-alias (name from-key) opts)]
-    {:join-key (name join-key)
-     :join-alias join-alias
-     :join-select join-select
-     :table-alias table-alias
-     :link-select link-select}))
 
 (defn- link-join-conditions
   [field prefix opts]
@@ -1323,15 +1331,17 @@
 (defn- link-where
   [field prefix opts]
   (let [slug (-> field :row :slug)
-        join-clause "%1.id in (select %2 from %3 %4 inner join %5 %8 on (%6 = %8.id) where %7)"]
+        join-clause "%1.id in (select %2 from %3 %4 inner join %5 %8 on (%6 = %8.id) where %7%9)"]
     (with-propagation :where opts slug
       (fn [down]
         (let [{:keys [join-key join-alias join-select table-alias link-select]}
               (link-join-keys field prefix opts)
+              model (@models (-> field :row :model_id))
               target (@models (-> field :row :target_id))
+              order (model-order-statement model opts)
               subconditions (model-where-conditions target table-alias down)
               params [prefix join-select join-key join-alias
-                      (:slug target) link-select subconditions table-alias]]
+                      (:slug target) link-select subconditions table-alias order]]
           (clause join-clause params))))))
 
 (defn- link-natural-orderings
@@ -1450,11 +1460,11 @@
           (doall (map #(remove-link this (content :id) %) ex)))))
     values)
 
-  (post-update [this content]
+  (post-update [this content opts]
     (if-let [collection (content (keyword (:slug row)))]
-      (let [linked (doall (map #(link this content %) collection))
+      (let [linked (doall (map #(link this content % opts) collection))
             with-links (assoc content (keyword (str (:slug row) "_join")) linked)]
-        (assoc content (:slug row) (retrieve-links this content))))
+        (assoc content (:slug row) (retrieve-links this content opts))))
     content)
 
   (pre-destroy [this content]
@@ -1493,7 +1503,7 @@
         (let [target (target-for this)]
           (map
            #(from target % down)
-           (retrieve-links this content))))))
+           (retrieve-links this content opts))))))
 
   (render [this content opts]
     (link-render this content opts)))
@@ -1533,10 +1543,11 @@
   "Determine the limit and offset component of the uberquery based on the given where condition."
   [model prefix where limit offset order]
   (let [condition (if (empty? where)
-                    ""
+                    order ;; ""
                     (str " where " where))
         params [prefix (:slug model) condition order limit offset]]
-    (clause "%1.id in (select * from (select %1.id from %2 %1%3%4 limit %5 offset %6) as %1%2)" params)))
+    (clause "%1.id in (select * from (select %1.id from %2 %1%3 limit %5 offset %6) as %1%2)" params)))
+    ;; (clause "%1.id in (select * from (select %1.id from %2 %1%3%4 limit %5 offset %6) as %1%2)" params)))
 
 (defn model-where-conditions
   "Builds the where part of the uberquery given the model, prefix and given map of the
@@ -1564,7 +1575,6 @@
          (natural-orderings
           field (name prefix)
           (assoc opts :include (-> opts :include order-key)))))
-          ;; {:include (-> opts :include order-key)})))
      (keys (:include opts))))))
 
 (defn model-build-order
@@ -1594,8 +1604,8 @@
   "Given the model and map of opts, construct the corresponding uberquery (but don't call it!)"
   [model opts]
   (let [query (model-select-query model (:slug model) opts)
-        where (model-where-conditions model (:slug model) opts)
         order (model-order-statement model opts)
+        where (model-where-conditions model (:slug model) opts)
         
         limit-offset
         (if-let [limit (:limit opts)]
@@ -1640,30 +1650,34 @@
   [a b]
   (set/difference (-> a keys set) (-> b keys set)))
 
+(def split-keys [:include :order :where])
+
 (defn beam-splitter
   "Splits the given options (:include, :where, :order) out into parallel paths to avoid übercombinatoric explosion!
    Returns a list of options each of which correspond to an independent set of includes."
   [opts]
   (if-let [include-keys (-> opts :include keys)]
-    (map
-     (fn [include-key]
-       (reduce
-        (fn [split key]
-          (let [split-opts (if-let [inner (-> opts key include-key)]
-                             (assoc split key {include-key inner})
-                             split)
-                subopts (get opts key)
-                other-keys (keys-difference subopts (:include opts))
-                ultimate (update-in split-opts [key] (fn [a] (merge a (select-keys subopts other-keys))))]
-            ultimate))
-        {} [:include :order :where]))
-     include-keys)
+    (let [unsplit (apply (partial dissoc opts) split-keys)]
+      (map
+       (fn [include-key]
+         (reduce
+          (fn [split key]
+            (let [split-opts (if-let [inner (-> opts key include-key)]
+                               (assoc split key {include-key inner})
+                               split)
+                  subopts (get opts key)
+                  other-keys (keys-difference subopts (:include opts))
+                  ultimate (update-in split-opts [key] (fn [a] (merge a (select-keys subopts other-keys))))]
+              (merge ultimate unsplit)))
+          {} split-keys))
+       include-keys))
     [opts]))
 
 (defn beam-validator
   [slug opts]
   "Verify the given options make sense for the model given by slug, ie: all fields correspond to fields the
    model actually has, and the options map itself is well-formed."
+  ;; hilariously unimplemented!
   )
 
 (defn model-generator
@@ -2215,6 +2229,20 @@
   (fn [values field]
     (update-values field spec values)))
 
+(defn localize-values
+  [model values opts]
+  (let [locale (zap (:locale opts))]
+    (if (and locale (:localized model))
+      (map-map
+       (fn [k v]
+         (let [kk (keyword k)
+               field (-> model :fields kk)]
+           (if (localized? field)
+             [(str locale "_" (name k)) v]
+             [k v])))
+       values)
+      values)))
+
 (defn create
   "slug represents the model to be updated.
   the spec contains all information about how to update this row,
@@ -2226,19 +2254,20 @@
   ([slug spec]
      (create slug spec {}))
   ([slug spec opts]
-     (if (present? (spec :id))
-       (update slug (spec :id) spec opts)
+     (if (present? (:id spec))
+       (update slug (:id spec) spec opts)
        (let [model (models (keyword slug))
-             values (reduce (update-values-reduction spec) {} (vals (dissoc (model :fields) :updated_at)))
+             values (reduce (update-values-reduction spec) {} (vals (dissoc (:fields model) :updated_at)))
              env {:model model :values values :spec spec :op :create :opts opts}
              _save (run-hook slug :before_save env)
              _create (run-hook slug :before_create _save)
-             content (db/insert slug (assoc (_create :values) :updated_at (current-timestamp))) ;; (dissoc (_create :values) :updated_at))
-             merged (merge (_create :spec) content)
+             local-values (localize-values model (:values _create) opts)
+             content (db/insert slug (assoc local-values :updated_at (current-timestamp))) ;; (dissoc (_create :values) :updated_at))
+             merged (merge (:spec _create) content)
              _after (run-hook slug :after_create (merge _create {:content merged}))
-             post (reduce #(post-update %2 %1) (_after :content) (vals (model :fields)))
+             post (reduce #(post-update %2 %1 opts) (:content _after) (vals (:fields model)))
              _final (run-hook slug :after_save (merge _after {:content post}))]
-         (_final :content)))))
+         (:content _final)))))
 
 (defn rally
   "Pull a set of content up through the model system with the given options.
@@ -2268,11 +2297,14 @@
            env {:model model :values values :spec spec :original original :op :update :opts opts}
            _save (run-hook slug :before_save env)
            _update (run-hook slug :before_update _save)
-           success (db/update slug ["id = ?" (convert-int id)] (assoc (_update :values) :updated_at (current-timestamp))) ;; (_update :values))
+           local-values (localize-values model (:values _update) opts)
+           success (db/update
+                    slug ["id = ?" (convert-int id)]
+                    (assoc local-values :updated_at (current-timestamp)))
            content (db/choose slug id)
            merged (merge (_update :spec) content)
            _after (run-hook slug :after_update (merge _update {:content merged}))
-           post (reduce #(post-update %2 %1) (_after :content) (vals (model :fields)))
+           post (reduce #(post-update %2 %1 opts) (_after :content) (vals (model :fields)))
            _final (run-hook slug :after_save (merge _after {:content post}))]
        (_final :content))))
 
