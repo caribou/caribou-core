@@ -1252,8 +1252,10 @@
         join-field (-> join-model :fields to-key)
         link-field (-> join-model :fields from-key)
         table-alias (str prefix "$" from-name)
-        join-select (select-locale join-model join-field join-alias (name to-key) opts)
-        link-select (select-locale join-model link-field join-alias (name from-key) opts)]
+        join-select (coalesce-locale join-model join-field join-alias (name to-key) opts)
+        link-select (coalesce-locale join-model link-field join-alias (name from-key) opts)]
+        ;; join-select (select-locale join-model join-field join-alias (name to-key) opts)
+        ;; link-select (select-locale join-model link-field join-alias (name from-key) opts)]
     {:join-key (name join-key)
      :join-alias join-alias
      :join-select join-select

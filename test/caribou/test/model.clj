@@ -222,7 +222,7 @@
               a (create :everywhere {:up "Hey" :grass "On" :through true :under 10.1})
               b (create :everywhere {:up "What" :grass "Bead" :through true :under 33.333})
               c (create :everywhere {:up "Is" :grass "Growth" :through false :under 22222})
-              xxx (create :nowhere {:down "Ylel" :everywhere [{:id (:id a)} {:id (:id c)}]})
+              xxx (create :nowhere {:down "Ylel" :everywhere [{:id (:id a)}]})
               outer (create :locale {:language "Obooe" :region "Xorxox" :code "xo_ub"})
               other-other (update :locale (:id other) {:code "bx_pa"})
 
@@ -230,7 +230,7 @@
               xxx-other (update :nowhere (:id xxx) {:down "Prortrobr"
                                                     :everywhere [{:id (:id b)} {:id (:id c)}]} {:locale "bx_pa"})
               xxx-other (update :nowhere (:id xxx) {:down "Grungruublor"
-                                                    :everywhere [{:id (:id a)} {:id (:id b)}]} {:locale "ib_or"})
+                                                    :everywhere [{:id (:id b)}]} {:locale "ib_or"})
 
               xo-ub-eees
               (gather
@@ -273,6 +273,14 @@
                 :where {:everywhere {:through true}}
                 :order {:everywhere {:under :asc}}})
 
+              bx-joins
+              (gather
+               :everywhere_nowhere
+               {:include {:everywhere {}}
+                :where {:everywhere {:through true}}
+                :order {:everywhere {:under :asc}}
+                :locale "bx_pa"})
+
               nowhat
               (pick
                :nowhere
@@ -286,14 +294,17 @@
                 :locale "xo_ub"})
               ]
 
-          (is (= 0 (count xo-ub-eees)))
-          (is (= 2 (count bx-pa-eees)))
+          (is (= 1 (count xo-ub-eees)))
+          (is (= 3 (count bx-pa-eees)))
           (is (= 1 (count ib-or-eees)))
           (is (= '("Growth" "Bead") (map :grass ordered-everywhere)))
           (is (= 1 (count joins)))
           (is (= "Hey" (-> joins first :everywhere :up)))
           (is (= "Prortrobr" (:down nowhat)))
           (is (= "Is" (:up everywhat)))
+
+          (is (= 2 (count bx-joins)))
+          (is (= '("Hey" "What") (map #(-> % :everywhere :up) bx-joins)))
 
           (println (form-uberquery
                     (@models :everywhere)
