@@ -1300,19 +1300,23 @@
      (let [{from-key :from to-key :to join-key :join} (link-keys field)
            target (models (-> field :row :target_id))
            target-slug (target :slug)
+           locale (if (:locale opts) (str (name (:locale opts)) "_") "")
            field-names (map #(str target-slug "." %) (table-columns target-slug))
            field-select (join "," field-names)
-           join-query "select %1 from %2 inner join %3 on (%2.id = %3.%4) where %3.%5 = %6"
-           params [field-select target-slug join-key from-key to-key (content :id)]]
+           join-query "select %1 from %2 inner join %3 on (%2.id = %3.%7%4) where %3.%7%5 = %6"
+           params [field-select target-slug join-key from-key to-key (content :id) locale]]
        (apply (partial query join-query) params))))
 
 (defn remove-link
-  [field from-id to-id]
-  (let [{from-key :from to-key :to join-key :join} (link-keys field)
-        params [join-key from-key to-id to-key from-id]
-        preexisting (first (apply (partial query "select * from %1 where %2 = %3 and %4 = %5") params))]
-    (if preexisting
-      (destroy join-key (preexisting :id)))))
+  ([field from-id to-id]
+     (remove-link field from-id to-id {}))
+  ([field from-id to-id opts]
+     (let [{from-key :from to-key :to join-key :join} (link-keys field)
+           locale (if (:locale opts) (str (name (:locale opts)) "_") "")
+           params [join-key from-key to-id to-key from-id locale]
+           preexisting (first (apply (partial query "select * from %1 where %6%2 = %3 and %6%4 = %5") params))]
+       (if preexisting
+         (destroy join-key (preexisting :id))))))
 
 (defn- link-join-conditions
   [field prefix opts]
@@ -2107,7 +2111,9 @@
         model (db/choose :model model-id)
         model-slug (:slug model)
         model-fields (get (get @models model-id) :fields)
-
+        local-field? (and (:localized model) (localized? field))
+        locales (if local-field? (map :code (gather :locale)))
+        
         original (:original env)
         content (:content env)
         
@@ -2128,7 +2134,10 @@
             (update :field field-id {:name new-name :slug (slugify new-name)})))
 
         (doseq [[old-name new-name] transition]
-          (db/rename-column model-slug old-name new-name) transition)
+          (db/rename-column model-slug old-name new-name)
+          (if local-field?
+            (doseq [code locales]
+              (db/rename-column model-slug (str code "_" (name old-name)) (str code "_" (name new-name)))))) ;; transition)
 
         (rename-field field oslug slug)))
 
