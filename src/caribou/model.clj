@@ -1092,10 +1092,10 @@
       (fn [down]
         (let [model (@models (:model_id row))
               target (@models (:target_id row))
-              id-slug (str (:slug row) "_id")
-              id-field (-> model :fields (keyword id-slug))
+              id-slug (keyword (str (:slug row) "_id"))
+              id-field (-> model :fields id-slug)
               table-alias (str prefix "$" (:slug row))
-              field-select (coalesce-locale model id-field prefix id-slug opts)
+              field-select (coalesce-locale model id-field prefix (name id-slug) opts)
               downstream (model-join-conditions target table-alias down)
               params [(:slug target) table-alias field-select]]
           (concat

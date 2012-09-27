@@ -232,33 +232,69 @@
               xxx-other (update :nowhere (:id xxx) {:down "Grungruublor"
                                                     :everywhere [{:id (:id a)} {:id (:id b)}]} {:locale "ib_or"})
 
-              xo-ub-eees (gather
-                          :everywhere
-                          {:include {:nowhere {}}
-                           :where {:nowhere {:down "IiiiiiIIIIIII"}}
-                           :order {:nowhere {:down :desc}}
-                           :limit 3
-                           :locale "xo_ub"})
+              xo-ub-eees
+              (gather
+               :everywhere
+               {:include {:nowhere {}}
+                :where {:nowhere {:down "IiiiiiIIIIIII"}}
+                :order {:nowhere {:down :desc}}
+                :limit 3
+                :locale "xo_ub"})
               
-              bx-pa-eees (gather
-                          :everywhere
-                          {:include {:nowhere {}}
-                           :where {:nowhere {:down "Prortrobr"}}
-                           :order {:nowhere {:down :desc}}
-                           :limit 3
-                           :locale "bx_pa"})
+              bx-pa-eees
+              (gather
+               :everywhere
+               {:include {:nowhere {}}
+                :where {:nowhere {:down "Prortrobr"}}
+                :order {:nowhere {:down :desc}}
+                :limit 3
+                :locale "bx_pa"})
 
-              ib-or-eees (gather
-                          :everywhere
-                          {:include {:nowhere {}}
-                           :where {:nowhere {:down "Grungruublor"}}
-                           :order {:nowhere {:down :desc}}
-                           :limit 1
-                           :locale "ib_or"})
+              ib-or-eees
+              (gather
+               :everywhere
+               {:include {:nowhere {}}
+                :where {:nowhere {:down "Grungruublor"}}
+                :order {:nowhere {:down :desc}}
+                :limit 1
+                :locale "ib_or"})
+
+              ordered-everywhere
+              (gather
+               :everywhere
+               {:order {:grass :desc}
+                :limit 2
+                :offset 1})
+
+              joins
+              (gather
+               :everywhere_nowhere
+               {:include {:everywhere {}}
+                :where {:everywhere {:through true}}
+                :order {:everywhere {:under :asc}}})
+
+              nowhat
+              (pick
+               :nowhere
+               {:where {:id (:id xxx)}
+                :locale "bx_pa"})
+              
+              everywhat
+              (pick
+               :everywhere
+               {:where {:id (:id c)}
+                :locale "xo_ub"})
               ]
+
           (is (= 0 (count xo-ub-eees)))
           (is (= 2 (count bx-pa-eees)))
           (is (= 1 (count ib-or-eees)))
+          (is (= '("Growth" "Bead") (map :grass ordered-everywhere)))
+          (is (= 1 (count joins)))
+          (is (= "Hey" (-> joins first :everywhere :up)))
+          (is (= "Prortrobr" (:down nowhat)))
+          (is (= "Is" (:up everywhat)))
+
           (println (form-uberquery
                     (@models :everywhere)
                     {:include {:nowhere {}}
@@ -266,6 +302,7 @@
                      :order {:nowhere {:down :desc}}
                      :limit 3
                      :locale "xo_ub"}))
+
           )
         (catch Exception e (util/render-exception e))
 ;; ))))
