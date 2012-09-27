@@ -223,16 +223,52 @@
               b (create :everywhere {:up "What" :grass "Bead" :through true :under 33.333})
               c (create :everywhere {:up "Is" :grass "Growth" :through false :under 22222})
               xxx (create :nowhere {:down "Ylel" :everywhere [{:id (:id a)} {:id (:id c)}]})
-              outer (create :locale {:language "Obooe" :region "Xorxox" :code "xo_ub"})]
-          (update :locale (:id other) {:code "bx_pa"})
+              outer (create :locale {:language "Obooe" :region "Xorxox" :code "xo_ub"})
+              other-other (update :locale (:id other) {:code "bx_pa"})
+
+              xxx-other (update :nowhere (:id xxx) {:down "IiiiiiIIIIIII"} {:locale "xo_ub"})
+              xxx-other (update :nowhere (:id xxx) {:down "Prortrobr"
+                                                    :everywhere [{:id (:id b)} {:id (:id c)}]} {:locale "bx_pa"})
+              xxx-other (update :nowhere (:id xxx) {:down "Grungruublor"
+                                                    :everywhere [{:id (:id a)} {:id (:id b)}]} {:locale "ib_or"})
+
+              xo-ub-eees (gather
+                          :everywhere
+                          {:include {:nowhere {}}
+                           :where {:nowhere {:down "IiiiiiIIIIIII"}}
+                           :order {:nowhere {:down :desc}}
+                           :limit 3
+                           :locale "xo_ub"})
+              
+              bx-pa-eees (gather
+                          :everywhere
+                          {:include {:nowhere {}}
+                           :where {:nowhere {:down "Prortrobr"}}
+                           :order {:nowhere {:down :desc}}
+                           :limit 3
+                           :locale "bx_pa"})
+
+              ib-or-eees (gather
+                          :everywhere
+                          {:include {:nowhere {}}
+                           :where {:nowhere {:down "Grungruublor"}}
+                           :order {:nowhere {:down :desc}}
+                           :limit 1
+                           :locale "ib_or"})
+              ]
+          (is (= 0 (count xo-ub-eees)))
+          (is (= 2 (count bx-pa-eees)))
+          (is (= 1 (count ib-or-eees)))
           (println (form-uberquery
                     (@models :everywhere)
                     {:include {:nowhere {}}
                      :where {:nowhere {:down "Ylel"}}
                      :order {:nowhere {:down :desc}}
                      :limit 3
-                     :locale "xo_ub"})))
+                     :locale "xo_ub"}))
+          )
         (catch Exception e (util/render-exception e))
+;; ))))
         (finally
          (if (db/table? :everywhere)
            (do
