@@ -13,7 +13,8 @@
 
 (defn test-init
   []
-  (invoke-models))
+  (invoke-models)
+  (clear-queries))
 
 (deftest invoke-model-test
   (doseq [config db-configs]

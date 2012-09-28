@@ -60,6 +60,11 @@
   (swap! queries #(reduce cache/evict % (mapcat (fn [id] (reverse-cache-get id)) ids)))
   (reverse-cache-delete ids))
 
+(defn clear-queries
+  []
+  (swap! queries (fn [_] (cache/lru-cache-factory {})))
+  (swap! reverse-cache (fn [_] {})))
+
 ;; DATE AND TIME ---------------------------------------------------
 
 (defn current-timestamp
@@ -1845,7 +1850,7 @@
   ([slug opts]
      (let [query-hash (hash-query slug opts)]
        (if (cache/has? @queries query-hash)
-         (cache/hit @queries query-hash)
+         (first (vals (cache/hit @queries query-hash)))
          (let [model ((keyword slug) @models)
                beams (beam-splitter opts)
                resurrected (mapcat (partial uberquery model) beams)
