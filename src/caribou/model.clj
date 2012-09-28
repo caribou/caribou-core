@@ -6,9 +6,11 @@
             [clj-time.core :as timecore]
             [clj-time.format :as format]
             [clj-time.coerce :as coerce]
+            [clojure.walk :as walk]
             [clojure.set :as set]
             [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
+            [clojure.core.cache :as cache]
             [geocoder.core :as geo]
             [caribou.config :as config]
             [caribou.db.adapter.protocol :as adapter]
@@ -21,6 +23,44 @@
   "Calls f in the connect of the current configured database connection."
   [f]
   (db/call f))
+
+;; CACHING -------------------------------------
+
+(def queries (atom (cache/lru-cache-factory {})))
+(def reverse-cache (atom {}))
+
+(defn sort-map
+  [m]
+  (if (map? m) (sort m) m))
+
+(defn walk-sort-map
+  [m]
+  (walk/postwalk sort-map m))
+
+(defn hash-query
+  [model-key opts]
+  (hash (str (name model-key) (walk-sort-map opts))))
+
+(defn reverse-cache-add
+  [id code]
+  (if (contains? @reverse-cache id)
+    (swap! reverse-cache #(update-in % [id] (fn [v] (conj v code))))
+    (swap! reverse-cache #(assoc % id (list code)))))
+
+(defn reverse-cache-get
+  [id]
+  (get @reverse-cache id))
+
+(defn reverse-cache-delete
+  [ids]
+  (swap! reverse-cache #(apply dissoc (cons % ids))))
+
+(defn clear-model-cache
+  [ids]
+  (swap! queries #(reduce cache/evict % (mapcat (fn [id] (reverse-cache-get id)) ids)))
+  (reverse-cache-delete ids))
+
+;; DATE AND TIME ---------------------------------------------------
 
 (defn current-timestamp
   []
@@ -96,6 +136,8 @@
       timecore/in-days :>> #(ago-str "day" %)
       (constantly 1) (ago-str "hour" (timecore/in-hours interval)))))
 
+;; FIELDS -------------------------------------------------------------
+
 (defprotocol Field
   "a protocol for expected behavior of all model fields"
   (table-additions [this field]
@@ -124,6 +166,7 @@
   (fuse-field [this prefix archetype skein opts])
 
   (localized? [this])
+  (models-involved [this opts all])
 
   (field-from [this content opts]
     "retrieves the value for this field from this content item")
@@ -240,6 +283,10 @@
   [id]
   (or (get @models id) (db/choose :model id)))
 
+(defn id-models-involved
+  [field opts all]
+  (conj all (-> field :row :model_id)))
+
 (defrecord IdField [row env]
   Field
   (table-additions [this field] [[(keyword field) "SERIAL" "PRIMARY KEY"]])
@@ -266,6 +313,8 @@
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (localized? [this] false)
+  (models-involved [this opts all]
+    (id-models-involved this opts all))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
   
@@ -312,6 +361,8 @@
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (localized? [this] true)
+  (models-involved [this opts all]
+    (id-models-involved this opts all))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
   
@@ -351,6 +402,7 @@
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (localized? [this] true)
+  (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
     (update-in content [(keyword (:slug row))] str)))
@@ -396,6 +448,7 @@
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (localized? [this] true)
+  (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
@@ -436,6 +489,7 @@
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (localized? [this] true)
+  (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
@@ -467,6 +521,7 @@
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (localized? [this] true)
+  (models-involved [this opts all] all)
   (field-from [this content opts]
     (adapter/text-value @config/db-adapter (content (keyword (:slug row)))))
   (render [this content opts]
@@ -508,6 +563,7 @@
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (localized? [this] (not (:locked row)))
+  (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
@@ -560,6 +616,7 @@
   (fuse-field [this prefix archetype skein opts]
     (pure-fusion this prefix archetype skein opts))
   (localized? [this] (not (:locked row)))
+  (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
     (update-in content [(keyword (:slug row))] format-date)))
@@ -578,6 +635,7 @@
 (declare model-where-conditions)
 (declare model-natural-orderings)
 (declare model-order-statement)
+(declare model-models-involved)
 (declare subfusion)
 (declare fusion)
 
@@ -697,6 +755,8 @@
 
   (localized? [this] false)
 
+  (models-involved [this opts all] all)
+
   (field-from [this content opts]
     (let [asset-id (content (keyword (str (:slug row) "_id")))
           asset (or (db/choose :asset asset-id) {})]
@@ -785,6 +845,7 @@
     (join-fusion this (:location @models) prefix archetype skein opts))
 
   (localized? [this] false)
+  (models-involved [this opts all] all)
 
   (field-from [this content opts]
     (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
@@ -875,6 +936,15 @@
                       (create model-key part-opts)))]
       (assoc content (keyword (-> field :row :slug)) updated))
     content))
+
+(defn span-models-involved
+  [field opts all]
+  (if-let [down (with-propagation :include opts (-> field :row :slug)
+                  (fn [down]
+                    (let [target (@models (-> field :row :target_id))]
+                      (model-models-involved target down all))))]
+    down
+    all))
 
 (defrecord CollectionField [row env]
   Field
@@ -986,6 +1056,9 @@
     (collection-fusion this prefix archetype skein opts))
 
   (localized? [this] false)
+
+  (models-involved [this opts all]
+    (span-models-involved this opts all))
 
   (field-from
     [this content opts]
@@ -1122,6 +1195,9 @@
 
   (localized? [this] false)
 
+  (models-involved [this opts all]
+    (span-models-involved this opts all))
+
   (field-from [this content opts]
     (with-propagation :include opts (:slug row)
       (fn [down]
@@ -1208,6 +1284,14 @@
     (part-fusion this (@models (-> this :row :model_id)) prefix archetype skein opts))
 
   (localized? [this] false)
+
+  (models-involved [this opts all]
+    (if-let [down (with-propagation :include opts (:slug row)
+                    (fn [down]
+                      (let [target (@models (:model_id row))]
+                        (model-models-involved target down all))))]
+      down
+      all))
 
   (field-from [this content opts]
     (with-propagation :include opts (:slug row)
@@ -1402,6 +1486,20 @@
     (update :field (-> join-target :row :id) {:name (titleize new-slug) :slug (name new-slug)})
     (update :model (:id join-model) {:name (titleize new-join-name) :slug new-join-name})))
 
+(defn link-models-involved
+  [field opts all]
+  (if-let [down (with-propagation :include opts (-> field :row :slug)
+                  (fn [down]
+                    (let [slug (-> field :row :slug)
+                          reciprocal (-> field :env :link)
+                          to-name (reciprocal :slug)
+                          join-key (keyword (join-table-name slug to-name))
+                          join-id (-> @models join-key :id)
+                          target (@models (-> field :row :target_id))]
+                      (model-models-involved target down (conj all join-id)))))]
+    down
+    all))
+
 (defrecord LinkField [row env]
   Field
 
@@ -1503,6 +1601,9 @@
 
   (localized? [this] false)
 
+  (models-involved [this opts all]
+    (link-models-involved this opts all))
+
   (field-from [this content opts]
     (with-propagation :include opts (:slug row)
       (fn [down]
@@ -1513,6 +1614,12 @@
 
   (render [this content opts]
     (link-render this content opts)))
+
+;; UBERQUERY ---------------------------------------------
+
+(defn model-models-involved
+  [model opts all]
+  (reduce #(models-involved %2 opts %1) all (-> model :fields vals)))
 
 (defn model-select-fields
   "Build a set of select fields based on the given model."
@@ -1736,10 +1843,18 @@
          field with the slug of 'name', ordered by the model slug and offset by 3."
   ([slug] (gather slug {}))
   ([slug opts]
-     (let [model ((keyword slug) @models)
-           beams (beam-splitter opts)
-           resurrected (mapcat (partial uberquery model) beams)]
-       (fusion model (name slug) resurrected opts))))
+     (let [query-hash (hash-query slug opts)]
+       (if (cache/has? @queries query-hash)
+         (cache/hit @queries query-hash)
+         (let [model ((keyword slug) @models)
+               beams (beam-splitter opts)
+               resurrected (mapcat (partial uberquery model) beams)
+               fused (fusion model (name slug) resurrected opts)
+               involved (model-models-involved model opts #{})]
+           (swap! queries #(cache/miss % query-hash fused))
+           (doseq [m involved]
+             (reverse-cache-add m query-hash))
+           fused)))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
@@ -1822,6 +1937,8 @@
   [slug opts]
   (let [oneify (assoc opts :limit 1)]
     (first (find-all slug oneify))))
+
+;; HOOKS -------------------------------------------------------
 
 (def field-constructors
   {:id (fn [row] (IdField. row {}))
@@ -2137,7 +2254,7 @@
           (db/rename-column model-slug old-name new-name)
           (if local-field?
             (doseq [code locales]
-              (db/rename-column model-slug (str code "_" (name old-name)) (str code "_" (name new-name)))))) ;; transition)
+              (db/rename-column model-slug (str code "_" (name old-name)) (str code "_" (name new-name))))))
 
         (rename-field field oslug slug)))
 
@@ -2203,6 +2320,8 @@
         (if-let [hooks-file (io/resource hooks-filename)]
           (load-reader (io/reader hooks-file)))
         (catch Exception e (.printStackTrace e))))))
+
+;; MODELS --------------------------------------------------------------------
 
 (defn invoke-model
   "translates a row from the model table into a nested hash with references
@@ -2278,6 +2397,7 @@
              _after (run-hook slug :after_create (merge _create {:content merged}))
              post (reduce #(post-update %2 %1 opts) (:content _after) (vals (:fields model)))
              _final (run-hook slug :after_save (merge _after {:content post}))]
+         (clear-model-cache (list (:id model)))
          (:content _final)))))
 
 (defn rally
@@ -2317,6 +2437,7 @@
            _after (run-hook slug :after_update (merge _update {:content merged}))
            post (reduce #(post-update %2 %1 opts) (_after :content) (vals (model :fields)))
            _final (run-hook slug :after_save (merge _after {:content post}))]
+       (clear-model-cache (list (:id model)))
        (_final :content))))
 
 (defn destroy
@@ -2329,6 +2450,7 @@
         pre (reduce #(pre-destroy %2 %1) (_before :content) (-> model :fields vals))
         deleted (db/delete slug "id = %1" id)
         _after (run-hook slug :after_destroy (merge _before {:content pre}))]
+    (clear-model-cache (list (:id model)))
     (_after :content)))
 
 (defn progenitors
