@@ -32,6 +32,10 @@
   [path]
   (io/resource path))
 
+(defn map-keys
+  [f m]
+  (into {} (for [[k v] m] [(f k) v])))
+
 (defn map-vals
   [f m]
   (into {} (for [[k v] m] [k (f v)])))
