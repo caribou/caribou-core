@@ -12,6 +12,7 @@
             [clojure.java.jdbc :as sql]
             [clojure.core.cache :as cache]
             [geocoder.core :as geo]
+            [aws.sdk.s3 :as s3]
             [caribou.config :as config]
             [caribou.db.adapter.protocol :as adapter]
             [caribou.logger :as log]))
@@ -1849,8 +1850,8 @@
   ([slug] (gather slug {}))
   ([slug opts]
      (let [query-hash (hash-query slug opts)]
-       (if (cache/has? @queries query-hash)
-         (first (vals (cache/hit @queries query-hash)))
+       ;; (if (cache/has? @queries query-hash)
+       ;;   (first (vals (cache/hit @queries query-hash)))
          (let [model ((keyword slug) @models)
                beams (beam-splitter opts)
                resurrected (mapcat (partial uberquery model) beams)
@@ -1859,7 +1860,7 @@
            (swap! queries #(cache/miss % query-hash fused))
            (doseq [m involved]
              (reverse-cache-add m query-hash))
-           fused)))))
+           fused))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
