@@ -1,19 +1,20 @@
 (ns caribou.model
   (:use caribou.debug)
   (:use caribou.util)
-  (:use [clojure.string :only (join split trim)])
-  (:require [caribou.db :as db]
-            [clj-time.core :as timecore]
-            [clj-time.format :as format]
-            [clj-time.coerce :as coerce]
+  (:require [clojure.string :as string]
             [clojure.walk :as walk]
             [clojure.set :as set]
             [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
             [clojure.core.cache :as cache]
+            [clj-time.core :as timecore]
+            [clj-time.format :as format]
+            [clj-time.coerce :as coerce]
             [geocoder.core :as geo]
             [aws.sdk.s3 :as s3]
+            [caribou.db :as db]
             [caribou.config :as config]
+            [caribou.asset :as asset]
             [caribou.db.adapter.protocol :as adapter]
             [caribou.logger :as log]))
 
@@ -115,7 +116,7 @@
   "Given a string try every imaginable thing to parse it into something
    resembling a date."
   [date-string]
-  (let [trimmed (trim date-string)
+  (let [trimmed (string/trim date-string)
         default (coerce/from-string trimmed)]
     (if (empty? default)
       (let [custom (some #(try-formatter trimmed %) time-zone-formatters)]
@@ -419,7 +420,7 @@
 (defn rand-str
   ([n] (rand-str n pool))
   ([n pool]
-     (join
+     (string/join
       (map
        (fn [_]
          (rand-nth pool))
@@ -586,7 +587,7 @@
      (timestamp-where :created_at {:day 15 :month 7 :year 2020})
    would find all rows who were created on July 15th, 2020."
   [field prefix slug opts where]
-  (join " and " (map (partial build-extract field (suffix-prefix prefix) slug opts) where)))
+  (string/join " and " (map (partial build-extract field (suffix-prefix prefix) slug opts) where)))
 
 (defrecord TimestampField [row env]
   Field
@@ -645,30 +646,6 @@
 (declare subfusion)
 (declare fusion)
 
-(defn- pad-break-id [id]
-  (let [root (str id)
-        len (count root)
-        pad-len (- 8 len)
-        pad (apply str (repeat pad-len "0"))
-        halves (map #(apply str %) (partition 4 (str pad root)))
-        path (join "/" halves)]
-    path))
-
-(defn asset-dir
-  "Construct the dir this asset will live in, or look it up."
-  [asset]
-  (pathify ["assets" (pad-break-id (asset :id))]))
-
-(defn asset-path
-  "Construct the path this asset will live in, or look it up."
-  [asset]
-  (if (and asset (asset :filename))
-    (pathify [(asset-dir asset)
-              ;; this regex is to deal with funky windows file paths
-              (re-find #"[^:\\\/]*$"
-                       (asset :filename))])
-    ""))
-
 (defn- join-order
   [field target prefix opts]
   (let [slug (keyword (-> field :row :slug))]
@@ -692,7 +669,7 @@
      this (:asset @models) prefix archetype skein opts
      (fn [master]
        (if master
-         (assoc master :path (asset-path master))))))
+         (assoc master :path (asset/asset-path master))))))
 
 (defn- join-render
   [this target content opts]
@@ -766,13 +743,13 @@
   (field-from [this content opts]
     (let [asset-id (content (keyword (str (:slug row) "_id")))
           asset (or (db/choose :asset asset-id) {})]
-      (assoc asset :path (asset-path asset))))
+      (assoc asset :path (asset/asset-path asset))))
 
   (render [this content opts]
     (join-render this (:asset @models) content opts)))
 
 (defn- full-address [address]
-  (join " " [(address :address)
+  (string/join " " [(address :address)
              (address :address_two)
              (address :city)
              (address :state)
@@ -988,7 +965,7 @@
     [this content values]
     (let [removed (keyword (str "removed_" (:slug row)))]
       (if (present? (content removed))
-        (let [ex (map convert-int (split (content removed) #","))
+        (let [ex (map convert-int (string/split (content removed) #","))
               part (env :link)
               part-key (keyword (str (part :slug) "_id"))
               target ((models (row :target_id)) :slug)]
@@ -1044,10 +1021,10 @@
     (let [model (@models (:model_id row))
           target (@models (:target_id row))
           link (-> this :env :link :slug)
-          link-id-slug (keyword (str link "_id"))
-          id-field (-> target :fields link-id-slug)
+          link-position-slug (keyword (str link "_position"))
+          position-field (-> target :fields link-position-slug)
           table-alias (str prefix "$" (:slug row))
-          field-select (coalesce-locale model id-field table-alias (name link-id-slug) opts)
+          field-select (coalesce-locale model position-field table-alias (name link-position-slug) opts)
           downstream (model-natural-orderings target table-alias opts)]
       [(str field-select " asc") downstream]))
 
@@ -1257,10 +1234,10 @@
     (with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))
-              id-slug (str (:slug row) "_id")
-              id-field (-> target :fields (keyword id-slug))
+              id-slug (keyword (str (:slug row) "_id"))
+              id-field (-> target :fields id-slug)
               table-alias (str prefix "$" (:slug row))
-              field-select (coalesce-locale target id-field prefix id-slug opts)
+              field-select (coalesce-locale target id-field prefix (name id-slug) opts)
               downstream (model-join-conditions target table-alias down)
               params [(:slug target) table-alias field-select]]
           (concat
@@ -1312,7 +1289,7 @@
 (defn join-table-name
   "construct a join table name out of two link names"
   [a b]
-  (join "_" (sort (map slugify [a b]))))
+  (string/join "_" (sort (map slugify [a b]))))
 
 (defn link-join-name
   "Given a link field, return the join table name used by that link."
@@ -1392,7 +1369,7 @@
            target-slug (target :slug)
            locale (if (:locale opts) (str (name (:locale opts)) "_") "")
            field-names (map #(str target-slug "." %) (table-columns target-slug))
-           field-select (join "," field-names)
+           field-select (string/join "," field-names)
            join-query "select %1 from %2 inner join %3 on (%2.id = %3.%7%4) where %3.%7%5 = %6"
            params [field-select target-slug join-key from-key to-key (content :id) locale]]
        (apply (partial query join-query) params))))
@@ -1566,7 +1543,7 @@
   (update-values [this content values]
     (let [removed (content (keyword (str "removed_" (:slug row))))]
       (if (present? removed)
-        (let [ex (map convert-int (split removed #","))]
+        (let [ex (map convert-int (string/split removed #","))]
           (doall (map #(remove-link this (content :id) %) ex)))))
     values)
 
@@ -1654,9 +1631,9 @@
   "Build the select query for this model by the given prefix based on the
    particular nesting of the include map."
   [model prefix opts]
-  (let [selects (join ", " (model-select-fields model prefix opts))
-        joins (join " " (model-join-conditions model prefix opts))]
-    (join " " ["select" selects "from" (:slug model) (name prefix) joins])))
+  (let [selects (string/join ", " (model-select-fields model prefix opts))
+        joins (string/join " " (model-join-conditions model prefix opts))]
+    (string/join " " ["select" selects "from" (:slug model) (name prefix) joins])))
 
 (defn model-limit-offset
   "Determine the limit and offset component of the uberquery based on the given where condition."
@@ -1679,7 +1656,7 @@
           (fn [field]
             (build-where field prefix opts))
           (vals (:fields model))))]
-    (join " and " (flatten eyes))))
+    (string/join " and " (flatten eyes))))
 
 (defn model-natural-orderings
   "Find all orderings between included associations that depend on the association position column
@@ -1708,23 +1685,33 @@
        (build-order field prefix opts))
      (vals (:fields model))))))
 
+(defn finalize-order-statement
+  [orders]
+  (let [statement (string/join ", " orders)]
+    (if-not (empty? statement)
+      (clause " order by %1" [statement]))))
+
 (defn model-order-statement
   "Joins the natural orderings and the given orderings from the opts map and constructs
    the order clause to ultimately be used in the uberquery."
   [model opts]
   (let [ordering (if (:order opts) opts (assoc opts :order {:position :asc}))
-        order (model-build-order model (:slug model) ordering)
-        natural (model-natural-orderings model (:slug model) opts)
-        statement (join ", " (concat order natural))]
-    (if (not (empty? statement))
-      (clause " order by %1" [statement]))))
+        order (model-build-order model (:slug model) ordering)]
+    (finalize-order-statement order)))
 
 (defn form-uberquery
   "Given the model and map of opts, construct the corresponding uberquery (but don't call it!)"
   [model opts]
   (let [query (model-select-query model (:slug model) opts)
-        order (model-order-statement model opts)
         where (model-where-conditions model (:slug model) opts)
+
+        order (model-order-statement model opts)
+        natural (model-natural-orderings model (:slug model) opts)
+
+        final-order
+        (if (empty? order)
+          (finalize-order-statement natural)
+          (string/join ", " (cons order natural)))
         
         limit-offset
         (if-let [limit (:limit opts)]
@@ -1736,7 +1723,7 @@
         full-condition
         (if (not (empty? condition))
           (str " where " condition))]
-    (str query full-condition order)))
+    (str query full-condition final-order)))
 
 (defn uberquery
   "The query to bind all queries.  Returns every facet of every row given an
@@ -1880,7 +1867,7 @@
   "Used to decompose strings into the nested maps required by the uberquery."
   [directive find-path]
   (if (and directive (not (empty? directive)))
-    (let [clauses (split directive #",")
+    (let [clauses (string/split directive #",")
           paths (map find-path clauses)
           ubermap
           (reduce
@@ -1900,7 +1887,7 @@
   (translate-directive
    include
    (fn [include]
-     [(map keyword (split include #"\.")) {}])))
+     [(map keyword (string/split include #"\.")) {}])))
 
 (defn process-where
   "The :where option is parsed into a nested map suitable for calling by the uberquery.
@@ -1912,8 +1899,8 @@
   (translate-directive
    where
    (fn [where]
-     (let [[path condition] (split where #":")]
-       [(map keyword (split path #"\.")) condition]))))
+     (let [[path condition] (string/split where #":")]
+       [(map keyword (string/split path #"\.")) condition]))))
 
 (defn process-order
   "The :order option is parsed into a nested map suitable for calling by the uberquery.
@@ -1925,8 +1912,8 @@
   (translate-directive
    order
    (fn [order]
-     (let [[path condition] (split order #" ")]
-       [(map keyword (split path #"\."))
+     (let [[path condition] (string/split order #" ")]
+       [(map keyword (string/split path #"\."))
         (keyword (or condition "asc"))]))))
 
 (defn find-all
