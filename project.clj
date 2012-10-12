@@ -7,7 +7,7 @@
                  [mysql/mysql-connector-java "5.1.6"]
                  [clj-time "0.3.6"]
                  [clj-yaml "0.3.1"]
-                 [geocoder-clj "0.0.3"]
+                 [geocoder-clj "0.0.6"]
                  [org.clojure/core.cache "0.6.2"]
                  [org.clojure/tools.logging "0.2.3"]
                  [com.novemberain/pantomime "1.4.0"]

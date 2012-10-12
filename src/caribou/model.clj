@@ -757,7 +757,7 @@
              (address :country)]))
 
 (defn geocode-address [address]
- (let [code (geo/geocode (full-address address))]
+ (let [code (geo/geocode-address (full-address address))]
    (if (empty? code)
      {}
      {:lat (-> (first code) :location :latitude)
