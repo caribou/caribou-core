@@ -748,7 +748,7 @@
   (render [this content opts]
     (join-render this (:asset @models) content opts)))
 
-(defn- full-address [address]
+(defn full-address [address]
   (string/join " " [(address :address)
              (address :address_two)
              (address :city)
