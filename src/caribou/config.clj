@@ -43,7 +43,12 @@
 
 (defn assoc-subname
   [config]
-  (adapter/build-subname @db-adapter config))
+  (if-let [jdbc-connection (system-property :JDBC_CONNECTION_STRING)]
+    (let [pattern (re-pattern (str "jdbc:" (:subprotocol config) ":(.+)"))]
+      (if-let [subname (last (re-find pattern jdbc-connection))]
+        (assoc config :subname subname)
+        (adapter/build-subname @db-adapter config)))
+    (adapter/build-subname @db-adapter config)))
 
 (defn set-db-config
   "Accepts a map to configure the DB.  Format:
@@ -54,8 +59,11 @@
     :database caribou
     :user postgres"
   [db-map]
-  (dosync
-   (alter db merge (assoc-subname db-map))))
+  (let [user (or (system-property :DATABASE_USERNAME) (:user db-map))
+        password (or (system-property :DATABASE_PASSWORD) (:password db-map))
+        db-map (assoc db-map :user user :password password)]
+    (dosync
+     (alter db merge (assoc-subname db-map)))))
 
 (defn read-config
   [config-file]
