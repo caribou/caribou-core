@@ -35,8 +35,7 @@
   [asset]
   (if (and asset (asset :filename))
     (util/pathify
-     ["https://s3.amazonaws.com"
-      (:asset-bucket @config/app)
+     [(str "https://" (:asset-bucket @config/app) ".s3.amazonaws.com")
       (asset-location asset)])
     ""))
 
