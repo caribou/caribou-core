@@ -2518,9 +2518,11 @@
 
 (defn init
   []
-  (config/init)
   (if (nil? (@config/app :use-database))
     (throw (Exception. "You must set :use-database in the app config")))
+
+  (if (empty? @config/db)
+    (throw (Exception. "Please configure caribou prior to initializing model")))
 
   (sql/with-connection @config/db
     (invoke-models)))
