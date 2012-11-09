@@ -58,6 +58,7 @@
 (defn add-primary-keys
   []
   (try
+    (config/init)
     (model/init)
     (model/db
      (fn []
