@@ -6,7 +6,6 @@
             [clojure.set :as set]
             [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
-            [clojure.core.cache :as cache]
             [clj-time.core :as timecore]
             [clj-time.format :as format]
             [clj-time.coerce :as coerce]
@@ -28,12 +27,14 @@
 
 ;; CACHING -------------------------------------
 
-(def queries (atom {})) ;; (cache/lru-cache-factory {})))
+(def queries (atom {}))
 (def reverse-cache (atom {}))
 
 (defn sort-map
   [m]
-  (if (map? m) (sort m) m))
+  (if (map? m)
+    (sort m)
+    m))
 
 (defn walk-sort-map
   [m]
@@ -41,7 +42,7 @@
 
 (defn hash-query
   [model-key opts]
-  (hash (str (name model-key) (walk-sort-map opts))))
+  (str (name model-key) (walk-sort-map opts)))
 
 (defn reverse-cache-add
   [id code]
@@ -60,12 +61,11 @@
 (defn clear-model-cache
   [ids]
   (swap! queries #(apply (partial dissoc %) (mapcat (fn [id] (reverse-cache-get id)) ids)))
-  ;; (swap! queries #(reduce cache/evict % (mapcat (fn [id] (reverse-cache-get id)) ids)))
   (reverse-cache-delete ids))
 
 (defn clear-queries
   []
-  (swap! queries (fn [_] {})) ;; (cache/lru-cache-factory {})))
+  (swap! queries (fn [_] {}))
   (swap! reverse-cache (fn [_] {})))
 
 ;; DATE AND TIME ---------------------------------------------------
@@ -74,7 +74,9 @@
   []
   (coerce/to-timestamp (timecore/now)))
 
-(def simple-date-format (java.text.SimpleDateFormat. "MMMMMMMMM dd', 'yyyy HH':'mm"))
+(def simple-date-format
+  (java.text.SimpleDateFormat. "MMMMMMMMM dd', 'yyyy HH':'mm"))
+
 (defn format-date
   "given a date object, return a string representing the canonical format for that date"
   [date]
@@ -1841,15 +1843,12 @@
            cache @queries]
        (if-let [cached (get @queries query-hash)]
          cached
-         ;; (if (cache/has? @queries query-hash)
-         ;;   (first (vals (cache/hit @queries query-hash)))
          (let [model ((keyword slug) @models)
                beams (beam-splitter opts)
                resurrected (mapcat (partial uberquery model) beams)
                fused (fusion model (name slug) resurrected opts)
                involved (model-models-involved model opts #{})]
            (swap! queries #(assoc % query-hash fused))
-           ;; (swap! queries #(cache/miss % query-hash fused))
            (doseq [m involved]
              (reverse-cache-add m query-hash))
            fused)))))
@@ -2390,7 +2389,7 @@
              _save (run-hook slug :before_save env)
              _create (run-hook slug :before_create _save)
              local-values (localize-values model (:values _create) opts)
-             content (db/insert slug (assoc local-values :updated_at (current-timestamp))) ;; (dissoc (_create :values) :updated_at))
+             content (db/insert slug (assoc local-values :updated_at (current-timestamp)))
              merged (merge (:spec _create) content)
              _after (run-hook slug :after_create (merge _create {:content merged}))
              post (reduce #(post-update %2 %1 opts) (:content _after) (vals (:fields model)))
