@@ -28,7 +28,7 @@
 
 ;; CACHING -------------------------------------
 
-(def queries (atom (cache/lru-cache-factory {})))
+(def queries (atom {})) ;; (cache/lru-cache-factory {})))
 (def reverse-cache (atom {}))
 
 (defn sort-map
@@ -59,12 +59,13 @@
 
 (defn clear-model-cache
   [ids]
-  (swap! queries #(reduce cache/evict % (mapcat (fn [id] (reverse-cache-get id)) ids)))
+  (swap! queries #(apply (partial dissoc %) (mapcat (fn [id] (reverse-cache-get id)) ids)))
+  ;; (swap! queries #(reduce cache/evict % (mapcat (fn [id] (reverse-cache-get id)) ids)))
   (reverse-cache-delete ids))
 
 (defn clear-queries
   []
-  (swap! queries (fn [_] (cache/lru-cache-factory {})))
+  (swap! queries (fn [_] {})) ;; (cache/lru-cache-factory {})))
   (swap! reverse-cache (fn [_] {})))
 
 ;; DATE AND TIME ---------------------------------------------------
@@ -1836,18 +1837,22 @@
          field with the slug of 'name', ordered by the model slug and offset by 3."
   ([slug] (gather slug {}))
   ([slug opts]
-     (let [query-hash (hash-query slug opts)]
-       ;; (if (cache/has? @queries query-hash)
-       ;;   (first (vals (cache/hit @queries query-hash)))
+     (let [query-hash (hash-query slug opts)
+           cache @queries]
+       (if-let [cached (get @queries query-hash)]
+         cached
+         ;; (if (cache/has? @queries query-hash)
+         ;;   (first (vals (cache/hit @queries query-hash)))
          (let [model ((keyword slug) @models)
                beams (beam-splitter opts)
                resurrected (mapcat (partial uberquery model) beams)
                fused (fusion model (name slug) resurrected opts)
                involved (model-models-involved model opts #{})]
-           (swap! queries #(cache/miss % query-hash fused))
+           (swap! queries #(assoc % query-hash fused))
+           ;; (swap! queries #(cache/miss % query-hash fused))
            (doseq [m involved]
              (reverse-cache-add m query-hash))
-           fused))))
+           fused)))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
