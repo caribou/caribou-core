@@ -88,7 +88,7 @@
           uri (URI. connection)
           parsed (parse-properties-uri uri)
           db-config (merge-db-creds-from-env parsed (:username properties) (:password properties))]
-      (assoc config :database db-config))
+      (update-in config [:database] #(merge % db-config)))
     config))
 
 (defn set-db-config
