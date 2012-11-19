@@ -1833,7 +1833,7 @@
   ([slug opts]
      (let [query-hash (hash-query slug opts)
            cache @queries]
-       (if-let [cached (get @queries query-hash)]
+       (if-let [cached (and (:query-caching-enabled @config/app) (get @queries query-hash))]
          cached
          (let [model ((keyword slug) @models)
                beams (beam-splitter opts)
