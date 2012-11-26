@@ -1833,7 +1833,7 @@
   ([slug opts]
      (let [query-hash (hash-query slug opts)
            cache @queries]
-       (if-let [cached (and (:query-caching-enabled @config/app) (get @queries query-hash))]
+       (if-let [cached (and (:enable-query-cache @config/app) (get @queries query-hash))]
          cached
          (let [model ((keyword slug) @models)
                beams (beam-splitter opts)
@@ -1924,8 +1924,8 @@
 (defn find-one
   "This is the same as find-all, but returns only a single item, not a vector."
   [slug opts]
-  (let [oneify (assoc opts :limit 1)]
-    (first (find-all slug oneify))))
+  ;; (let [oneify (assoc opts :limit 1)]
+  (first (find-all slug opts)))
 
 ;; HOOKS -------------------------------------------------------
 
