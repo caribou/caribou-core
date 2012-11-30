@@ -289,6 +289,15 @@
         value (get (first containing) bit)]
     (assoc archetype slug value)))
 
+(defn- boolean-fusion
+  [this prefix archetype skein opts]
+  (let [slug (keyword (-> this :row :slug))
+        bit (prefix-key prefix slug)
+        containing (drop-while #(nil? (get % bit)) skein)
+        value (get (first containing) bit)
+        value (or (= 1 value) (= true value))]
+    (assoc archetype slug value)))
+
 (defn find-model
   [id]
   (or (get @models id) (db/choose :model id)))
@@ -571,7 +580,7 @@
   (field-generator [this generators]
     (assoc generators (keyword (:slug row)) (fn [] (= 1 (rand-int 2)))))
   (fuse-field [this prefix archetype skein opts]
-    (pure-fusion this prefix archetype skein opts))
+    (boolean-fusion this prefix archetype skein opts))
   (localized? [this] (not (:locked row)))
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
