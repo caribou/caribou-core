@@ -1,4 +1,4 @@
-(defproject antler/caribou-core "0.7.16"
+(defproject antler/caribou-core "0.7.17"
   :description "Caribou is a dynamic web application generator with antlers."
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [org.clojure/java.jdbc "0.2.3"]
@@ -7,7 +7,8 @@
                  [mysql/mysql-connector-java "5.1.6"]
                  [clj-time "0.4.4"]
                  [clj-yaml "0.3.1"]
-                 [geocoder-clj "0.0.6" :exclusions [[org.apache.httpcomponents/httpclient] [org.apache.httpcomponents/httpcore] org.clojure/clojure]]
+                 [slingshot "0.10.3"]
+                 [geocoder-clj "0.0.8" :exclusions [org.apache.httpcomponents/httpclient org.apache.httpcomponents/httpcore org.clojure/clojure slingshot]]
                  [org.clojure/tools.logging "0.2.3" :exclusions [org.clojure/clojure]]
                  [com.novemberain/pantomime "1.4.0"]
                  [clj-aws-s3 "0.3.2"]

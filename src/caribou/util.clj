@@ -161,9 +161,9 @@
   "make an arbitrary query, substituting in extra args as % parameters"
   [q & args]
   ;; (try 
-    (sql/with-query-results res
-      [(clause q args)]
-      (doall res)))
+  (sql/with-query-results res
+    [(clause q args)]
+    (doall res)))
     ;; (catch Exception e
     ;;   (do
     ;;     (render-exception e)

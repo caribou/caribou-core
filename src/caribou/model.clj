@@ -2179,8 +2179,17 @@
     (invoke-models)
     env))
 
-  (add-hook :locale :after_create :add_to_localized_models (fn [env] (propagate-new-locale env)))
-  (add-hook :locale :after_update :rename_localized_fields (fn [env] (rename-updated-locale env)))
+  (if (:locale @models)
+    (do
+      (add-hook
+       :locale :after_create :add_to_localized_models
+       (fn [env]
+         (propagate-new-locale env)))
+
+      (add-hook
+       :locale :after_update :rename_localized_fields
+       (fn [env]
+         (rename-updated-locale env)))))
 
   )
   
