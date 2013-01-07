@@ -1,5 +1,6 @@
 (ns caribou.asset
   (:require [clojure.string :as string]
+            [clojure.java.io :as io]
             [aws.sdk.s3 :as s3]
             [pantomime.mime :as mime]
             [caribou.util :as util]
@@ -33,18 +34,13 @@
 (defn asset-path
   "Construct the path this asset will live in, or look it up."
   [asset]
-  (if (and asset (asset :filename))
-    (util/pathify
-     [(str "https://" (:asset-bucket @config/app) ".s3.amazonaws.com")
-      (asset-location asset)])
-    ""))
-
-    ;;   (asset-dir asset)
-    ;;   ;; this regex is to deal with funky windows file paths
-    ;;   (re-find
-    ;;    #"[^:\\\/]*$"
-    ;;    (:filename asset))])
-    ;; ""))
+  (if (:asset-bucket @config/app)
+    (if (and asset (asset :filename))
+      (util/pathify
+       [(str "https://" (:asset-bucket @config/app) ".s3.amazonaws.com")
+        (asset-location asset)])
+      "")
+    (asset-location asset)))
 
 (defn ensure-s3-bucket
   [cred bucket]
@@ -61,4 +57,9 @@
     (ensure-s3-bucket cred bucket)
     (s3/put-object cred bucket key asset {:content-type mime})
     (s3/update-object-acl cred bucket key (s3/grant :all-users :read))))
+
+(defn persist-asset-on-disk
+  [dir path file]
+  (.mkdirs (io/file (util/pathify [(@config/app :asset-dir) dir])))
+  (io/copy file (io/file (util/pathify [(@config/app :asset-dir) path]))))
 
