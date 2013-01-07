@@ -18,33 +18,45 @@
 (def migration-list
   (ref ["create_models" "create_locked_models" "add_links"]))
 
-(defn push-migration [name]
+(defn push-migration
+  [name]
   (dosync (alter migration-list #(cons name %))))
 
-(defn migration-names []
+(defn migration-names
+  []
   (map #(% :name) (util/query "select * from migration")))
 
-(defn migrations-to-run []
+(defn migrations-to-run
+  []
   (set/difference @migration-list (migration-names)))
 
-(defn load-user-migrations [path]
+(defn load-user-migrations
+  [path]
   (util/load-path path (fn [file filename]
     (load-file (.toString file))
     (db/insert :migration {:name filename}))))
 
-(defn run-migration [migration]
+(defn run-migration
+  [migration]
   (load-file (str "caribou/migrations/" migration ".clj"))
   (db/insert :migration {:name migration}))
 
-(defn run-migrations [config]
+(defn lay-model-base
+  [config]
+  (sql/with-connection config
+    (premigrations/migrate)))
+
+(defn run-migrations
+  [config]
   (try
     (let [blank (sql/with-connection config (not (db/table? "migration")))]
       (if blank
     ;; (sql/with-connection config
     ;;   (if (not (db/table? "migration"))
         (do
-          (sql/with-connection config
-            (premigrations/migrate))
+          (lay-model-base config)
+          ;; (sql/with-connection config
+          ;;   (premigrations/migrate))
           (sql/with-connection config
             (premigrations/build-models)))))
         ;; (doall (map run-migration premigration-list)))
