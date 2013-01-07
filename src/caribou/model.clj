@@ -10,7 +10,6 @@
             [clj-time.format :as format]
             [clj-time.coerce :as coerce]
             [geocoder.core :as geo]
-            [aws.sdk.s3 :as s3]
             [caribou.db :as db]
             [caribou.config :as config]
             [caribou.asset :as asset]
