@@ -1,6 +1,8 @@
 (ns caribou.logger
   (:require [clojure.tools.logging :as logging]
-            [clj-logging-config.log4j :as logconf]))
+            [clj-logging-config.log4j :as logconf])
+  (:import org.apache.log4j.PatternLayout
+           org.apache.log4j.net.SyslogAppender))
 
 ;; we should need the following call to have a logger, but right now invoking it
 ;; crashes at library load
@@ -11,6 +13,25 @@
                 :log-level :debug
                 :log-filter (constantly true)
                 :debug true}))
+
+;; set up logging in this thread to a remote server
+(defmacro log-remote-from
+  "Set up remote logging - level is a loglevel, pattern is a log
+  pattern, host is a remote ip, facility is a logging facility number
+  (17 is probably safe but this can depend on the remote server
+  implementation and conventions). There is an unavoidable error when
+  this is run.
+
+  This needs to be a macro because it needs to be evaluated in the
+  same thread and namespace you want to log from."
+  [level pattern host facility]
+  `(let [layout# (if ~pattern
+                  (PatternLayout. ~pattern)
+                  (PatternLayout.))
+         logger# (SyslogAppender. layout# ~host ~facility)]
+     (logconf/set-logger! :level ~level
+                          :out logger#)))
+
 
 (def logger-factory (atom :error-please-init-caribou.logger))
 
