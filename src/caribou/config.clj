@@ -123,9 +123,7 @@
     (dosync
      (alter db merge (assoc-subname db-config)))
     (adapter/init @db-adapter)
-    (dosync
-     (alter logger/defaults merge logging-config))
-    (logger/init)
+    (logger/init logging-config)
     config-map))
 
 (defn init
