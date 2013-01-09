@@ -1,12 +1,14 @@
 (ns caribou.logger
   (:require [clojure.tools.logging :as logging]
-            [clj-logging-config.log4j :as logconf])
-  (:import org.apache.log4j.PatternLayout
+            [clj-logging-config.log4j :as logconf]
+            [clojure.string :as string]
+            [clojure.java.io :as io])
+  (:import java.util.Date
+           java.net.DatagramSocket
+           java.net.DatagramPacket
+           java.net.InetAddress
+           org.apache.log4j.PatternLayout
            org.apache.log4j.net.SyslogAppender))
-
-;; we should need the following call to have a logger, but right now invoking it
-;; crashes at library load
-;(logconf/set-logger!)
 
 (def defaults (ref
                {:log-pattern "%-5p %u [%t]: %m %F %L%n"
@@ -14,152 +16,93 @@
                 :log-filter (constantly true)
                 :debug true}))
 
-;; set up logging in this thread to a remote server
-(defmacro log-remote-from
-  "Set up remote logging - level is a loglevel, pattern is a log
-  pattern, host is a remote ip, facility is a logging facility number
-  (17 is probably safe but this can depend on the remote server
-  implementation and conventions). There is an unavoidable error when
-  this is run.
+(def socket (new DatagramSocket))
 
-  This needs to be a macro because it needs to be evaluated in the
-  same thread and namespace you want to log from."
-  [level pattern host facility]
-  `(let [layout# (if ~pattern
-                  (PatternLayout. ~pattern)
-                  (PatternLayout.))
-         logger# (SyslogAppender. layout# ~host ~facility)]
-     (logconf/set-logger! :level ~level
-                          :out logger#)))
+(defn syslog
+  [host]
+  (let [dest (cond (string? host) (. InetAddress getByName host)
+                   (sequential? host) (. InetAddress getByAddress
+                                         (byte-array (map byte host)))
+                   true (. InetAddress getLocalHost))]
+    (fn [type message]
+      (let [facility 1 ; user level
+            severity (get {:emergency 0
+                           :alert 1
+                           :critical 2
+                           :error 3
+                           :warning 4
+                           :warn 4
+                           :notice 5
+                           :informational 6
+                           :info 6
+                           :debug 7} type
+                           7)
+            priority (+ (* facility 8) severity)
+            message (str "<" priority ">" " " (string/upper-case (name type))
+                         " " message)
+            packet (new DatagramPacket
+                        (. message getBytes)
+                        (. message length)
+                        dest
+                        514)]
+        (. socket send packet)))))
 
+(def loggers [])
 
-(def logger-factory (atom :error-please-init-caribou.logger))
+(defn filelog
+  [file]
+  (let [writer (io/writer file :append true)]
+    (fn [level message]
+      (if (= level :close)
+        (.close writer)
+        (do (.write writer (str (Date.) " "
+                                (string/upper-case (name level)) " "
+                                message "\n"))
+            (.flush writer))))))
+            
 
-(defn unwrap-conf
-  [file line user]
-  (fn [pattern]
-    (clojure.string/replace
-     (clojure.string/replace pattern; two passes needed here
-                             "%l" "%F : %M (%L)"); since this one is recursive
-     #"%M|%F|%L|%u"
-     {"%M" "%M" ; dunno how to find method yet, %M just gives us "write_BANG_"
-      "%F" ((fnil identity "") file) ; file will be a string or nil
-      "%L" (str line)  ; line will be a number or nil
-      "%u" (str user)})))
+(defn make-logger
+  [spec]
+  (case (:type spec)
+    :remote (syslog (:host spec))
+    :stdout (fn [level message] (println level message))
+    :file (filelog (:file spec))
+    :default (constantly nil)))
 
-;; adapted from clj-logging-config.log4j
-(deftype ThreadLocalLog [old-log-factory log-ns ^org.apache.log4j.Logger logger]
-  clojure.tools.logging.impl.Logger
-  (enabled? [_ level]
-    (or
-     ;; Check original logger
-     (clojure.tools.logging.impl/enabled?
-      (clojure.tools.logging.impl/get-logger old-log-factory log-ns) level)
-     ;; Check thread-local logger
-     (.isEnabledFor logger
-                    (or (logconf/log4j-levels level)
-                        (throw (IllegalArgumentException. (str level)))))))
-  (write! [_ level throwable message]
-    ;; Write the message to the original logger on the thread
-    (when-let [orig-logger
-               (clojure.tools.logging.impl/get-logger old-log-factory log-ns)]
-      (clojure.tools.logging.impl/write! orig-logger level throwable message))
-    ;; Write the message to our thread-local logger
-    (let [l (or
-             (logconf/log4j-levels level)
-             (throw (IllegalArgumentException. (str level))))]
-      (if-not throwable
-        (.log logger l message)
-        (.log logger l message throwable)))))
 
 (defn init
-  []
-  (let [old-log-factory logging/*logger-factory*
-        thread-root-logger (org.apache.log4j.spi.RootLogger.
-                            org.apache.log4j.Level/DEBUG)
-        thread-repo (proxy [org.apache.log4j.Hierarchy]
-                        [thread-root-logger]
-                      (shutdown [] nil))
-        defaults {:pattern ((unwrap-conf "" "" "")
-                            (:log-pattern @defaults))
-                  :level (:log-level @defaults)
-                  :filter (:log-filter @defaults)}
-        config [:root defaults]]
-    (doall (map logconf/set-logger ; make this simpler since we are doing one
-                (map (partial logconf/as-logger* thread-repo)
-                     (partition 2 config))))
-    (swap! logger-factory
-           (constantly (reify clojure.tools.logging.impl.LoggerFactory
-                         (name [_] "clj-logging-config.thread-local-logging")
-                         (get-logger [_ log-ns]
-                           (ThreadLocalLog.
-                            old-log-factory log-ns
-                            (.getLogger thread-repo
-                                        ^String (str log-ns)))))))))
+  [log-specs]
+  (let [loggers (map make-logger log-specs)]
+    (def loggers loggers)))
 
-(defmacro with-config
-  "Use our explicit configuration while logging something, with
-  dynamic additions in a map. Explicitly using with-config on every
-  logging call avoids some pervasive weirdness with configuration
-  clobbering."
-  [map & body]
-  `(let [customized# (merge ~map @defaults)
-         base# (merge {:level (:log-level customized#)
-                       :pattern (:log-pattern customized#)
-                       :filter (:log-filter customized#)}
-                      ;; merging this again because it may have keys not
-                      ;; caught above
-                      ~map)
-         total# (update-in base# [:pattern]
-                           (unwrap-conf (:file ~map) (:line ~map)
-                                        (:user ~map)))]
-     (logconf/with-logging-config
-       [:root total#]
-       ~@body)))
-
-(defmacro whenlog
-  "run body when level is enabled"
-  [level & body]
-  `(with-config {}
-     (if (logging/enabled? ~level)
-       ~@body)))
-
-(defn logmsg
-  [msg prefix]
-  (str (if prefix (name (first prefix)) " ") "") msg)
+(defn log
+  [level message]
+  (map (fn [l] (l level message)) loggers))
 
 (defn debug
-  "Log a debug message (with an optional prefix)"
-  [msg & prefix]
-  (binding [clojure.tools.logging/*logger-factory* @logger-factory]
-    (logging/debug (logmsg msg prefix))))
+  [message & prefix]
+  (log :debug (str prefix message)))
 
 (defn info
-  "Log an info message (with an optional prefix)"
-  [msg & prefix]
-  (binding [clojure.tools.logging/*logger-factory* @logger-factory]
-    (logging/info (logmsg msg prefix))))
+  [message & prefix]
+  (log :info (str prefix message)))
 
 (defn warn
-  "Log a warning message (with an optional prefix)"
-  [msg & prefix]
-  (binding [clojure.tools.logging/*logger-factory* @logger-factory]
-    (logging/warn (logmsg msg prefix))))
+  [message & prefix]
+  (log :warn (str prefix message)))
 
 (defn error
-  "Log an error message (with an optional prefix)"
-  [msg & prefix]
-  (binding [clojure.tools.logging/*logger-factory* @logger-factory]
-    (logging/error (logmsg msg prefix))))
+  [message & prefix]
+  (log :error (str prefix message)))
 
-(defmacro spy
-  "Spy the value of an expression (with an optional prefix)"
-  [form & prefix]
-  `(logconf/with-logging-config
-       {:line ~(:line (meta &form))
-        :file ~*file*
-        :log-pattern (if (nil? (first '~prefix))
-                       (:log-pattern @config/app)
-                       (str (name (first '~prefix)) " "
-                            (:log-pattern @config/app)))}
-       (logging/spy '~form)))
+;; (defmacro spy
+;;   "Spy the value of an expression (with an optional prefix)"
+;;   [form & prefix]
+;;   `(logconf/with-logging-config
+;;        {:line ~(:line (meta &form))
+;;         :file ~*file*
+;;         :log-pattern (if (nil? (first '~prefix))
+;;                        (:log-pattern @config/app)
+;;                        (str (name (first '~prefix)) " "
+;;                             (:log-pattern @config/app)))}
+;;        (logging/spy '~form)))
