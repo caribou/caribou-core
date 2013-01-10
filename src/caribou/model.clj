@@ -2284,8 +2284,8 @@
             link_slug (-> env :spec :link_slug)
             fetch (db/fetch :field "model_id = %1 and slug = '%2'" model_id link_slug)
             linked (first fetch)]
-        (assoc (env :values) :link_id (linked :id)))
-      (env :values))))
+        (assoc (:values env) :link_id (:id linked)))
+      (:values env))))
 
 (defn- add-field-hooks []
   (add-hook :field :before_save :check_link_slug (fn [env] (field-check-link-slug env)))
