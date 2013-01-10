@@ -10,13 +10,20 @@
            org.apache.log4j.PatternLayout
            org.apache.log4j.net.SyslogAppender))
 
-(def defaults (ref
-               {:log-pattern "%-5p %u [%t]: %m %F %L%n"
-                :log-level :debug
-                :log-filter (constantly true)
-                :debug true}))
-
 (def socket (new DatagramSocket))
+
+(def levels
+  {:emergency 0
+   :alert 1
+   :critical 2
+   :error 3
+   :warning 4
+   :warn 4
+   :notice 5
+   :informational 6
+   :info 6
+   :debug 7
+   :trace 7})
 
 (defn syslog
   [host]
@@ -26,17 +33,7 @@
                    true (. InetAddress getLocalHost))]
     (fn [type message]
       (let [facility 1 ; user level
-            severity (get {:emergency 0
-                           :alert 1
-                           :critical 2
-                           :error 3
-                           :warning 4
-                           :warn 4
-                           :notice 5
-                           :informational 6
-                           :info 6
-                           :debug 7} type
-                           7)
+            severity (get levels type 7)
             priority (+ (* facility 8) severity)
             message (str "<" priority ">" " " (string/upper-case (name type))
                          " " message)
@@ -46,8 +43,6 @@
                         dest
                         514)]
         (. socket send packet)))))
-
-(def loggers [])
 
 (defn filelog
   [file]
@@ -59,50 +54,62 @@
                                 (string/upper-case (name level)) " "
                                 message "\n"))
             (.flush writer))))))
-            
+
+(defn stdoutlog
+  [level message]
+  (println level message))
+
+(def loggers (atom [[7 stdoutlog]]))
+
+(def level (atom 7))
 
 (defn make-logger
   [spec]
   (case (:type spec)
     :remote (syslog (:host spec))
-    :stdout (fn [level message] (println level message))
+    :stdout stdoutlog
     :file (filelog (:file spec))
     :default (constantly nil)))
 
-
 (defn init
   [log-specs]
-  (let [loggers (map make-logger log-specs)]
-    (def loggers loggers)))
+  (let [log (map (fn [s] [(get levels (:level s) 7)
+                          (make-logger s)])
+                 log-specs)
+        lev (apply max (map (fn [x] (get levels (:level x) 7)) log-specs))]
+    (swap! level (constantly lev))
+    (swap! loggers (constantly log))))
 
-(defn log
-  [level message]
-  (map (fn [l] (l level message)) loggers))
+(defmacro log
+  [at-level message]
+  `(when (>= (deref level) (get levels ~at-level 7))
+     (let [ms# ~message]
+       (doseq [lv# (deref loggers)]
+         (when (>= (nth lv# 0) (get levels ~at-level 7))
+           ((nth lv# 1) ~at-level ms#))))))
 
-(defn debug
+(defmacro debug
   [message & prefix]
-  (log :debug (str prefix message)))
+  `(log :debug (str ~prefix " " ~message)))
 
-(defn info
+(defmacro info
   [message & prefix]
-  (log :info (str prefix message)))
+  `(log :info (str ~prefix " " ~message)))
 
-(defn warn
+(defmacro warn
   [message & prefix]
-  (log :warn (str prefix message)))
+  `(log :warn (str ~prefix " " ~message)))
 
-(defn error
+(defmacro error
   [message & prefix]
-  (log :error (str prefix message)))
+  `(log :error (str ~prefix " " ~message)))
 
-;; (defmacro spy
-;;   "Spy the value of an expression (with an optional prefix)"
-;;   [form & prefix]
-;;   `(logconf/with-logging-config
-;;        {:line ~(:line (meta &form))
-;;         :file ~*file*
-;;         :log-pattern (if (nil? (first '~prefix))
-;;                        (:log-pattern @config/app)
-;;                        (str (name (first '~prefix)) " "
-;;                             (:log-pattern @config/app)))}
-;;        (logging/spy '~form)))
+(defmacro spy-str
+  "spy the value of an expression"
+  [form]
+  `(str '~form " : " ~form))
+
+(defmacro spy
+  [form]
+  `(debug (spy-str ~form)))
+
