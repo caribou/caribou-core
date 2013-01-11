@@ -84,9 +84,10 @@
   [at-level message]
   `(when (>= (deref level) (get levels ~at-level 7))
      (let [ms# ~message]
-       (doseq [lv# (deref loggers)]
-         (when (>= (nth lv# 0) (get levels ~at-level 7))
-           ((nth lv# 1) ~at-level ms#))))))
+       (map (fn [lv#]
+              (when (>= (nth lv# 0) (get levels ~at-level 7))
+                ((nth lv# 1) ~at-level ms#)))
+            (deref loggers)))))
 
 (defmacro debug
   [message & prefix]
