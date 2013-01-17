@@ -45,8 +45,6 @@
         expected-defaults {:name "Mr. Creosote"
                            :wafer-thin-mint {:name "Mr. Creosote"}
                            :bucket {:name "Mr. Creosote" :throw-up {:name "Mr. Creosote"}}}
-        _ (pprint/pprint expanded-defaults)
-        _ (pprint/pprint expected-defaults)
         ]
     (is (= expanded-defaults expected-defaults))))
 
@@ -71,6 +69,4 @@
                            :french-waiter {:status "Fishy"}}
         ]
     (is (= expanded-defaults expected-defaults))))
-
-
 
