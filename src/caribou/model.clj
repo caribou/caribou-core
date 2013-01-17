@@ -1862,15 +1862,15 @@
   ([slug opts]
     ; I am not comfortable putting this here:
     (let [opts-with-defaults (apply-query-defaults opts (:query-defaults @config/app))]
-     (let [query-hash (hash-query slug opts)
+     (let [query-hash (hash-query slug opts-with-defaults)
            cache @queries]
        (if-let [cached (and (:enable-query-cache @config/app) (get @queries query-hash))]
          cached
          (let [model ((keyword slug) @models)
-               beams (beam-splitter opts)
+               beams (beam-splitter opts-with-defaults)
                resurrected (mapcat (partial uberquery model) beams)
-               fused (fusion model (name slug) resurrected opts)
-               involved (model-models-involved model opts #{})]
+               fused (fusion model (name slug) resurrected opts-with-defaults)
+               involved (model-models-involved model opts-with-defaults #{})]
            (swap! queries #(assoc % query-hash fused))
            (doseq [m involved]
              (reverse-cache-add m query-hash))
