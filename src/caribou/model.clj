@@ -67,6 +67,27 @@
   (swap! queries (fn [_] {}))
   (swap! reverse-cache (fn [_] {})))
 
+
+;; Query defaults - this could live elsewhere
+(defn expand-query-defaults
+  [query-defaults clause]
+  (if (not (empty? clause))
+    (into query-defaults (for [[k v] (filter #(-> % val map?) clause)] [k (expand-query-defaults query-defaults v)]))
+    query-defaults))
+
+(defn expanded-query-defaults
+  [query query-defaults]
+  (let [expanded-include (expand-query-defaults query-defaults (:include query))
+        expanded-where   (expand-query-defaults query-defaults (:where query))
+        merged-defaults  (deep-merge-with (fn [& maps] (first maps)) expanded-where expanded-include)
+        ] merged-defaults))
+
+(defn apply-query-defaults
+  [query query-defaults]
+  (if (not= query-defaults nil)
+    (deep-merge-with (fn [& maps] (first maps)) query {:where (expanded-query-defaults query query-defaults)})
+    query))
+
 ;; DATE AND TIME ---------------------------------------------------
 
 (defn current-timestamp
@@ -1839,6 +1860,8 @@
          field with the slug of 'name', ordered by the model slug and offset by 3."
   ([slug] (gather slug {}))
   ([slug opts]
+    ; I am not comfortable putting this here:
+    (let [opts-with-defaults (apply-query-defaults opts (:query-defaults @config/app))]
      (let [query-hash (hash-query slug opts)
            cache @queries]
        (if-let [cached (and (:enable-query-cache @config/app) (get @queries query-hash))]
@@ -1851,7 +1874,7 @@
            (swap! queries #(assoc % query-hash fused))
            (doseq [m involved]
              (reverse-cache-add m query-hash))
-           fused)))))
+           fused))))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
