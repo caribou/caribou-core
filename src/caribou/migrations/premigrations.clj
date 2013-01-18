@@ -55,6 +55,18 @@
    [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
    [:updated_at "timestamp" "NOT NULL"])) ;; "DEFAULT current_timestamp"]))
 
+; (defn create-status-table []
+;   (db/create-table
+;    :status
+;    [:id "SERIAL" "PRIMARY KEY"]
+;    [:name "varchar(55)" "NOT NULL" "UNIQUE"]
+;    [:slug "varchar(55)" "NOT NULL" "UNIQUE"]
+;    [:description :text]
+;    [:position :integer "DEFAULT 0"]
+;    [:locked :boolean "DEFAULT false"]
+;    [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
+;    [:updated_at "timestamp" "NOT NULL"])) ;; "DEFAULT current_timestamp"]))
+
 (defn create-model-model []
   (db/insert
    :model
@@ -74,6 +86,16 @@
     :position 2
     :updated_at (model/current-timestamp)
     :locked true}))
+
+; (defn create-status-model []
+;   (db/insert
+;    :model
+;    {:name "Status"
+;     :slug "status"
+;     :description "a model that specifies what states a model can be in"
+;     :position 3
+;     :updated_at (model/current-timestamp)
+;     :locked true}))
 
 (defn create-model-fields []
   (let [model-id ((first (util/query "select id from model where slug = 'model'")) :id)]
@@ -420,6 +442,82 @@
       :updated_at (model/current-timestamp)
       :model_id model-id})))
 
+; (defn create-status-fields []
+;   (let [model-id ((first (util/query "select id from model where slug = 'status'")) :id)]
+;     (db/insert
+;      :field
+;      {:name "Id"
+;       :slug "id"
+;       :type "integer"
+;       :locked true
+;       :immutable true
+;       :editable false
+;       :updated_at (model/current-timestamp)
+;       :model_id model-id})
+;     (let [name-field (db/insert
+;                       :field
+;                       {:name "Name"
+;                        :slug "name"
+;                        :type "string"
+;                        :locked true
+;                        :updated_at (model/current-timestamp)
+;                        :model_id model-id})]
+;       (db/insert
+;        :field
+;        {:name "Slug"
+;         :slug "slug"
+;         :type "slug"
+;         :locked true
+;         :editable false
+;         :updated_at (model/current-timestamp)
+;         :link_id (name-field :id)
+;         :model_id model-id}))
+;     (db/insert
+;      :field
+;      {:name "Description"
+;       :slug "description"
+;       :type "text"
+;       :locked true
+;       :updated_at (model/current-timestamp)
+;       :model_id model-id})
+;     (db/insert
+;      :field
+;      {:name "Position"
+;       :slug "position"
+;       :type "integer"
+;       :locked true
+;       :updated_at (model/current-timestamp)
+;       :model_id model-id})
+;     (db/insert
+;      :field
+;      {:name "Locked"
+;       :slug "locked"
+;       :type "boolean"
+;       :locked true
+;       :immutable true
+;       :editable false
+;       :updated_at (model/current-timestamp)
+;       :model_id model-id})
+;     (db/insert
+;      :field
+;      {:name "Created At"
+;       :slug "created_at"
+;       :type "timestamp"
+;       :locked true
+;       :immutable true
+;       :editable false
+;       :updated_at (model/current-timestamp)
+;       :model_id model-id})
+;     (db/insert
+;      :field
+;      {:name "Updated At"
+;       :slug "updated_at"
+;       :type "timestamp"
+;       :locked true
+;       :editable false
+;       :updated_at (model/current-timestamp)
+;       :model_id model-id})))
+
 (defn forge-link []
   (let [model (first (db/fetch :model "slug = '%1'" "model"))
         field (first (db/fetch :model "slug = '%1'" "field"))
@@ -517,8 +615,32 @@
            :fields (lock [{:name "Resource Key" :type "string"}
                           {:name "Value" :type "text"}])})
 
+(def status {:name "Status"
+             :description "all of the possible states a model can be in"
+             :position 12
+             :locked true
+             :fields (lock [{:name "Name" :type "string"}
+                            {:name "Slug" :type "slug" :link_slug "name"}
+                            {:name "Description" :type "text"}])})
+
+(defn create-default-status []
+  (db/insert :status {:id 1
+                      :name "Draft"
+                      :slug "draft"
+                      :description "Draft status is not publicly visible"
+                      :locked true
+                      :updated_at (model/current-timestamp)
+                     })
+  (db/insert :status {:id 2
+                      :name "Published"
+                      :slug "published"
+                      :description "Published means visible to the public"
+                      :locked true
+                      :updated_at (model/current-timestamp)
+                     }))
+
 (def incubating
-  [page account view locale asset site domain location i18n])
+  [page account view locale asset site domain location i18n status])
 
 (defn spawn-models []
   (model/invoke-models)
@@ -535,7 +657,9 @@
                     {:name "Pages"
                      :type "collection"
                      :target_id (-> @model/models :page :id)}]}
-          {:op :migration}))
+          {:op :migration})
+  (doseq [m (model/gather :model)] (model/add-status-to-model m)))
+  
 
 (defn migrate
   []
@@ -551,5 +675,6 @@
 (defn build-models
   []
   (spawn-models)
+  (create-default-status)
   (build-links))
 
