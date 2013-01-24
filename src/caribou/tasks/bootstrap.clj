@@ -10,4 +10,4 @@
   (mm/run-migrations config))
 
 (defn -main [config-file]
-  (bootstrap (config/read-config config-file)))
+  (bootstrap (:database (config/read-config config-file))))
