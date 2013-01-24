@@ -1,5 +1,5 @@
 (ns ^{:skip-wiki true}
-  caribou.migrations.premigrations
+  caribou.migrations.bootstrap
   (:require [caribou.db :as db]
             [caribou.util :as util]
             [caribou.model :as model]))
@@ -546,10 +546,6 @@
   (create-model-fields)
   (create-field-model)
   (create-field-fields)
-  (forge-link))
-
-(defn build-models
-  []
+  (forge-link)
   (spawn-models)
   (build-links))
-

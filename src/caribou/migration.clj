@@ -1,81 +1,44 @@
-(ns ^{:skip-wiki true}
-  caribou.migration
-  (:use caribou.debug)
+(ns caribou.migration
   (:require [clojure.set :as set]
             [clojure.java.jdbc :as sql]
-            [clojure.string :as string]
-            [caribou.db :as db]
-            [caribou.config :as config]
-            [caribou.migrations.premigrations :as premigrations]
-            [caribou.model :as model]
-            [caribou.util :as util]))
+            [caribou.util :as util]
+            [caribou.db :as db]))
 
-(def migrate (fn [] :nothing))
+(defn app-migration-namespace []
+  ;; htf do we know the name of the current project?
+  (let [project-name (last (clojure.string/split (System/getProperty "user.dir") (re-pattern util/file-separator)))]
+    (str project-name ".migrations")))
 
-(def premigration-list
-  ["create_base_tables"])
-
-(def migration-list
-  (ref ["create_models" "create_locked_models" "add_links"]))
-
-(defn push-migration
-  [name]
-  (dosync (alter migration-list #(cons name %))))
-
-(defn migration-names
+(defn used-migrations
   []
-  (map #(% :name) (util/query "select * from migration")))
+  (try 
+    (map #(% :name) (util/query "select * from migration"))
+    (catch Exception e
+      (println (.getMessage e)))))
 
-(defn migrations-to-run
-  []
-  (set/difference @migration-list (migration-names)))
+(defn load-migration-order
+  [namespace]
+  (let [order-namespace (symbol (str namespace ".order"))
+        _               (require :reload order-namespace)
+        order-symbol    (ns-resolve order-namespace (symbol "order"))]
+        (map #(str namespace "." %) @order-symbol)))
 
-(defn load-user-migrations
-  [path]
-  (util/load-path path (fn [file filename]
-    (load-file (.toString file))
-    (db/insert :migration {:name filename}))))
-
-(defn run-migration
-  [migration]
-  (load-file (str "caribou/migrations/" migration ".clj"))
-  (db/insert :migration {:name migration}))
-
-(defn lay-model-base
-  [config]
-  (sql/with-connection config
-    (premigrations/migrate)))
+(defn run-migration [migration]
+  (println "Running migration " migration)
+  (let [ns (symbol migration)
+        _  (require :reload ns)
+        migrate-symbol (ns-resolve ns (symbol "migrate"))]
+    (migrate-symbol)
+    (db/insert :migration {:name migration})))
 
 (defn run-migrations
-  [config]
-  (try
-    (let [blank (sql/with-connection config (not (db/table? "migration")))]
-      (if blank
-    ;; (sql/with-connection config
-    ;;   (if (not (db/table? "migration"))
-        (do
-          (lay-model-base config)
-          ;; (sql/with-connection config
-          ;;   (premigrations/migrate))
-          (sql/with-connection config
-            (premigrations/build-models)))))
-        ;; (doall (map run-migration premigration-list)))
-      ;; (doall (map #(if (not (some #{%} (migration-names))) (run-migration %))
-      ;;             @migration-list))
-    (sql/with-connection config
-      (load-user-migrations "app/migrations"))
-    (catch Exception e
-      (println "Caught an exception attempting to run migrations: " (.getMessage e) (.printStackTrace e)))))
-
-(defn add-primary-keys
-  []
-  (try
-    (config/init)
-    (model/init)
-    (model/db
-     (fn []
-       (doseq [model (vals @model/models)]
-         (db/add-primary-key (:slug model) "id"))))
-    (catch Exception e
-      (util/render-exception e))))
-
+  [db-config]
+  (println db-config)
+  (sql/with-connection db-config
+    (let [core-migrations (load-migration-order "caribou.migrations")
+          app-migrations  () ; (load-migration-order (app-migration-namespace))
+          all-migrations  (concat core-migrations app-migrations)
+          _ (println core-migrations (used-migrations))
+          unused-migrations (set/difference (set all-migrations) (set (used-migrations)))]
+      (doseq [m unused-migrations]
+        (run-migration m)))))
