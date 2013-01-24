@@ -517,8 +517,32 @@
            :fields (lock [{:name "Resource Key" :type "string"}
                           {:name "Value" :type "text"}])})
 
+(def status {:name "Status"
+             :description "all of the possible states a model can be in"
+             :position 12
+             :locked true
+             :fields (lock [{:name "Name" :type "string"}
+                            {:name "Slug" :type "slug" :link_slug "name"}
+                            {:name "Description" :type "text"}])})
+
+(defn create-default-status []
+  (db/insert :status {:id 1
+                      :name "Draft"
+                      :slug "draft"
+                      :description "Draft status is not publicly visible"
+                      :locked true
+                      :updated_at (model/current-timestamp)
+                     })
+  (db/insert :status {:id 2
+                      :name "Published"
+                      :slug "published"
+                      :description "Published means visible to the public"
+                      :locked true
+                      :updated_at (model/current-timestamp)
+                     }))
+
 (def incubating
-  [page account view locale asset site domain location i18n])
+  [page account view locale asset site domain location i18n status])
 
 (defn spawn-models []
   (model/invoke-models)
@@ -535,7 +559,9 @@
                     {:name "Pages"
                      :type "collection"
                      :target_id (-> @model/models :page :id)}]}
-          {:op :migration}))
+          {:op :migration})
+  (doseq [m (model/gather :model)] (model/add-status-to-model m)))
+  
 
 (defn migrate
   []
@@ -548,4 +574,5 @@
   (create-field-fields)
   (forge-link)
   (spawn-models)
+  (create-default-status)
   (build-links))
