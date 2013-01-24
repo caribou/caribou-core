@@ -1,13 +1,15 @@
 (ns caribou.migration
   (:require [clojure.set :as set]
             [clojure.java.jdbc :as sql]
+            [clojure.pprint :as pprint]
             [caribou.util :as util]
+            [caribou.config :as config]
             [caribou.db :as db]))
 
-(defn app-migration-namespace []
-  ;; htf do we know the name of the current project?
-  (let [project-name (last (clojure.string/split (System/getProperty "user.dir") (re-pattern util/file-separator)))]
-    (str project-name ".migrations")))
+; (defn app-migration-namespace []
+;   ;; htf do we know the name of the current project?
+;   (let [project-name (last (clojure.string/split (System/getProperty "user.dir") (re-pattern util/file-separator)))]
+;     (str project-name ".migrations")))
 
 (defn used-migrations
   []
@@ -32,13 +34,19 @@
     (db/insert :migration {:name migration})))
 
 (defn run-migrations
-  [db-config]
-  (println db-config)
-  (sql/with-connection db-config
-    (let [core-migrations (load-migration-order "caribou.migrations")
-          app-migrations  () ; (load-migration-order (app-migration-namespace))
-          all-migrations  (concat core-migrations app-migrations)
-          _ (println core-migrations (used-migrations))
-          unused-migrations (set/difference (set all-migrations) (set (used-migrations)))]
-      (doseq [m unused-migrations]
-        (run-migration m)))))
+  [prj config-file & migration]
+  (let [cfg (config/read-config config-file)
+        _   (config/configure cfg)
+        db-config (config/assoc-subname (cfg :database))
+        app-migration-namespace (:migration-namespace prj)]
+    (config/configure cfg)
+
+    (println db-config)
+    (sql/with-connection db-config
+      (let [core-migrations (load-migration-order "caribou.migrations")
+            app-migrations  (load-migration-order app-migration-namespace)
+            all-migrations  (concat core-migrations app-migrations)
+            _ (println all-migrations (used-migrations))
+            unused-migrations (set/difference (set all-migrations) (set (used-migrations)))]
+        (doseq [m unused-migrations]
+          (run-migration m))))))
