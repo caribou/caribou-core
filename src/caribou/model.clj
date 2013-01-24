@@ -1867,15 +1867,16 @@
          cache @queries]
      (if-let [cached (and (:enable-query-cache @config/app) (get @queries query-hash))]
        cached
-       (let [model ((keyword slug) @models)
-             beams (beam-splitter opts)
-             resurrected (mapcat (partial uberquery model) beams)
-             fused (fusion model (name slug) resurrected opts)
-             involved (model-models-involved model opts #{})]
-         (swap! queries #(assoc % query-hash fused))
-         (doseq [m involved]
-           (reverse-cache-add m query-hash))
-         fused)))))
+       (if-let [model ((keyword slug) @models)]
+         (let [beams (beam-splitter opts)
+               resurrected (mapcat (partial uberquery model) beams)
+               fused (fusion model (name slug) resurrected opts)
+               involved (model-models-involved model opts #{})]
+           (swap! queries #(assoc % query-hash fused))
+           (doseq [m involved]
+             (reverse-cache-add m query-hash))
+           fused)
+         (log/error (str "invalid model: " model) :gather))))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
