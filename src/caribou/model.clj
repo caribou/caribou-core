@@ -1876,7 +1876,7 @@
            (doseq [m involved]
              (reverse-cache-add m query-hash))
            fused)
-         (log/error (str "invalid model: " model) :gather))))))
+         (log/error (str "invalid model: " slug) :gather))))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
