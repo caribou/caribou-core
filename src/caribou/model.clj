@@ -67,6 +67,27 @@
   (swap! queries (fn [_] {}))
   (swap! reverse-cache (fn [_] {})))
 
+
+;; Query defaults - this could live elsewhere
+(defn expand-query-defaults
+  [query-defaults clause]
+  (if (not (empty? clause))
+    (into query-defaults (for [[k v] (filter #(-> % val map?) clause)] [k (expand-query-defaults query-defaults v)]))
+    query-defaults))
+
+(defn expanded-query-defaults
+  [query query-defaults]
+  (let [expanded-include (expand-query-defaults query-defaults (:include query))
+        expanded-where   (expand-query-defaults query-defaults (:where query))
+        merged-defaults  (deep-merge-with (fn [& maps] (first maps)) expanded-where expanded-include)
+        ] merged-defaults))
+
+(defn apply-query-defaults
+  [query query-defaults]
+  (if (not= query-defaults nil)
+    (deep-merge-with (fn [& maps] (first maps)) query {:where (expanded-query-defaults query query-defaults)})
+    query))
+
 ;; DATE AND TIME ---------------------------------------------------
 
 (defn current-timestamp
@@ -638,6 +659,7 @@
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
     (update-in content [(keyword (:slug row))] format-date)))
+
 
 ;; forward reference for Fields that need them
 (declare make-field)
@@ -1609,6 +1631,8 @@
   (render [this content opts]
     (link-render this content opts)))
 
+
+
 ;; UBERQUERY ---------------------------------------------
 
 (defn model-models-involved
@@ -1839,19 +1863,19 @@
          field with the slug of 'name', ordered by the model slug and offset by 3."
   ([slug] (gather slug {}))
   ([slug opts]
-     (let [query-hash (hash-query slug opts)
-           cache @queries]
-       (if-let [cached (and (:enable-query-cache @config/app) (get @queries query-hash))]
-         cached
-         (let [model ((keyword slug) @models)
-               beams (beam-splitter opts)
-               resurrected (mapcat (partial uberquery model) beams)
-               fused (fusion model (name slug) resurrected opts)
-               involved (model-models-involved model opts #{})]
-           (swap! queries #(assoc % query-hash fused))
-           (doseq [m involved]
-             (reverse-cache-add m query-hash))
-           fused)))))
+   (let [query-hash (hash-query slug opts)
+         cache @queries]
+     (if-let [cached (and (:enable-query-cache @config/app) (get @queries query-hash))]
+       cached
+       (let [model ((keyword slug) @models)
+             beams (beam-splitter opts)
+             resurrected (mapcat (partial uberquery model) beams)
+             fused (fusion model (name slug) resurrected opts)
+             involved (model-models-involved model opts #{})]
+         (swap! queries #(assoc % query-hash fused))
+         (doseq [m involved]
+           (reverse-cache-add m query-hash))
+         fused)))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
@@ -1965,7 +1989,6 @@
 (def base-fields
   [{:name "Id" :slug "id" :type "id" :locked true :immutable true :editable false}
    {:name "Position" :slug "position" :type "integer" :locked true}
-   {:name "Status" :slug "status" :type "integer" :locked true}
    {:name "Env Id" :slug "env_id" :type "integer" :locked true :editable false}
    {:name "Locked" :slug "locked" :type "boolean" :locked true :immutable true :editable false :default_value false}
    {:name "Created At" :slug "created_at" :type "timestamp" :default_value "current_timestamp" :locked true :immutable true :editable false}
@@ -2044,7 +2067,6 @@
    (keyword name)
    [:id "SERIAL" "PRIMARY KEY"]
    [:position :integer "DEFAULT 0"]
-   [:status :integer "DEFAULT 1"]
    [:env_id :integer "DEFAULT 1"]
    [:locked :boolean "DEFAULT false"]
    [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
@@ -2095,6 +2117,7 @@
 
 (defn add-base-fields
   [env]
+  (println "Adding base fields to model with id" (-> env :content :id))
   (doseq [field base-fields]
     (db/insert
      :field
@@ -2102,6 +2125,21 @@
       field
       {:model_id (-> env :content :id)
        :updated_at (current-timestamp)})))
+  env)
+
+(defn add-status-to-model [model]
+  (update :model (:id model) {:fields [{:name "Status"
+                                        :type "part"
+                                        :target_id (-> @models :status :id)
+                                        :reciprocal_name (:name model)}]})
+  (let [status-id-field (pick :field {:where {:name "Status Id" :model_id (:id model)}})]
+    (update :field (:id status-id-field) {:default_value 1})))
+
+(defn add-status-part
+  [env]
+  (let [model-id (-> env :content :id)
+        model-sans-status (pick :model {:where {:id model-id}})]
+    (add-status-to-model model-sans-status))
   env)
 
 (declare invoke-models)
@@ -2139,7 +2177,6 @@
     env))
   
   (add-hook :model :after_create :add_base_fields (fn [env] (add-base-fields env)))
-
     ;; (assoc-in env [:spec :fields] (concat (-> env :spec :fields) base-fields))))
 
   ;; (add-hook :model :before_save :write_migrations (fn [env]
@@ -2190,7 +2227,10 @@
        (fn [env]
          (rename-updated-locale env)))))
 
-  )
+
+  (if (:status @models)
+    (add-hook :model :after_create :add_status_part (fn [env] (add-status-part env)))))
+
   
 (defn process-default
   [field-type default]
