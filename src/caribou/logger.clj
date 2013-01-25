@@ -73,7 +73,8 @@
 
 (defn init
   [log-specs]
-  (let [log (map (fn [s] [(get levels (:level s) 7)
+  (let [log-specs (or log-specs [{:type :stdout :level :debug}])
+        log (map (fn [s] [(get levels (:level s) 7)
                           (make-logger s)])
                  log-specs)
         lev (apply max (map (fn [x] (get levels (:level x) 7)) log-specs))]
