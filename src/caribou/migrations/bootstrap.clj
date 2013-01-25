@@ -1,5 +1,5 @@
 (ns ^{:skip-wiki true}
-  caribou.migrations.premigrations
+  caribou.migrations.bootstrap
   (:require [caribou.db :as db]
             [caribou.util :as util]
             [caribou.model :as model]))
@@ -561,7 +561,17 @@
                      :target_id (-> @model/models :page :id)}]}
           {:op :migration})
   (doseq [m (model/gather :model)] (model/add-status-to-model m)))
-  
+
+(defn drop-tables
+  "Drops all the tables - useful during testing and/or building migrations"
+  []
+  (model/invoke-models)
+  (doseq [spawn incubating]
+    (db/drop-table (:name spawn)))
+  (db/drop-table :field)
+  (db/drop-table :model)
+  (db/drop-table :migration))
+
 
 (defn migrate
   []
@@ -572,11 +582,11 @@
   (create-model-fields)
   (create-field-model)
   (create-field-fields)
-  (forge-link))
-
-(defn build-models
-  []
+  (forge-link)
   (spawn-models)
   (create-default-status)
   (build-links))
 
+(defn rollback
+  []
+  (drop-tables))

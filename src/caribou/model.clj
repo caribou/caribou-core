@@ -1370,7 +1370,7 @@
   ([field a b opts]
      (let [{from-key :from to-key :to join-key :join} (link-keys field)
            target (models (-> field :row :target_id))
-           locale (if (:locale opts) (str (name (:locale opts)) "_") "")
+           locale (if (and (:localized target) (:locale opts)) (str (name (:locale opts)) "_") "")
            linkage (create (:slug target) b opts)
            params [join-key from-key (:id linkage) to-key (:id a) locale]
            preexisting (apply (partial query "select * from %1 where %6%2 = %3 and %6%4 = %5") params)]
@@ -1757,6 +1757,7 @@
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
   (let [query-mass (form-uberquery model opts)]
+    (println (:slug model) opts query-mass)
     (query query-mass)))
 
 (defn- subfusion
