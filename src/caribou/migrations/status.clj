@@ -3,7 +3,7 @@
             [caribou.util :as util]
             [caribou.config :as config]
             [caribou.model :as model]
-            [caribou.migrations.premigrations :as premigrations]))
+            [caribou.migrations.bootstrap :as bootstrap]))
 
 (defn drop-status [m]
   (if-let [status-field (model/pick :field {:where {:name "Status" :type "integer" :model_id (:id m)}})]
@@ -22,8 +22,6 @@
   (model/db
     (fn []
       (remove-status-field)
-      (model/create :model premigrations/status)
-      (premigrations/create-default-status)
+      (model/create :model bootstrap/status)
+      (bootstrap/create-default-status)
       (doseq [m (model/gather :model)] (model/add-status-to-model m)))))
-
-(update-db-for-status)
