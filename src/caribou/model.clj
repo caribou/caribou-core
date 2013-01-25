@@ -2357,16 +2357,21 @@
     env)))
 
 (defn add-app-model-hooks
-  "reads the hooks/ dir from resources and runs load-file for filenames that match
-  the application's model names"
+  "finds and loads every namespace under the hooks-ns that matches the
+  app's model names"
   []
-  ;; this needs logging when we get it hooked up
-  (doseq [model-slug @model-slugs]
-    (let [hooks-filename (str (@config/app :hooks-dir) "/" (name model-slug) ".clj")]
-      (try
-        (if-let [hooks-file (io/resource hooks-filename)]
-          (load-reader (io/reader hooks-file)))
-        (catch Exception e (.printStackTrace e))))))
+  (let [hooks-ns (@config/app :hooks-ns)
+        make-hook-ns (fn [slug] (symbol (str hooks-ns "." (name slug))))
+        sloppy-require (fn [ns]
+                         (try (require ns :verbose)
+                              (log/info (str "loading hook ns " ns)
+                                        :HOOKS)
+                              (catch java.io.FileNotFoundException e
+                                (log/debug (str "could find hooks for "
+                                                ns) :HOOKS))))]
+    (doseq [model-slug @model-slugs]
+      (-> model-slug make-hook-ns sloppy-require))))
+
 
 ;; MODELS --------------------------------------------------------------------
 
