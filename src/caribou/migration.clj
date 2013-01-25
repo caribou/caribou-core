@@ -25,7 +25,8 @@
         order-symbol    (ns-resolve order-namespace (symbol "order"))]
         (map #(str namespace "." %) @order-symbol)))
 
-(defn run-migration [migration]
+(defn run-migration
+  [migration]
   (println "Running migration " migration)
   (let [ns (symbol migration)
         _  (require :reload ns)
@@ -50,3 +51,33 @@
             unused-migrations (set/difference (set all-migrations) (set (used-migrations)))]
         (doseq [m unused-migrations]
           (run-migration m))))))
+
+;; starting to add rollbacks, this is a bit hazy right now
+(defn run-rollback
+  [rollback]
+  (println "Trying to run rollback " rollback)
+  (let [used-migrations (used-migrations)]
+    (if-not (= (last used-migrations) rollback)
+      (throw (Exception. "You can only roll back the last-applied migration"))
+      (do
+        (let [ns (symbol rollback)
+              _  (require :reload ns)
+              rollback-symbol (ns-resolve ns (symbol "rollback"))]
+        (rollback-symbol)
+        (when (db/table? "migration")
+          (db/delete :migration "name = '%1'" rollback)))))))
+
+
+(defn run-rollbacks
+  [prj config-file & rollback]
+  (let [cfg (config/read-config config-file)
+        _   (config/configure cfg)
+        db-config (config/assoc-subname (cfg :database))
+        app-migration-namespace (:migration-namespace prj)]
+    (config/configure cfg)
+
+    (println db-config)
+    (sql/with-connection db-config
+      (let [available-rollbacks (reverse (used-migrations))]
+        (doseq [r available-rollbacks]
+          (run-rollback r))))))
