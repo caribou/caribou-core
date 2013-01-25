@@ -18,19 +18,31 @@
     (catch Exception e
       (println (.getMessage e)))))
 
+(defn symbol-in-namespace
+  [sym n]
+  (let [ns (symbol n)
+        _  (require :reload ns)
+        resolved-symbol (ns-resolve ns (symbol sym))]
+    resolved-symbol))
+
+
 (defn load-migration-order
   [namespace]
-  (let [order-namespace (symbol (str namespace ".order"))
-        _               (require :reload order-namespace)
-        order-symbol    (ns-resolve order-namespace (symbol "order"))]
-        (map #(str namespace "." %) @order-symbol)))
+  (let [order-namespace (str namespace ".order")
+        order-symbol (symbol-in-namespace "order" order-namespace)]
+    (if-not (nil? order-symbol)
+      (map #(str namespace "." %) @order-symbol)
+      ())))
 
 (defn run-migration
   [migration]
   (println "Running migration " migration)
-  (let [ns (symbol migration)
-        _  (require :reload ns)
-        migrate-symbol (ns-resolve ns (symbol "migrate"))]
+  (let [migrate-symbol (symbol-in-namespace "migrate" migration)
+        rollback-symbol (symbol-in-namespace "rollback" migration)]
+    (when (nil? migrate-symbol)
+      (throw (Exception. (str migration " has no 'migrate' function"))))
+    (when (nil? rollback-symbol)
+      (println (str "WARNING: No rollback available for migration " migration)))
     (migrate-symbol)
     (db/insert :migration {:name migration})))
 
@@ -65,13 +77,13 @@
         (pprint/pprint used-migrations)
         false)
       (do
-        (let [ns (symbol rollback)
-              _  (require :reload ns)
-              rollback-symbol (ns-resolve ns (symbol "rollback"))]
-        (rollback-symbol)
-        (when (db/table? "migration")
-          (db/delete :migration "name = '%1'" rollback))
-        true)))))
+        (let [rollback-symbol (symbol-in-namespace "rollback" rollback)]
+          (when (nil? rollback-symbol)
+            (throw (Exception. (str rollback " has no 'rollback' function"))))
+          (rollback-symbol)
+          (when (db/table? "migration")
+            (db/delete :migration "name = '%1'" rollback))
+          true)))))
 
 
 (defn run-rollbacks
