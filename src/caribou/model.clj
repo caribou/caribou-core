@@ -2368,10 +2368,11 @@
                               (log/info (str "loading hook ns " ns)
                                         :HOOKS)
                               (catch java.io.FileNotFoundException e
-                                (log/debug (str "could find hooks for "
+                                (log/debug (str "could not find hooks for "
                                                 ns) :HOOKS))))]
-    (doseq [model-slug @model-slugs]
-      (-> model-slug make-hook-ns sloppy-require))))
+    (when hooks-ns
+      (doseq [model-slug @model-slugs]
+        (-> model-slug make-hook-ns sloppy-require)))))
 
 
 ;; MODELS --------------------------------------------------------------------
