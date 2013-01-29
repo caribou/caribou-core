@@ -50,7 +50,7 @@
 
 (defn run-migrations
   [prj config-file exit? & migrations]
-  (pprint/pprint migrations)
+  ;(pprint/pprint migrations)
 
   (let [cfg (config/read-config config-file)
         _   (config/configure cfg)
@@ -64,7 +64,7 @@
       (let [core-migrations (load-migration-order "caribou.migrations")
             app-migrations  (if app-migration-namespace
                               (load-migration-order app-migration-namespace)
-                              ((println "Warning: no application namespace found in project.clj") ()))
+                              ((println "Warning: no application namespace provided.") ()))
             all-migrations  (if (empty? (remove nil? migrations))
                               (concat core-migrations app-migrations)
                               migrations)
@@ -97,7 +97,7 @@
 
 (defn run-rollbacks
   [prj config-file exit? & rollbacks]
-  (pprint/pprint rollbacks)
+  ;(pprint/pprint rollbacks)
   (let [cfg (config/read-config config-file)
         _   (config/configure cfg)
         db-config (config/assoc-subname (munge-for-migrate (cfg :database)))
