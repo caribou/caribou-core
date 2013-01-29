@@ -2364,7 +2364,9 @@
   (let [hooks-ns (@config/app :hooks-ns)
         make-hook-ns (fn [slug] (symbol (str hooks-ns "." (name slug))))
         sloppy-require (fn [ns]
-                         (try (require ns :verbose)
+                         ;; this done for side effects, so we want to reload
+                         ;; whenever applicable
+                         (try (require ns :verbose :reload)
                               (log/info (str "loading hook ns " ns)
                                         :HOOKS)
                               (catch java.io.FileNotFoundException e
