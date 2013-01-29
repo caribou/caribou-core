@@ -547,6 +547,7 @@
 (defn spawn-models []
   (model/invoke-models)
   (doseq [spawn incubating]
+    (println spawn)
     (model/create :model spawn)))
 
 (defn build-links []

@@ -359,11 +359,12 @@
   
 (defn convert-int
   [whatever]
-  (if (= (type whatever) java.lang.String)
-    (try
-      (Integer. whatever)
-      (catch Exception e nil))
-    (.intValue whatever)))
+  (if whatever
+    (if (= (type whatever) java.lang.String)
+      (try
+        (Integer. whatever)
+        (catch Exception e nil))
+      (.intValue whatever))))
 
 (defn integer-update-values
   [field content values]
@@ -460,7 +461,7 @@
 
 (defrecord StringField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "varchar(256)"]])
+  (table-additions [this field] [[(keyword field) "varchar(255)"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
@@ -493,7 +494,7 @@
 
 (defrecord SlugField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "varchar(256)"]])
+  (table-additions [this field] [[(keyword field) "varchar(255)"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
@@ -1369,7 +1370,8 @@
      (link field a b {}))
   ([field a b opts]
      (let [{from-key :from to-key :to join-key :join} (link-keys field)
-           target (models (-> field :row :target_id))
+           target-id (-> field :row :target_id)
+           target (or (get models target-id) (first (query "select * from model where id = %1" target-id)))
            locale (if (and (:localized target) (:locale opts)) (str (name (:locale opts)) "_") "")
            linkage (create (:slug target) b opts)
            params [join-key from-key (:id linkage) to-key (:id a) locale]
@@ -2364,7 +2366,9 @@
   (let [hooks-ns (@config/app :hooks-ns)
         make-hook-ns (fn [slug] (symbol (str hooks-ns "." (name slug))))
         sloppy-require (fn [ns]
-                         (try (require ns :verbose)
+                         ;; this done for side effects, so we want to reload
+                         ;; whenever applicable
+                         (try (require ns :verbose :reload)
                               (log/info (str "loading hook ns " ns)
                                         :HOOKS)
                               (catch java.io.FileNotFoundException e
