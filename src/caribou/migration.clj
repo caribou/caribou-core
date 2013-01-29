@@ -2,6 +2,7 @@
   (:require [clojure.set :as set]
             [clojure.java.jdbc :as sql]
             [clojure.pprint :as pprint]
+            [leiningen.core.main :as lein]
             [caribou.util :as util]
             [caribou.config :as config]
             [caribou.db :as db]))
@@ -28,6 +29,12 @@
       (map #(str namespace "." %) @order-symbol)
       ())))
 
+(defn munge-for-migrate
+  [config]
+  (if (= (:subprotocol config) "h2")
+    (merge config {:db-path "/./"})
+    config))
+
 (defn run-migration
   [migration]
   (println " -> migration " migration " started.")
@@ -47,7 +54,7 @@
 
   (let [cfg (config/read-config config-file)
         _   (config/configure cfg)
-        db-config (config/assoc-subname (cfg :database))
+        db-config (config/assoc-subname (munge-for-migrate (cfg :database)))
         app-migration-namespace (:migration-namespace prj)]
     (config/configure cfg)
 
@@ -55,7 +62,9 @@
       (println "Already used these: ")
       (pprint/pprint (used-migrations))
       (let [core-migrations (load-migration-order "caribou.migrations")
-            app-migrations  (load-migration-order app-migration-namespace)
+            app-migrations  (if app-migration-namespace
+                              (load-migration-order app-migration-namespace)
+                              ((println "Warning: no application namespace found in project.clj") ()))
             all-migrations  (if (empty? (remove nil? migrations))
                               (concat core-migrations app-migrations)
                               migrations)
@@ -63,11 +72,10 @@
         (doseq [m unused-migrations]
           (run-migration m))
         (println " <- run-migrations ended.")))
-    (println " <- outside of sql/with-connection")
     ;; This is because the presence of an active h2 thread prevents
     ;; this function from returning to lein-caribou, which invoked
     ;; it using 'eval-in-project'
-    (if exit? (System/exit 0))))
+    (if exit? (lein/exit))))
 
 (defn run-rollback
   [rollback]
@@ -92,7 +100,7 @@
   (pprint/pprint rollbacks)
   (let [cfg (config/read-config config-file)
         _   (config/configure cfg)
-        db-config (config/assoc-subname (cfg :database))
+        db-config (config/assoc-subname (munge-for-migrate (cfg :database)))
         app-migration-namespace (:migration-namespace prj)]
     (config/configure cfg)
 
@@ -104,4 +112,4 @@
           (run-rollback r))
         (println " <- run-rollbacks ended.")))
     ;; see comment in run-migrations, above
-    (if exit? (System/exit 0))))
+    (if exit? (lein/exit))))
