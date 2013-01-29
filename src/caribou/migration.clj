@@ -2,14 +2,10 @@
   (:require [clojure.set :as set]
             [clojure.java.jdbc :as sql]
             [clojure.pprint :as pprint]
+            [leiningen.core.main :as lein]
             [caribou.util :as util]
             [caribou.config :as config]
             [caribou.db :as db]))
-
-; (defn app-migration-namespace []
-;   ;; htf do we know the name of the current project?
-;   (let [project-name (last (clojure.string/split (System/getProperty "user.dir") (re-pattern util/file-separator)))]
-;     (str project-name ".migrations")))
 
 (defn used-migrations
   []
@@ -25,7 +21,6 @@
         resolved-symbol (ns-resolve ns (symbol sym))]
     resolved-symbol))
 
-
 (defn load-migration-order
   [namespace]
   (let [order-namespace (str namespace ".order")
@@ -34,9 +29,15 @@
       (map #(str namespace "." %) @order-symbol)
       ())))
 
+(defn munge-for-migrate
+  [config]
+  (if (= (:subprotocol config) "h2")
+    (merge config {:db-path "/./"})
+    config))
+
 (defn run-migration
   [migration]
-  (println "Running migration " migration)
+  (println " -> migration " migration " started.")
   (let [migrate-symbol (symbol-in-namespace "migrate" migration)
         rollback-symbol (symbol-in-namespace "rollback" migration)]
     (when (nil? migrate-symbol)
@@ -44,29 +45,38 @@
     (when (nil? rollback-symbol)
       (println (str "WARNING: No rollback available for migration " migration)))
     (migrate-symbol)
-    (db/insert :migration {:name migration})))
+    (db/insert :migration {:name migration})
+    (println " <- migration " migration " ended.")))
 
 (defn run-migrations
-  [prj config-file & args]
-  (let [migrations (first args)
-        cfg (config/read-config config-file)
+  [prj config-file exit? & migrations]
+  ;(pprint/pprint migrations)
+
+  (let [cfg (config/read-config config-file)
         _   (config/configure cfg)
-        db-config (config/assoc-subname (cfg :database))
+        db-config (config/assoc-subname (munge-for-migrate (cfg :database)))
         app-migration-namespace (:migration-namespace prj)]
     (config/configure cfg)
 
     (sql/with-connection db-config
+      (println "Already used these: ")
+      (pprint/pprint (used-migrations))
       (let [core-migrations (load-migration-order "caribou.migrations")
-            app-migrations  (load-migration-order app-migration-namespace)
-            all-migrations  (if (empty? migrations)
+            app-migrations  (if app-migration-namespace
+                              (load-migration-order app-migration-namespace)
+                              ((println "Warning: no application namespace provided.") ()))
+            all-migrations  (if (empty? (remove nil? migrations))
                               (concat core-migrations app-migrations)
                               migrations)
             unused-migrations (set/difference (set all-migrations) (set (used-migrations)))]
         (doseq [m unused-migrations]
-          (run-migration m))))))
+          (run-migration m))
+        (println " <- run-migrations ended.")))
+    ;; This is because the presence of an active h2 thread prevents
+    ;; this function from returning to lein-caribou, which invoked
+    ;; it using 'eval-in-project'
+    (if exit? (lein/exit))))
 
-;; starting to add rollbacks, this is a bit hazy right now
-;; so don't rely on it...
 (defn run-rollback
   [rollback]
   (println "Trying to run rollback " rollback)
@@ -85,20 +95,21 @@
             (db/delete :migration "name = '%1'" rollback))
           true)))))
 
-
 (defn run-rollbacks
-  [prj config-file & args]
-  (let [rollbacks (first args)
-        cfg (config/read-config config-file)
+  [prj config-file exit? & rollbacks]
+  ;(pprint/pprint rollbacks)
+  (let [cfg (config/read-config config-file)
         _   (config/configure cfg)
-        db-config (config/assoc-subname (cfg :database))
+        db-config (config/assoc-subname (munge-for-migrate (cfg :database)))
         app-migration-namespace (:migration-namespace prj)]
     (config/configure cfg)
 
-    (println rollbacks)
     (sql/with-connection db-config
-      (let [available-rollbacks (if (empty? rollbacks)
+      (let [available-rollbacks (if (empty? (remove nil? rollbacks))
                                   (reverse (used-migrations))
                                   rollbacks)]
         (doseq [r available-rollbacks]
-          (run-rollback r))))))
+          (run-rollback r))
+        (println " <- run-rollbacks ended.")))
+    ;; see comment in run-migrations, above
+    (if exit? (lein/exit))))
