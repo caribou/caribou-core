@@ -2400,12 +2400,14 @@
         sloppy-require (fn [ns]
                          ;; this done for side effects, so we want to reload
                          ;; whenever applicable
-                         (try (require ns :verbose :reload)
-                              (log/info (str "loading hook ns " ns)
-                                        :HOOKS)
+                         (try (require ns :reload)
+                              ;; (log/info (str "loading hook ns " ns)
+                              ;;           :HOOKS)
                               (catch java.io.FileNotFoundException e
-                                (log/debug (str "did not find hooks for "
-                                                ns) :HOOKS))))]
+                                nil
+                                ;; (log/debug (str "did not find hooks for "
+                                ;;                 ns) :HOOKS)
+                                )))]
     (when hooks-ns
       (doseq [model-slug @model-slugs]
         (-> model-slug make-hook-ns sloppy-require)))))
@@ -2535,7 +2537,7 @@
   [slug id]
   (let [model (get @models (keyword slug))
         content (db/choose slug id)
-        env {:model model :content content :slug slug}
+        env {:model model :content content :slug slug :op :destroy}
         _before (run-hook slug :before_destroy env)
         pre (reduce #(pre-destroy %2 %1) (_before :content) (-> model :fields vals))
         deleted (db/delete slug "id = %1" id)
