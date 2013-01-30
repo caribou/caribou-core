@@ -53,16 +53,26 @@
       (sql/do-commands rename))
     (catch Exception e (render-exception e))))
 
+(defn h2-init
+  [adapter config]
+  ;; (let [connection (str "jdbc:h2:tcp://" (config :host) "/" (config :database))
+  ;;       server (Server/createTcpServer
+  ;;               (into-array [connection "-tcp" "-tcpAllowOthers"]))]
+  ;;   (println "init: " connection)
+  ;;   (.start server)
+  ;;   (dosync (ref-set h2-server server))))
+  (let [connection (str "jdbc:h2:tcp://" (config :host) "/" (config :database))
+        server (Server/createTcpServer
+                (into-array [connection "-tcpAllowOthers" "true"]))]
+    (println "init: " connection)
+    (.start server)
+    (dosync (ref-set h2-server server))))
+
 (defrecord H2Adapter [config]
   DatabaseAdapter
 
   (init [this]
-    (let [connection (str "jdbc:h2:tcp://" (config :host) "/" (config :database))
-          server (Server/createTcpServer
-                  (into-array [connection "-tcpAllowOthers" "true"]))]
-      (println "init: " connection)
-      (.start server)
-      (dosync (ref-set h2-server server))))
+    (h2-init this config))
 
   (table? [this table]
     (h2-table? table))
