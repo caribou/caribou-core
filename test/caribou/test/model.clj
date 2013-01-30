@@ -8,8 +8,9 @@
             [caribou.util :as util]
             [caribou.config :as config]))
 
-;; (def supported-dbs [:postgres])
-(def supported-dbs [:mysql])
+;; (def supported-dbs [:postgres :mysql])
+(def supported-dbs [:postgres])
+;; (def supported-dbs [:mysql])
 ;; (def supported-dbs [:postgres :mysql :h2])
 ;; (def supported-dbs [:h2])
 (def db-configs (doall (map #(config/read-config (io/resource (str "config/test-" (name %) ".clj"))) supported-dbs)))
@@ -251,11 +252,11 @@
           (is (= 11 (count voids)))
           (is (= 1 (count bases)))
           (is (= "DDDD" (-> bases first :thing))))
-        (catch Exception e (util/render-exception e))    ))))
-        ;; (finally
-        ;;  (if (db/table? :base) (destroy :model (-> @models :base :id)))
-        ;;  (if (db/table? :level) (destroy :model (-> @models :level :id)))
-        ;;  (if (db/table? :void) (destroy :model (-> @models :void :id))))))))
+        (catch Exception e (util/render-exception e))  ;;;  ))))
+        (finally
+         (if (db/table? :base) (destroy :model (-> @models :base :id)))
+         (if (db/table? :level) (destroy :model (-> @models :level :id)))
+         (if (db/table? :void) (destroy :model (-> @models :void :id))))))))
 
 
 (deftest localized-model-test
