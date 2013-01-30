@@ -359,11 +359,12 @@
   
 (defn convert-int
   [whatever]
-  (if (= (type whatever) java.lang.String)
-    (try
-      (Integer. whatever)
-      (catch Exception e nil))
-    (.intValue whatever)))
+  (if whatever
+    (if (= (type whatever) java.lang.String)
+      (try
+        (Integer. whatever)
+        (catch Exception e nil))
+      (.intValue whatever))))
 
 (defn integer-update-values
   [field content values]
@@ -460,7 +461,7 @@
 
 (defrecord StringField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "varchar(256)"]])
+  (table-additions [this field] [[(keyword field) "varchar(255)"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
@@ -493,7 +494,7 @@
 
 (defrecord SlugField [row env]
   Field
-  (table-additions [this field] [[(keyword field) "varchar(256)"]])
+  (table-additions [this field] [[(keyword field) "varchar(255)"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
@@ -906,9 +907,8 @@
               table-alias (str prefix "$" slug)
               field-select (coalesce-locale model id-field table-alias (name link-id-slug) opts)
               subconditions (model-where-conditions target table-alias down)
-              order (model-order-statement model opts)
-              params [prefix field-select (:slug target) table-alias subconditions order]]
-          (clause "%1.id in (select %2 from %3 %4 where %5%6)" params))))))
+              params [prefix field-select (:slug target) table-alias subconditions]]
+          (clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
 
 (defn- collection-render
   [field content opts]
@@ -1117,6 +1117,24 @@
         content))
     content))
 
+(defn- part-where
+  [field prefix opts]  
+  (let [slug (-> field :row :slug)]
+    (with-propagation :where opts slug
+      (fn [down]
+        (let [model (@models (-> field :row :model_id))
+              target (@models (-> field :row :target_id))
+              part (-> field :row :slug)
+              part-id-slug (keyword (str part "_id"))
+              part-id-field (-> model :fields part-id-slug)
+              part-select (coalesce-locale model part-id-field prefix (name part-id-slug) opts)
+              id-field (-> target :fields :id)
+              table-alias (str prefix "$" slug)
+              field-select (coalesce-locale model id-field table-alias "id" opts)
+              subconditions (model-where-conditions target table-alias down)
+              params [part-select field-select (:slug target) table-alias subconditions]]
+          (clause "%1 in (select %2 from %3 %4 where %5)" params))))))
+
 (defrecord PartField [row env]
   Field
 
@@ -1193,10 +1211,7 @@
 
   (build-where
     [this prefix opts]
-    (with-propagation :where opts (:slug row)
-      (fn [down]
-        (let [target (@models (:target_id row))]
-          (model-where-conditions target (str prefix "$" (:slug row)) down)))))
+    (part-where this prefix opts))
 
   (natural-orderings [this prefix opts]
     (let [target (@models (:target_id row))
@@ -1354,8 +1369,6 @@
         table-alias (str prefix "$" from-name)
         join-select (coalesce-locale join-model join-field join-alias (name to-key) opts)
         link-select (coalesce-locale join-model link-field join-alias (name from-key) opts)]
-        ;; join-select (select-locale join-model join-field join-alias (name to-key) opts)
-        ;; link-select (select-locale join-model link-field join-alias (name from-key) opts)]
     {:join-key (name join-key)
      :join-alias join-alias
      :join-select join-select
@@ -1369,7 +1382,8 @@
      (link field a b {}))
   ([field a b opts]
      (let [{from-key :from to-key :to join-key :join} (link-keys field)
-           target (models (-> field :row :target_id))
+           target-id (-> field :row :target_id)
+           target (or (get models target-id) (first (query "select * from model where id = %1" target-id)))
            locale (if (and (:localized target) (:locale opts)) (str (name (:locale opts)) "_") "")
            linkage (create (:slug target) b opts)
            params [join-key from-key (:id linkage) to-key (:id a) locale]
@@ -1437,17 +1451,16 @@
 (defn- link-where
   [field prefix opts]
   (let [slug (-> field :row :slug)
-        join-clause "%1.id in (select %2 from %3 %4 inner join %5 %8 on (%6 = %8.id) where %7%9)"]
+        join-clause "%1.id in (select %2 from %3 %4 inner join %5 %8 on (%6 = %8.id) where %7)"]
     (with-propagation :where opts slug
       (fn [down]
         (let [{:keys [join-key join-alias join-select table-alias link-select]}
               (link-join-keys field prefix opts)
               model (@models (-> field :row :model_id))
               target (@models (-> field :row :target_id))
-              order (model-order-statement model opts)
               subconditions (model-where-conditions target table-alias down)
               params [prefix join-select join-key join-alias
-                      (:slug target) link-select subconditions table-alias order]]
+                      (:slug target) link-select subconditions table-alias]] 
           (clause join-clause params))))))
 
 (defn- link-natural-orderings
@@ -1721,6 +1734,19 @@
     (if-not (empty? statement)
       (clause " order by %1" [statement]))))
 
+(defn immediate-vals
+  [m]
+  (into
+   {}
+   (filter
+    (fn [[k v]]
+      (not
+       (or (map? v)
+           (seq? v)
+           (vector? v)
+           (set? v))))
+    m)))
+
 (defn model-order-statement
   "Joins the natural orderings and the given orderings from the opts map and constructs
    the order clause to ultimately be used in the uberquery."
@@ -1729,6 +1755,12 @@
         order (model-build-order model (:slug model) ordering)]
     (finalize-order-statement order)))
 
+(defn model-outer-condition
+  [model inner order limit opts]
+  (let [subcondition (if (not (empty? inner)) (str " where " inner))]
+    (clause " where %1.id in (select * from (select %1.id from %1 %2%3%4) as _conditions_)"
+            [(:slug model) subcondition order limit])))
+
 (defn form-uberquery
   "Given the model and map of opts, construct the corresponding uberquery (but don't call it!)"
   [model opts]
@@ -1736,7 +1768,10 @@
         where (model-where-conditions model (:slug model) opts)
 
         order (model-order-statement model opts)
+        
         natural (model-natural-orderings model (:slug model) opts)
+        immediate-order (immediate-vals (:order opts))
+        base-order (model-order-statement model (if (empty? immediate-order) {} {:order immediate-order}))
 
         final-order
         (if (empty? order)
@@ -1747,10 +1782,8 @@
         (if-let [limit (:limit opts)]
           (model-limit-offset limit (or (:offset opts) 0)))
 
-        condition
-        (if (not (empty? where))
-          (str " where " where))]
-    (str query condition final-order limit-offset)))
+        condition (model-outer-condition model where base-order limit-offset opts)]
+    (str query condition final-order)))
 
 (defn uberquery
   "The query to bind all queries.  Returns every facet of every row given an
@@ -1784,7 +1817,7 @@
   [a b]
   (set/difference (-> a keys set) (-> b keys set)))
 
-(def split-keys [:include :order :where])
+(def split-keys [:include :order])
 
 (defn beam-splitter
   "Splits the given options (:include, :where, :order) out into parallel paths to avoid übercombinatoric explosion!
@@ -1883,7 +1916,8 @@
   "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
   ([slug] (pick slug {}))
   ([slug opts]
-     (first (gather slug opts)))) ;; (assoc opts :limit 1)))))
+     (first (gather slug (assoc opts :limit 1)))))
+     ;; (first (gather slug opts)))) ;; (assoc opts :limit 1)))))
 
 (defn impose
   "impose is identical to pick except that if the record with the given :where conditions is not found,
