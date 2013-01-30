@@ -248,7 +248,7 @@
 
 (defn wrap-db
   [handler db & [opts]]
-  (if (@config/app :use-database)
+  (if (:use-database @config/app)
     (fn [request]
       (sql/with-connection db (handler request)))
     (fn [request]
