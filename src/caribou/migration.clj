@@ -64,7 +64,7 @@
       (let [core-migrations (load-migration-order "caribou.migrations")
             app-migrations  (if app-migration-namespace
                               (load-migration-order app-migration-namespace)
-                              ((println "Warning: no application namespace provided.") ()))
+                              (println "Warning: no application namespace provided."))
             all-migrations  (if (empty? (remove nil? migrations))
                               (concat core-migrations app-migrations)
                               migrations)

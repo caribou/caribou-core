@@ -8,8 +8,11 @@
             [caribou.util :as util]
             [caribou.config :as config]))
 
+;; (def supported-dbs [:postgres :mysql])
+(def supported-dbs [:postgres])
+;; (def supported-dbs [:mysql])
 ;; (def supported-dbs [:postgres :mysql :h2])
-(def supported-dbs [:h2])
+;; (def supported-dbs [:h2])
 (def db-configs (doall (map #(config/read-config (io/resource (str "config/test-" (name %) ".clj"))) supported-dbs)))
 
 (defn test-init
@@ -103,7 +106,7 @@
               (is (= (zappo :okokok) "OOOOOO mmmmm   ZZZZZZZZZZ"))
               (is (= (purple :green_id) (zappo :id))))
 
-            (destroy :zap (zap-reload :id))
+            (destroy :zap (:id zap-reload))
             (let [purples (util/query "select * from purple")]
               (is (empty? purples))))
 
@@ -197,6 +200,64 @@
         (finally
           (if (db/table? :chartreuse) (destroy :model (-> @models :chartreuse :id)))
           (if (db/table? :fuchsia) (destroy :model (-> @models :fuchsia :id))))))))
+
+(deftest parallel-include-test
+  (doseq [config db-configs]
+    (config/configure config)
+    (sql/with-connection @config/db
+      (test-init)
+      (try
+        (let [base-row (create
+                        :model
+                        {:name "Base"
+                         :fields [{:name "Thing" :type "string"}]})
+              level-row (create
+                         :model
+                         {:name "Level"
+                          :fields [{:name "Strata" :type "integer"}
+                                   {:name "Base" :type "part" :target_id (:id base-row)
+                                    :dependent true :reciprocal_name "Levels"}]})
+              void-row (create
+                        :model
+                        {:name "Void"
+                         :fields [{:name "Tether" :type "string"}
+                                  {:name "Base" :type "part" :target_id (:id base-row)
+                                   :dependent true :reciprocal_name "Void"}]})
+
+              base-a (create :base {:thing "AAAA" :position 1
+                                    :levels [{:strata 5} {:strata 8} {:strata -3}]
+                                    :void [{:tether "ooo"} {:tether "vvv"} {:tether "xxx"}]})
+              base-b (create :base {:thing "BBBB" :position 2
+                                    :levels [{:strata 12} {:strata 88} {:strata 33}]
+                                    :void [{:tether "xxx"} {:tether "lll"}]})
+              base-c (create :base {:thing "CCCC" :position 3
+                                    :levels [{:strata 5} {:strata -8} {:strata -3}]
+                                    :void [{:tether "mmm"} {:tether "ddd"}]})
+              base-d (create :base {:thing "DDDD" :position 4
+                                    :levels [{:strata 5} {:strata -11} {:strata -33}]
+                                    :void [{:tether "xxx"}]})
+              base-e (create :base {:thing "EEEE" :position 5
+                                    :levels [{:strata 5} {:strata -8} {:strata -3}]
+                                    :void [{:tether "lll"} {:tether "xxx"} {:tether "www"}]})
+
+              voids (gather :void)
+
+              bases (gather
+                     :base
+                     {:include {:levels {} :void {}}
+                      :where {:levels {:strata 5} :void {:tether "xxx"}}
+                      :limit 1 :offset 1
+                      :order {:position :asc}})
+              ]
+          (is (= 11 (count voids)))
+          (is (= 1 (count bases)))
+          (is (= "DDDD" (-> bases first :thing))))
+        (catch Exception e (util/render-exception e))  ;;;  ))))
+        (finally
+         (if (db/table? :base) (destroy :model (-> @models :base :id)))
+         (if (db/table? :level) (destroy :model (-> @models :level :id)))
+         (if (db/table? :void) (destroy :model (-> @models :void :id))))))))
+
 
 (deftest localized-model-test
   (doseq [config db-configs]

@@ -184,7 +184,8 @@
                  :default "alter table %1 add foreign key(%2) references %3 on delete set default"
                  "alter table %1 add foreign key(%2) references %3 on delete set null")
                [(zap table) (zap column) (zap reference)])))
-    (catch Exception e (render-exception e))))
+    (catch Exception e (println "UNABLE TO ADD REFERENCE FOR" table column reference deletion))))
+;; (render-exception e))))
 
 (defn rename-column
   "rename a column in the given table to new-name."
