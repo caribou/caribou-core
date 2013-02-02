@@ -1842,10 +1842,29 @@
 
 (defn beam-validator
   [slug opts]
-  "Verify the given options make sense for the model given by slug, ie: all fields correspond to fields the
-   model actually has, and the options map itself is well-formed."
-  ;; hilariously unimplemented!
-  )
+  "Verify the given options make sense for the model given by slug, ie:
+   all fields correspond to fields the model actually has, and the
+   options map itself is well-formed."
+  ;; (println "slug in beam-validator" slug "\nopts in beam-validator" opts)
+  ;; validate where clauses and include clauses
+  (let [model (@models slug)
+        where-conditions (-> opts :where)
+        include-conditions (-> opts :include)
+        sorted-conditions (group-by (fn [[k v]] (not (map? v)))
+                                    where-conditions)]
+    (doseq [where where-conditions]
+      ;; todo? check type of field and value described?
+      (when-not (-> where first ((:fields model)))
+        (throw (new Exception (str "no such field " (first where) " in model "
+                                   slug)))))
+    (doseq [include include-conditions]
+      (when-not (-> include first ((:fields model)))
+        (throw (new Exception (str "no such nested model " (first include)
+                                   " in model " slug))))
+      (beam-validator (-> model :fields ((first include)) :row :slug keyword)
+                      {:include (second include)
+                       :where ((first include) where-conditions)}))
+  true))
 
 (defn model-generator
   "Constructs a map of field generator functions for the given model and its fields."
@@ -1902,7 +1921,10 @@
      (if-let [cached (and (:enable-query-cache @config/app) (get @queries query-hash))]
        cached
        (let [model ((keyword slug) @models)]
-         (when-not model (throw (new Exception "invalid caribou model:" slug)))
+         (when-not model
+           (throw (new Exception (str "invalid caribou model:" slug))))
+         ;; beam-validator throws an exception if opts are bad
+         (beam-validator slug opts)
          (let [beams (beam-splitter opts)
                resurrected (mapcat (partial uberquery model) beams)
                fused (fusion model (name slug) resurrected opts)
