@@ -1931,7 +1931,9 @@
          (when-not model
            (throw (new Exception (str "invalid caribou model:" slug))))
          ;; beam-validator throws an exception if opts are bad
-         (beam-validator slug opts)
+         ;; no need to run the validation in production?
+         (when (= (config/environment) :development)
+           (beam-validator slug opts))
          (let [beams (beam-splitter opts)
                resurrected (mapcat (partial uberquery model) beams)
                fused (fusion model (name slug) resurrected opts)
