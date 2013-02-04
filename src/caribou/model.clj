@@ -1845,7 +1845,7 @@
   "Verify the given options make sense for the model given by slug, ie:
    all fields correspond to fields the model actually has, and the
    options map itself is well-formed."
-  ;; (println "slug in beam-validator" slug "\nopts in beam-validator" opts)
+  (println "slug in beam-validator" slug "\nopts in beam-validator" opts)
   ;; validate where clauses and include clauses
   (let [model (@models slug)
         where-conditions (-> opts :where)
@@ -1861,9 +1861,16 @@
       (when-not (-> include first ((:fields model)))
         (throw (new Exception (str "no such nested model " (first include)
                                    " in model " slug))))
-      (beam-validator (-> model :fields ((first include)) :row :slug keyword)
-                      {:include (second include)
-                       :where ((first include) where-conditions)}))
+      (let [included (first include)
+            new-slug (-> model :fields included :row :slug keyword (@models)
+                         :slug keyword)
+            new-include (second include)
+            new-where (included where-conditions)
+            new-opts (:include new-include)
+            new-opts (if new-where
+                       (assoc new-opts :where new-where)
+                       new-opts)]
+        (beam-validator new-slug new-opts)))
   true))
 
 (defn model-generator
