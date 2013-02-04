@@ -1845,7 +1845,7 @@
   "Verify the given options make sense for the model given by slug, ie:
    all fields correspond to fields the model actually has, and the
    options map itself is well-formed."
-  (println "slug in beam-validator" slug "\nopts in beam-validator" opts)
+  ;; (println "slug in beam-validator" slug "\nopts in beam-validator" opts)
   ;; validate where clauses and include clauses
   (let [model (@models slug)
         where-conditions (-> opts :where)
