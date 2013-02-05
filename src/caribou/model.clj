@@ -1982,6 +1982,12 @@
            opts (assoc-in opts [:order order] :asc)]
        (pick slug opts))))
 
+(defn total
+  ([slug] (total slug {}))
+  ([slug opts]
+     ;; probably a better way to do this (involving select fields etc...)
+     (count (gather slug opts))))
+
 (defn translate-directive
   "Used to decompose strings into the nested maps required by the uberquery."
   [directive find-path]
