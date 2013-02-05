@@ -272,19 +272,27 @@
 (def models (ref {}))
 (def model-slugs (ref {}))
 
+(defn- where-operator
+  [where]
+  (if (map? where)
+    [(-> where keys first name) (-> where vals first)]
+    ["=" where]))
+
 (defn- pure-where
   [field prefix slug opts where]
   (let [model-id (-> field :row :model_id)
         model (@models model-id)
+        [operator value] (where-operator where)
         field-select (coalesce-locale model field prefix slug opts)]
-    (clause "%1 = %2" [field-select where])))
+    (clause "%1 %2 %3" [field-select operator value])))
 
 (defn- string-where
   [field prefix slug opts where]
   (let [model-id (-> field :row :model_id)
         model (@models model-id)
+        [operator value] (where-operator where)
         field-select (coalesce-locale model field prefix slug opts)]
-    (clause "%1 = '%2'" [field-select where])))
+    (clause "%1 %2 '%3'" [field-select operator value])))
 
 (defn- field-where
   [field prefix opts do-where]
@@ -1790,7 +1798,7 @@
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
   (let [query-mass (form-uberquery model opts)]
-    ;; (println (:slug model) opts query-mass)
+    (println (:slug model) opts query-mass)
     (query query-mass)))
 
 (defn- subfusion
@@ -1948,7 +1956,6 @@
   ([slug] (pick slug {}))
   ([slug opts]
      (first (gather slug (assoc opts :limit 1)))))
-     ;; (first (gather slug opts)))) ;; (assoc opts :limit 1)))))
 
 (defn impose
   "impose is identical to pick except that if the record with the given :where conditions is not found,
@@ -1957,6 +1964,22 @@
   (or
    (pick slug opts)
    (create slug (:where opts))))
+
+(defn previous
+  ([slug item order] (previous slug item order {}))
+  ([slug item order opts]
+     (let [order (keyword order)
+           opts (assoc-in opts [:where order :<] (get item order))
+           opts (assoc-in opts [:order order] :desc)]
+       (pick slug opts))))
+
+(defn following
+  ([slug item order] (following slug item order {}))
+  ([slug item order opts]
+     (let [order (keyword order)
+           opts (assoc-in opts [:where order :>] (get item order))
+           opts (assoc-in opts [:order order] :asc)]
+       (pick slug opts))))
 
 (defn translate-directive
   "Used to decompose strings into the nested maps required by the uberquery."
