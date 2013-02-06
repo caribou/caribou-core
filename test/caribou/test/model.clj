@@ -8,11 +8,11 @@
             [caribou.util :as util]
             [caribou.config :as config]))
 
-;; (def supported-dbs [:postgres :mysql])
-(def supported-dbs [:postgres])
+(def supported-dbs [:postgres :mysql])
+;; (def supported-dbs [:postgres])
 ;; (def supported-dbs [:mysql])
 ;; (def supported-dbs [:postgres :mysql :h2])
-;;(def supported-dbs [:h2])
+;; (def supported-dbs [:h2])
 (def db-configs (doall (map #(config/read-config (io/resource (str "config/test-" (name %) ".clj"))) supported-dbs)))
 
 (defn test-init
