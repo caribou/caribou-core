@@ -14,7 +14,8 @@
             [caribou.config :as config]
             [caribou.asset :as asset]
             [caribou.db.adapter.protocol :as adapter]
-            [caribou.logger :as log]))
+            [caribou.logger :as log]
+            [caribou.auth :as auth]))
 
 (import java.util.Date)
 (import java.text.SimpleDateFormat)
