@@ -788,7 +788,7 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (model-select-fields (:asset @models) (str prefix "$" (:slug row)) opts))
+    (model-select-fields (:asset @models) (str prefix "$" (:slug row)) (dissoc opts :include)))
 
   (join-conditions [this prefix opts]
     (let [model (@models (:model_id row))
@@ -1836,7 +1836,7 @@
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
   (let [query-mass (form-uberquery model opts)]
-    (println (:slug model) opts query-mass)
+    ;; (println (:slug model) opts query-mass)
     (query query-mass)))
 
 (defn- subfusion
@@ -1969,26 +1969,28 @@
          field with the slug of 'name', ordered by the model slug and offset by 3."
   ([slug] (gather slug {}))
   ([slug opts]
-   (let [query-hash (hash-query slug opts)
-         cache @queries]
-     (if-let [cached (and (:enable-query-cache @config/app) (get @queries query-hash))]
-       cached
-       (let [model ((keyword slug) @models)]
-         (when-not model
-           (throw (new Exception (str "invalid caribou model:" slug))))
-         ;; beam-validator throws an exception if opts are bad
-         ;; no need to run the validation in production?
-         ;; ---- CURRENTLY NOT PASSING TESTS --------------
-         ;; (when (= (config/environment) :development)
-         ;;   (beam-validator slug opts))
-         (let [beams (beam-splitter opts)
-               resurrected (mapcat (partial uberquery model) beams)
-               fused (fusion model (name slug) resurrected opts)
-               involved (model-models-involved model opts #{})]
-           (swap! queries #(assoc % query-hash fused))
-           (doseq [m involved]
-             (reverse-cache-add m query-hash))
-           fused))))))
+    ; I am not comfortable putting this here:
+    (let [opts-with-defaults (apply-query-defaults opts (:query-defaults @config/app))]
+      (let [query-hash (hash-query slug opts-with-defaults)
+            cache @queries]
+      (if-let [cached (and (:enable-query-cache @config/app) (get @queries query-hash))]
+        cached
+        (let [model ((keyword slug) @models)]
+          (when-not model
+            (throw (new Exception (str "invalid caribou model:" slug))))
+            ;; beam-validator throws an exception if opts are bad
+            ;; no need to run the validation in production?
+            ;; ---- CURRENTLY NOT PASSING TESTS --------------
+            ;; (when (= (config/environment) :development)
+            ;;   (beam-validator slug opts))
+          (let [beams (beam-splitter opts-with-defaults)
+                resurrected (mapcat (partial uberquery model) beams)
+                fused (fusion model (name slug) resurrected opts-with-defaults)
+                involved (model-models-involved model opts-with-defaults #{})]
+            (swap! queries #(assoc % query-hash fused))
+            (doseq [m involved]
+              (reverse-cache-add m query-hash))
+            fused)))))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
@@ -2019,6 +2021,12 @@
            opts (assoc-in opts [:where order :>] (get item order))
            opts (assoc-in opts [:order order] :asc)]
        (pick slug opts))))
+
+(defn total
+  ([slug] (total slug {}))
+  ([slug opts]
+     ;; probably a better way to do this (involving select fields etc...)
+     (count (gather slug opts))))
 
 (defn translate-directive
   "Used to decompose strings into the nested maps required by the uberquery."
