@@ -16,9 +16,9 @@
 
 (defn symbol-in-namespace
   [sym n]
-  (let [ns (symbol n)
-        _  (require :reload ns)
-        resolved-symbol (ns-resolve ns (symbol sym))]
+  (let [namesp (symbol n)
+        _  (require :reload namesp)
+        resolved-symbol (ns-resolve namesp (symbol sym))]
     resolved-symbol))
 
 (defn load-migration-order
