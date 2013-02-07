@@ -11,3 +11,4 @@
   "check a raw password against a hash from the password field"
   [pass hash]
   (. BCrypt checkpw pass hash))
+

@@ -14,7 +14,6 @@
                  [com.novemberain/pantomime "1.4.0"]
                  [leiningen-core "2.0.0-preview3"]
                  [clj-aws-s3 "0.3.2"]
-                 ;; [clj-logging-config "1.9.8"]
                  [org.mindrot/jbcrypt "0.3m"]]
   :dev-dependencies [[lein-autodoc "0.9.0"]]
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]

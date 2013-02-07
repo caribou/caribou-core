@@ -578,6 +578,43 @@
      content [(keyword (:slug row))]
      #(adapter/text-value @config/db-adapter %))))
 
+(defrecord PasswordField [row env]
+  Field
+  (table-additions [this field] [[(keyword field) :password]])
+  (subfield-names [this field] [])
+  (setup-field [this spec] nil)
+  (rename-field [this old-slug new-slug])
+  (cleanup-field [this] nil)
+  (target-for [this] nil)
+  (update-values [this content values]
+    (let [key (keyword (:slug row))]
+      (if (contains? content key)
+        (assoc values key (auth/hash-pw (content key)))
+        values)))
+  (post-update [this content opts] content)
+  (pre-destroy [this content] content)
+  (join-fields [this prefix opts] [])
+  (join-conditions [this prefix opts] [])
+  (build-where
+    [this prefix opts]
+    (field-where this prefix opts string-where))
+  (natural-orderings [this prefix opts])
+  (build-order [this prefix opts]
+    (pure-order this prefix opts))
+  (field-generator [this generators]
+    (assoc generators (keyword (:slug row))
+           (fn [] (rand-str (+ 141 (rand-int 5555))))))
+  (fuse-field [this prefix archetype skein opts]
+    (pure-fusion this prefix archetype skein opts))
+  (localized? [this] true)
+  (models-involved [this opts all] all)
+  (field-from [this content opts]
+    (adapter/text-value @config/db-adapter (content (keyword (:slug row)))))
+  (render [this content opts]
+    (update-in
+     content [(keyword (:slug row))]
+     #(adapter/text-value @config/db-adapter %))))
+
 (defrecord BooleanField [row env]
   Field
   (table-additions [this field] [[(keyword field) :boolean]])
@@ -2062,6 +2099,7 @@
            (let [link (db/choose :field (row :link_id))]
              (SlugField. row {:link link})))
    :text (fn [row] (TextField. row {}))
+   :password (fn [row] (PasswordField. row {}))
    :boolean (fn [row] (BooleanField. row {}))
    :timestamp (fn [row] (TimestampField. row {}))
    :asset (fn [row] (AssetField. row {}))
