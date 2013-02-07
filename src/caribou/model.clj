@@ -1798,7 +1798,7 @@
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
   (let [query-mass (form-uberquery model opts)]
-    (println (:slug model) opts query-mass)
+    ;; (println (:slug model) opts query-mass)
     (query query-mass)))
 
 (defn- subfusion
