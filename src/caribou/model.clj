@@ -580,7 +580,7 @@
 
 (defrecord PasswordField [row env]
   Field
-  (table-additions [this field] [[(keyword field) :password]])
+  (table-additions [this field] [[(keyword field) :text]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
