@@ -1,16 +1,10 @@
 (ns caribou.logger
-  (:require
-   ;; [clojure.tools.logging :as logging]
-   ;; [clj-logging-config.log4j :as logconf]
-   [clojure.string :as string]
-   [clojure.java.io :as io])
+  (:require [clojure.string :as string]
+            [clojure.java.io :as io])
   (:import java.util.Date
            java.net.DatagramSocket
            java.net.DatagramPacket
-           java.net.InetAddress
-           ;; org.apache.log4j.PatternLayout
-           ;; org.apache.log4j.net.SyslogAppender
-           ))
+           java.net.InetAddress))
 
 (def socket (new DatagramSocket))
 
