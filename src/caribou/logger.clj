@@ -85,7 +85,8 @@
         (map (fn [lv#]
                (when (>= (nth lv# 0) (get levels ~at-level 7))
                  ((nth lv# 1) ~at-level ms#)))
-             (deref loggers))))))
+             (deref loggers))))
+     nil))
 
 (defmacro debug
   [message & prefix]
