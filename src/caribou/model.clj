@@ -2135,7 +2135,11 @@
 (defn make-field
   "turn a row from the field table into a full fledged Field record"
   [row]
-  ((field-constructors (keyword (row :type))) row))
+  (let [type (keyword (row :type))
+        constructor (field-constructors type)]
+    (when-not constructor
+      (throw (new Exception (str "no such field type: " type))))
+    (constructor row)))
 
 (defn model-render
   "render a piece of content according to the fields contained in the model
