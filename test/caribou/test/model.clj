@@ -252,10 +252,19 @@
                 :where {:levels {:strata 5} :void {:tether "xxx"}}
                 :limit 1 :offset 1
                 :order {:position :asc}})]
+
     (testing "Parallel model includes."
       (is (= 11 (count voids)))
       (is (= 1 (count bases)))
-      (is (= "DDDD" (-> bases first :thing))))))
+      (is (= "DDDD" (-> bases first :thing))))
+
+    (testing "Validation of includes and fields with nesting."
+      (is (thrown-with-msg? Exception #"no such nested model"
+            (gather :base {:include {:levels {:invalid {}}}})))
+      (is (thrown-with-msg? Exception #"no such field"
+            (gather :base {:include {:levels {} :void {}}
+                           :where {:levels {:strata 5
+                                            :invalid_field nil}}}))))))
 
 (deftest localized-model-test
   (let [place (create :locale {:language "Ibeo" :region "Glass" :code "ib_or"})
@@ -403,7 +412,6 @@
       (doseq [branch tree]
         (println (doall (str tree))))
       (is (= 1 (count tree))))))
-
 
 ;; (deftest migration-test
 ;;   (sql/with-connection @config/db
