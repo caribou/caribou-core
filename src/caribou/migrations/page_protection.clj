@@ -1,8 +1,11 @@
 (ns caribou.migrations.page-protection
-  (:require [caribou.model :as model]))
+  (:require [caribou.config :as config]
+            [caribou.model :as model]))
 
 (defn migrate
   []
+  (config/init)
+  (model/init)
   (model/update
    :model
    (-> @model/models :page :id)
