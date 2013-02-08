@@ -1888,33 +1888,32 @@
   "Verify the given options make sense for the model given by slug, ie:
    all fields correspond to fields the model actually has, and the
    options map itself is well-formed."
-  ;; (println "slug in beam-validator" slug "\nopts in beam-validator" opts)
-  ;; validate where clauses and include clauses
   (let [model (@models slug)
         where-conditions (-> opts :where)
         include-conditions (-> opts :include)
         sorted-conditions (group-by (fn [[k v]] (not (map? v)))
                                     where-conditions)]
     (doseq [where where-conditions]
-      ;; todo? check type of field and value described?
       (when-not (-> where first ((:fields model)))
         (throw (new Exception (str "no such field " (first where) " in model "
                                    slug)))))
     (doseq [include include-conditions]
-      (when-not (-> include first ((:fields model)))
-        (throw (new Exception (str "no such nested model " (first include)
-                                   " in model " slug))))
+      (let [included-field (-> include first ((:fields model)))]
+        ;; (println "included field:" included-field)
+        (when-not included-field
+          (throw (new Exception (str "no such nested model " (first include)
+                                     " in model " slug)))))
       (let [included (first include)
-            new-slug (-> model :fields included :row :slug keyword (@models)
+            new-slug (-> model :fields included :row :target_id (@models)
                          :slug keyword)
             new-include (second include)
             new-where (included where-conditions)
-            new-opts (:include new-include)
+            new-opts {:include new-include}
             new-opts (if new-where
                        (assoc new-opts :where new-where)
                        new-opts)]
         (beam-validator new-slug new-opts)))
-  true))
+    true))
 
 (defn model-generator
   "Constructs a map of field generator functions for the given model and its fields."
@@ -1975,11 +1974,9 @@
         (let [model ((keyword slug) @models)]
           (when-not model
             (throw (new Exception (str "invalid caribou model:" slug))))
-            ;; beam-validator throws an exception if opts are bad
-            ;; no need to run the validation in production?
-            ;; ---- CURRENTLY NOT PASSING TESTS --------------
-            ;; (when (= (config/environment) :development)
-            ;;   (beam-validator slug opts))
+          ;; beam-validator throws an exception if opts are bad
+          (when (and (seq opts) (not (= (config/environment) :production)))
+            (beam-validator slug opts))
           (let [beams (beam-splitter opts-with-defaults)
                 resurrected (mapcat (partial uberquery model) beams)
                 fused (fusion model (name slug) resurrected opts-with-defaults)
