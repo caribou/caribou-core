@@ -8,8 +8,8 @@
             [caribou.util :as util]
             [caribou.config :as config]))
 
-(def supported-dbs [:postgres :mysql])
-;; (def supported-dbs [:postgres])
+;; (def supported-dbs [:postgres :mysql])
+(def supported-dbs [:postgres])
 ;; (def supported-dbs [:mysql])
 ;; (def supported-dbs [:postgres :mysql :h2])
 ;; (def supported-dbs [:h2])
@@ -31,7 +31,7 @@
       (test-init)
       (f)
       (doseq [slug [:yellow :purple :zap :chartreuse :fuchsia :base :level
-                    :void :white]]
+                    :void :white :agent]]
         (when (db/table? slug) (destroy :model (-> @models slug :id)))
         (when (db/table? :everywhere)
           (do
@@ -258,7 +258,12 @@
       (is (= 1 (count bases)))
       (is (= "DDDD" (-> bases first :thing))))
 
-    (testing "Validation of includes and fields with nesting."
+    (testing "Proper usage of string coercion in beam-validator."
+      (is (seq (gather "base" {:include {:levels {}}}))))
+    (testing "Detection of invalid models in beam-validator."
+      (is (thrown-with-msg? Exception #"no such model"
+            (beam-validator :cheese {:include {:rennet {}}}))))
+    (testing "Validation of includes and fields with nesting in beam-validator."
       (is (thrown-with-msg? Exception #"no such nested model"
             (gather :base {:include {:levels {:invalid {}}}})))
       (is (thrown-with-msg? Exception #"no such field"
@@ -394,6 +399,7 @@
                  :locale "xo_ub"})))))
 
 (deftest nested-model-test
+  ;; this is also implicitly verifying :tie fields
   (let [white (create :model {:name "White" :nested true
                               :fields [{:name "Grey" :type "string"}]})
         aaa (create :white {:grey "obobob"})
@@ -416,3 +422,18 @@
 ;; (deftest migration-test
 ;;   (sql/with-connection @config/db
 ;;     (init)))
+
+(deftest numeric-fields-test
+  (let [spy (create :model {:name "Agent"
+                            :fields [;; {:name "aux_id" :type :id}
+                                     ;; {:name "nchildren" :type :integer}
+                                     ;; {:name "height" :type :decimal}
+                                     ;; {:name "name" :type :string}
+                                     ;; {:name "auth" :type :password}
+                                     ;; {:name "slug" :type :slug}
+                                     ;; {:name "bio" :type :text}
+                                     ;; {:name "adequate" :type :boolean}
+                                     ;; {:name "born_at" :type :timestamp}
+                                     ;; {:name "passport_photo" :type :asset}
+                                     ;; {:name "residence" :type :address}
+                                     ]})]))
