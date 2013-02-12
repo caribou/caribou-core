@@ -5,11 +5,12 @@
   (:require [clojure.java.jdbc :as sql]
             [clojure.java.io :as io]
             [caribou.db :as db]
+            [caribou.auth :as auth]
             [caribou.util :as util]
             [caribou.config :as config]))
 
-;; (def supported-dbs [:postgres :mysql])
-(def supported-dbs [:postgres])
+(def supported-dbs [:postgres :mysql])
+;; (def supported-dbs [:postgres])
 ;; (def supported-dbs [:mysql])
 ;; (def supported-dbs [:postgres :mysql :h2])
 ;; (def supported-dbs [:h2])
@@ -26,6 +27,7 @@
 (defn db-fixture
   [f]
   (doseq [config db-configs]
+    (println "TESTING" config)
     (config/configure config)
     (sql/with-connection @config/db
       (test-init)
@@ -37,7 +39,10 @@
           (do
             (db/do-sql "delete from locale")
             (destroy :model (-> @models :nowhere :id))
-            (destroy :model (-> @models :everywhere :id))))))))
+            (destroy :model (-> @models :everywhere :id))))
+        (when-let [passport (pick :asset {:where
+                                          {:filename "passport.picture"}})]
+          (destroy :asset (:id passport)))))))
 
 (use-fixtures :each db-fixture)
 
@@ -262,6 +267,7 @@
       (is (seq (gather "base" {:include {:levels {}}}))))
     (testing "Detection of invalid models in beam-validator."
       (is (thrown-with-msg? Exception #"no such model"
+            ;; with gather this error is caught higher up currently
             (beam-validator :cheese {:include {:rennet {}}}))))
     (testing "Validation of includes and fields with nesting in beam-validator."
       (is (thrown-with-msg? Exception #"no such nested model"
@@ -423,17 +429,68 @@
 ;;   (sql/with-connection @config/db
 ;;     (init)))
 
-(deftest numeric-fields-test
-  (let [spy (create :model {:name "Agent"
-                            :fields [;; {:name "aux_id" :type :id}
-                                     ;; {:name "nchildren" :type :integer}
-                                     ;; {:name "height" :type :decimal}
-                                     ;; {:name "name" :type :string}
-                                     ;; {:name "auth" :type :password}
-                                     ;; {:name "slug" :type :slug}
-                                     ;; {:name "bio" :type :text}
-                                     ;; {:name "adequate" :type :boolean}
-                                     ;; {:name "born_at" :type :timestamp}
-                                     ;; {:name "passport_photo" :type :asset}
-                                     ;; {:name "residence" :type :address}
-                                     ]})]))
+(deftest fields-types-test
+  (let [agent (create :model {:name "Agent"
+                              :fields [{:name "nchildren" :type "integer"}
+                                       {:name "height" :type "decimal"}
+                                       {:name "name" :type "string"}
+                                       {:name "auth" :type "password"}
+                                       {:name "round" :type "slug"}
+                                       {:name "bio" :type "text"}
+                                       {:name "adequate" :type "boolean"}
+                                       {:name "born_at" :type "timestamp"}
+                                       {:name "dies_at" :type "timestamp"}
+                                       {:name "passport" :type "asset"}
+                                       {:name "residence" :type "address"}]})
+        passport (create :asset {:filename "passport.picture"})
+        bond-height 69.55
+        bond (create :agent {:nchildren 32767
+                             :height bond-height
+                             :name (str "James Bond" (rand-str 245))
+                             :auth "Octopu55y"
+                             :round ".38 Hollow Tip"
+                             ;; mysql text type size issue
+                             :bio (str "He did stuff: ☃" (rand-str 65500))
+                             :adequate true
+                             ;; mysql date-time precision issue
+                             :born_at "January 1 1970"
+                             ;; mysql date-time precision issue
+                             :dies_at "January 1 2037"
+                             :passport passport
+                             ;; :residence {:address "WHITE HOUSE"
+                             ;;             :country "USA"}
+                             })
+        ;; newly defined model throwing an error in beam-validator - how to
+        ;; prevent this?
+        ;; bond (pick :agent {:where {:id (:id bond)} :include {:passport {}
+        ;;                                                      ;; :residence {}
+        ;;                                                      }})
+        ;; amount of floating point error that is allowable
+        ;; mysql precision issue
+        EPSILON 0.000001]
+    (testing "Valid properties of field types."
+      (is (seq agent))
+      (is (seq bond))
+      ;; id fields are implicit
+      (is (number? (:id agent)))
+      (is (number? (:id bond)))
+      (is (= (:nchildren bond) 32767))
+      (is (< (java.lang.Math/abs (- bond-height (:height bond))) EPSILON))
+      ;; case sensitivity
+      (is (= "James Bond" (subs (:name bond) 0 10)))
+      (is (= (count (:name bond)) 255))
+      (is (not (= (:auth bond) "Octopu55y")))
+      (is (auth/check-password "Octopu55y" (:auth bond)))
+      ;; (is (= "_8_hollow_tip" (:round bond)))
+      ;; unicode
+      (is (= "He did stuff: ☃" (subs (:bio bond) 0 15)))
+      (is (= (count (:bio bond)) 65515))
+      ;; if this breaks...
+      (is (:adequate bond))
+      ;; unix time of 1/1/1970 / 1/1/2037
+      (is (and (= 28800000 (.getTime (:born_at bond)))
+               (= 2114409600000 (.getTime (:dies_at bond)))))
+      (is (= "passport.picture" (-> bond :passport :filename)))
+      ;; (is (and (= 0.0 (-> bond :residence :lat))
+      ;;          (= 0.0 (-> bond :residence :long))))
+      )))
