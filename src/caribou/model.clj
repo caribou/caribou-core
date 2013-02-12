@@ -1905,6 +1905,10 @@
       (let [included (keyword (first include))
             new-slug (-> model :fields included :row :target_id (@models)
                          :slug keyword)
+            ;; special case for asset fields
+            new-slug (or new-slug
+                         (and (= "asset" (-> model :fields included :row :type))
+                              :asset))
             new-include (second include)
             new-where (or (included where-conditions)
                           (get where-conditions (name included)))
@@ -1975,7 +1979,8 @@
           (when-not model
             (throw (new Exception (str "invalid caribou model:" slug))))
           ;; beam-validator throws an exception if opts are bad
-          (when (and (seq opts) (not (= (config/environment) :production)))
+          (when (and (seq opts) (not (= (config/environment) :production))
+                     false) ; broken for :include "fields.link"
             (beam-validator slug opts))
           (let [beams (beam-splitter opts-with-defaults)
                 resurrected (mapcat (partial uberquery model) beams)
