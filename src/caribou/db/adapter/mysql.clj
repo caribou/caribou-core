@@ -43,7 +43,9 @@
     (mysql-table? table))
   (build-subname [this config]
     (let [host (or (config :host) "localhost")
-          subname (or (config :subname) (str "//" host "/" (config :database)))]
+          subname (or (config :subname) (str "//" host "/" (config :database)
+                                             "?useUnicode=true"
+                                             "&characterEncoding=UTF-8"))]
       (assoc config :subname subname)))
   (insert-result [this table result]
     (sql/with-query-results res
