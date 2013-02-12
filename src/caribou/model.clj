@@ -417,7 +417,7 @@
   
 (defrecord DecimalField [row env]
   Field
-  (table-additions [this field] [[(keyword field) :decimal]])
+  (table-additions [this field] [[(keyword field) "decimal(20,10)"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
