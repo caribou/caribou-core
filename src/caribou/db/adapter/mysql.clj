@@ -42,7 +42,7 @@
   (unicode-supported? [this]
     (let [result (query "show variables like 'character_set_database'")]
       (println "DEBUG character_set_database" (str result))
-      (= "utf8" (:value result))))
+      (= "utf8" (:value (first result)))))
   (table? [this table]
     (mysql-table? table))
   (build-subname [this config]
