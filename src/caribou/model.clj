@@ -1909,11 +1909,12 @@
           (throw (new Exception
                       (format "not an includable field: %s; invalid type %s."
                               included included-type))))
-        (let [new-slug (-> included-field :row :target_id (@models) :slug)
+        (let [new-slug (if ((-> included-field :row :target_id (@models) :slug)
               _ (when-not new-slug
                   (throw (new Exception (str
                                          "nested include field not recognized: "
-                                         included-field))))
+                                         included-field " has row "
+                                         (:row included-field)))))
               new-include (second include)
               new-where (or (get where-conditions included)
                             (get where-conditions (name included)))
@@ -1984,10 +1985,10 @@
             (throw (new Exception (str "invalid caribou model:" slug))))
           ;; beam-validator throws an exception if opts are bad
           ;; catching and printing for now until we get rid of spurious errors
-          (when (and (seq opts) (not (= (config/environment) :production)))
-            (try
-              (beam-validator slug opts)
-              (catch Exception e (.printStackTrace e))))
+          ;; (when (and (seq opts) (not (= (config/environment) :production)))
+          ;;   (try
+          ;;     (beam-validator slug opts)
+          ;;     (catch Exception e (.printStackTrace e))))
           (let [beams (beam-splitter opts-with-defaults)
                 resurrected (mapcat (partial uberquery model) beams)
                 fused (fusion model (name slug) resurrected opts-with-defaults)
