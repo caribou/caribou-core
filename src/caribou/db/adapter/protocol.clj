@@ -2,6 +2,7 @@
 
 (defprotocol DatabaseAdapter
   (init [this])
+  (unicode-supported? [this])
   (table? [this table])
   (build-subname [this config])
   (insert-result [this table result])
