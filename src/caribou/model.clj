@@ -1889,7 +1889,8 @@
    all fields correspond to fields the model actually has, and the
    options map itself is well-formed."
   (let [model (@models (keyword slug))
-        _ (when-not model (throw (new Exception (str "no such model " slug))))
+        _ (when-not model (throw (new Exception
+                                      (format "no such model: %s" slug))))
         where-conditions (-> opts :where)
         include-conditions (-> opts :include)]
     (doseq [where where-conditions]
@@ -1909,6 +1910,10 @@
                       (format "not an includable field: %s; invalid type %s."
                               included included-type))))
         (let [new-slug (-> included-field :row :target_id (@models) :slug)
+              _ (when-not new-slug
+                  (throw (new Exception (str
+                                         "nested include field not recognized: "
+                                         included-field))))
               new-include (second include)
               new-where (or (get where-conditions included)
                             (get where-conditions (name included)))
