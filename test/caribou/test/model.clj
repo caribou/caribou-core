@@ -268,14 +268,28 @@
     (testing "Detection of invalid models in beam-validator."
       (is (thrown-with-msg? Exception #"no such model"
             ;; with gather this error is caught higher up currently
+            ;; (gather :cheese {:include {:rennet {}}}))))
             (beam-validator :cheese {:include {:rennet {}}}))))
     (testing "Validation of includes and fields with nesting in beam-validator."
+      (is (thrown-with-msg? Exception #"not an includable field"
+            ;; for now beam-validator is just having it's exception caught and
+            ;; printed, until it is ready for prime time
+            ;; (gather :base {:include {:thing {}}})))
+            (beam-validator :base {:include {:thing {}}})))
       (is (thrown-with-msg? Exception #"no such nested model"
-            (gather :base {:include {:levels {:invalid {}}}})))
+            ;; for now beam-validator is just having it's exception caught and
+            ;; printed, until it is ready for prime time
+            ;; (gather :base {:include {:levels {:invalid {}}}})))
+            (beam-validator :base {:include {:levels {:invalid {}}}})))
       (is (thrown-with-msg? Exception #"no such field"
-            (gather :base {:include {:levels {} :void {}}
-                           :where {:levels {:strata 5
-                                            :invalid_field nil}}}))))))
+            ;; for now beam-validator is just having it's exception caught and
+            ;; printed, until it is ready for prime time
+            ;; (gather :base {:include {:levels {} :void {}}
+            ;;                :where {:levels {:strata 5
+            ;;                :invalid_field nil}}}))))))
+            (beam-validator :base {:include {:levels {} :void {}}
+                                   :where {:levels {:strata 5
+                                                    :invalid_field nil}}}))))))
 
 (deftest localized-model-test
   (let [place (create :locale {:language "Ibeo" :region "Glass" :code "ib_or"})
@@ -456,16 +470,12 @@
                              :born_at "January 1 1970"
                              ;; mysql date-time precision issue
                              :dies_at "January 1 2037"
-                             :passport passport
+                             :passport_id (:id passport)
                              ;; connectivity issues prevent this from working
                              ;; :residence {:address "WHITE HOUSE"
                              ;;             :country "USA"}
                              })
-        ;; newly defined model throwing an error in beam-validator - how to
-        ;; prevent this?
-        bond (pick :agent {:where {:id (:id bond)} :include {:passport {}
-                                                             ;; :residence {}
-                                                             }})
+        bond (pick :agent {:where {:id (:id bond)}})
         ;; amount of floating point error that is allowable
         ;; mysql precision issue
         EPSILON 0.000001]
@@ -491,8 +501,7 @@
       ;; unix time of 1/1/1970 / 1/1/2037
       (is (and (= 28800000 (.getTime (:born_at bond)))
                (= 2114409600000 (.getTime (:dies_at bond)))))
-      ;; (is (= "ERROR" (get bond :passport)))
-      ;; (is (= "passport.picture" (-> bond :passport :filename)))
+      (is (= "passport.picture" (-> bond :passport :filename)))
       ;; (is (and (= 0.0 (-> bond :residence :lat))
       ;;          (= 0.0 (-> bond :residence :long))))
       )))
