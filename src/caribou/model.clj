@@ -1897,27 +1897,26 @@
         (throw (new Exception (str "no such field " (first where) " in model "
                                    slug)))))
     (doseq [include include-conditions]
-      (let [included-field (-> include first keyword ((:fields model)))]
-        ;; (println "included field:" included-field)
-        (when-not included-field
-          (throw (new Exception (str "no such nested model " (first include)
-                                     " in model " slug)))))
       (let [included (keyword (first include))
-            new-slug (-> model :fields included :row :target_id (@models)
-                         :slug keyword)
-            ;; special case for asset fields
-            new-slug (or new-slug
-                         (and (= "asset" (-> model :fields included :row :type))
-                              :asset))
-            new-include (second include)
-            new-where (or (included where-conditions)
-                          (get where-conditions (name included)))
-            new-opts {:include new-include}
-            new-opts (if new-where
-                       (assoc new-opts :where new-where)
-                       new-opts)]
-        (beam-validator new-slug new-opts)))
-    true))
+            included-field (get (:fields model) included)
+            included-type (-> included-field :row :type)]
+        (when-not included-field
+          (throw (new Exception
+                      (format "no such nested model %s in model %s"
+                              included slug))))
+        (when-not (get #{"link" "part" "tie" "collection"} included-type)
+          (throw (new Exception
+                      (format "not an includable field: %s; invalid type %s."
+                              included included-type))))
+        (let [new-slug (-> included-field :row :target_id (@models) :slug)
+              new-include (second include)
+              new-where (or (get where-conditions included)
+                            (get where-conditions (name included)))
+              new-opts {:include new-include}
+              new-opts (if new-where
+                         (assoc new-opts :where new-where)
+                         new-opts)]
+          (beam-validator new-slug new-opts))))))
 
 (defn model-generator
   "Constructs a map of field generator functions for the given model and its fields."
@@ -1979,9 +1978,11 @@
           (when-not model
             (throw (new Exception (str "invalid caribou model:" slug))))
           ;; beam-validator throws an exception if opts are bad
-          (when (and (seq opts) (not (= (config/environment) :production))
-                     false) ; broken for :include "fields.link"
-            (beam-validator slug opts))
+          ;; catching and printing for now until we get rid of spurious errors
+          (when (and (seq opts) (not (= (config/environment) :production)))
+            (try
+              (beam-validator slug opts)
+              (catch Exception e (.printStackTrace e))))
           (let [beams (beam-splitter opts-with-defaults)
                 resurrected (mapcat (partial uberquery model) beams)
                 fused (fusion model (name slug) resurrected opts-with-defaults)
