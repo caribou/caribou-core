@@ -34,4 +34,8 @@
            <a href=\"http://antler.github.com/caribou-api\">Caribou API</a> and 
            <a href=\"http://antler.github.com/caribou-admin\">Caribou Admin</a>,
            each of which build in their own way upon this data model as a basis."}
-  :aot [caribou.model])
+  :aot [caribou.model]
+  :test-selectors {:default (constantly true)
+                   :mysql :mysql
+                   :postgres :postgres
+                   :non-db :non-db})
