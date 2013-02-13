@@ -1883,46 +1883,48 @@
        include-keys))
     [opts]))
 
-(defn beam-validator
-  [slug opts]
-  "Verify the given options make sense for the model given by slug, ie:
-   all fields correspond to fields the model actually has, and the
-   options map itself is well-formed."
-  (let [model (@models (keyword slug))
-        _ (when-not model (throw (new Exception
-                                      (format "no such model: %s" slug))))
-        where-conditions (-> opts :where)
-        include-conditions (-> opts :include)]
-    (doseq [where where-conditions]
-      (when-not (-> where first keyword ((:fields model)))
-        (throw (new Exception (str "no such field " (first where) " in model "
-                                   slug)))))
-    (doseq [include include-conditions]
-      (let [included (keyword (first include))
-            included-field (get (:fields model) included)
-            included-type (-> included-field :row :type)]
-        (when-not included-field
-          (throw (new Exception
-                      (format "no such nested model %s in model %s"
-                              included slug))))
-        (when-not (get #{"link" "part" "tie" "collection"} included-type)
-          (throw (new Exception
-                      (format "not an includable field: %s; invalid type %s."
-                              included included-type))))
-        (let [new-slug (if ((-> included-field :row :target_id (@models) :slug)
-              _ (when-not new-slug
-                  (throw (new Exception (str
-                                         "nested include field not recognized: "
-                                         included-field " has row "
-                                         (:row included-field)))))
-              new-include (second include)
-              new-where (or (get where-conditions included)
-                            (get where-conditions (name included)))
-              new-opts {:include new-include}
-              new-opts (if new-where
-                         (assoc new-opts :where new-where)
-                         new-opts)]
-          (beam-validator new-slug new-opts))))))
+;; (defn beam-validator
+;;   [slug opts]
+;;   "Verify the given options make sense for the model given by slug, ie:
+;;    all fields correspond to fields the model actually has, and the
+;;    options map itself is well-formed."
+;;   (let [model (@models (keyword slug))
+;;         _ (when-not model (throw (new Exception
+;;                                       (format "no such model: %s" slug))))
+;;         where-conditions (-> opts :where)
+;;         include-conditions (-> opts :include)]
+;;     (doseq [where where-conditions]
+;;       (when-not (-> where first keyword ((:fields model)))
+;;         (throw (new Exception (str "no such field " (first where) " in model "
+;;                                    slug)))))
+;;     (doseq [include include-conditions]
+;;       (let [included (keyword (first include))
+;;             included-field (get (:fields model) included)
+;;             included-type (-> included-field :row :type)]
+;;         (when-not included-field
+;;           (throw (new Exception
+;;                       (format "no such nested model %s in model %s"
+;;                               included slug))))
+;;         (when-not (get #{"link" "part" "tie" "collection"} included-type)
+;;           (throw (new Exception
+;;                       (format "not an includable field: %s; invalid type %s."
+;;                               included included-type))))
+;;         (let [new-slug (if ((-> included-field :row :target_id (@models) :slug)
+;;               _ (when-not new-slug
+;;                   (throw (new Exception (str
+;;                                          "nested include field not recognized: "
+;;                                          included-field " has row "
+;;                                          (:row included-field)))))
+;;               new-include (second include)
+;;               new-where (or (get where-conditions included)
+;;                             (get where-conditions (name included)))
+;;               new-opts {:include new-include}
+;;               new-opts (if new-where
+;;                          (assoc new-opts :where new-where)
+;;                          new-opts)]
+;;           (beam-validator new-slug new-opts))))))
+
+(def beam-validator identity)
 
 (defn model-generator
   "Constructs a map of field generator functions for the given model and its fields."
