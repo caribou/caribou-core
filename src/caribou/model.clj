@@ -1,6 +1,7 @@
 (ns caribou.model
   (:use caribou.debug)
   (:use caribou.util)
+  (:use caribou.field-protocol)
   (:require [clojure.string :as string]
             [clojure.walk :as walk]
             [clojure.set :as set]
@@ -13,6 +14,7 @@
             [caribou.db :as db]
             [caribou.config :as config]
             [caribou.asset :as asset]
+            [caribou.validation :as validation]
             [caribou.db.adapter.protocol :as adapter]
             [caribou.logger :as log]
             [caribou.auth :as auth]))
@@ -169,39 +171,6 @@
 
 ;; FIELDS -------------------------------------------------------------
 
-(defprotocol Field
-  "a protocol for expected behavior of all model fields"
-  (table-additions [this field]
-    "the set of additions to this db table based on the given name")
-  (subfield-names [this field]
-    "the names of any additional fields added to the model
-    by this field given this name")
-
-  (setup-field [this spec] "further processing on creation of field")
-  (rename-field [this old-slug new-slug] "further processing on creation of field")
-  (cleanup-field [this] "further processing on removal of field")
-  (target-for [this] "retrieves the model this field points to, if applicable")
-  (update-values [this content values]
-    "adds to the map of values that will be committed to the db for this row")
-  (post-update [this content opts]
-    "any processing that is required after the content is created/updated")
-  (pre-destroy [this content]
-    "prepare this content item for destruction")
-
-  (join-fields [this prefix opts])
-  (join-conditions [this prefix opts])
-  (build-where [this prefix opts] "creates a where clause suitable to this field from the given where map, with fields prefixed by the given prefix.")
-  (natural-orderings [this prefix opts])
-  (build-order [this prefix opts])
-  (field-generator [this generators])
-  (fuse-field [this prefix archetype skein opts])
-
-  (localized? [this])
-  (models-involved [this opts all])
-
-  (field-from [this content opts]
-    "retrieves the value for this field from this content item")
-  (render [this content opts] "renders out a single field from this content item"))
 
 (defn- suffix-prefix
   [prefix]
@@ -364,7 +333,8 @@
   (models-involved [this opts all]
     (id-models-involved this opts all))
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content))
+  (render [this content opts] content)
+  (target-model [this models] (validation/atomic-target this models)))
   
 (defn convert-int
   [whatever]
@@ -413,7 +383,8 @@
   (models-involved [this opts all]
     (id-models-involved this opts all))
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content))
+  (render [this content opts] content)
+  (target-model [this models] (validation/atomic-target this models)))
   
 (defrecord DecimalField [row env]
   Field
@@ -454,7 +425,8 @@
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
-    (update-in content [(keyword (:slug row))] str)))
+    (update-in content [(keyword (:slug row))] str))
+  (target-model [this models] (validation/atomic-target this models)))
   
 (def pool "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
            =+!@#$%^&*()_-|:;?/}]{[~` 0123456789")
@@ -499,7 +471,8 @@
   (localized? [this] true)
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content))
+  (render [this content opts] content)
+  (target-model [this models] (validation/atomic-target this models)))
 
 (defrecord PasswordField [row env]
   Field
@@ -533,7 +506,8 @@
   (models-involved [this opts all] all)
   (field-from [this content opts]
     (content (keyword (:slug row))))
-  (render [this content opts] content))
+  (render [this content opts] content)
+  (target-model [this models] (validation/atomic-target this models)))
 
 (defrecord SlugField [row env]
   Field
@@ -574,7 +548,8 @@
   (localized? [this] true)
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content))
+  (render [this content opts] content)
+  (target-model [this models] (validation/atomic-target this models)))
 
 (defrecord TextField [row env]
   Field
@@ -610,7 +585,8 @@
   (render [this content opts]
     (update-in
      content [(keyword (:slug row))]
-     #(adapter/text-value @config/db-adapter %))))
+     #(adapter/text-value @config/db-adapter %)))
+    (target-model [this models] (validation/atomic-target this models)))
 
 (defrecord BooleanField [row env]
   Field
@@ -648,7 +624,8 @@
   (localized? [this] (not (:locked row)))
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content))
+  (render [this content opts] content)
+  (target-model [this models] (validation/atomic-target this models)))
 
 (defn- build-extract
   [field prefix slug opts [index value]]
@@ -702,7 +679,9 @@
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
-    (update-in content [(keyword (:slug row))] format-date)))
+    (update-in content [(keyword (:slug row))] format-date))
+  (target-model [this models] (validation/atomic-target this models)))
+
 
 
 ;; forward reference for Fields that need them
@@ -823,7 +802,9 @@
       (assoc asset :path (asset/asset-path asset))))
 
   (render [this content opts]
-    (join-render this (:asset @models) content opts)))
+    (join-render this (:asset @models) content opts))
+
+  (target-model [this models] (validation/atomic-target this models)))
 
 (defn full-address [address]
   (string/join " " [(address :address)
@@ -911,7 +892,9 @@
     (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
 
   (render [this content opts]
-    (join-render this (:location @models) content opts)))
+    (join-render this (:location @models) content opts))
+
+  (target-model [this models] (validation/atomic-target this models)))
 
 (defn- assoc-field
   [content field opts]
@@ -935,7 +918,8 @@
 
 (defn present?
   [x]
-  (and (not (nil? x)) (or (number? x) (keyword? x) (= (type x) Boolean) (not (empty? x)))))
+  (and (not (nil? x))
+       (or (number? x) (keyword? x) (= (type x) Boolean) (not (empty? x)))))
 
 (defn- collection-where
   [field prefix opts]  
@@ -1133,7 +1117,9 @@
 
   (render
     [this content opts]
-    (collection-render this content opts)))
+    (collection-render this content opts))
+
+  (target-model [this models] (validation/assoc-target this models)))
 
 (defn- part-fusion
   [this target prefix archetype skein opts]
@@ -1280,7 +1266,9 @@
             (from (target-for this) collector down))))))
 
   (render [this content opts]
-    (part-render this (@models (:target_id row)) content opts)))
+    (part-render this (@models (:target_id row)) content opts))
+
+  (target-model [this models] (validation/part-target)))
 
 (defrecord TieField [row env]
   Field
@@ -1375,7 +1363,9 @@
             (from model (db/choose (:slug model) (content tie-key)) down))))))
 
   (render [this content opts]
-    (part-render this (@models (:model_id row)) content opts)))
+    (part-render this (@models (:model_id row)) content opts))
+
+  (target-model [this models] (validation/tie-target this models)))
 
 (defn join-table-name
   "construct a join table name out of two link names"
@@ -1685,8 +1675,9 @@
            (retrieve-links this content opts))))))
 
   (render [this content opts]
-    (link-render this content opts)))
+    (link-render this content opts))
 
+  (target-model [this models] (validation/link-target this models)))
 
 
 ;; UBERQUERY ---------------------------------------------
@@ -1883,49 +1874,6 @@
        include-keys))
     [opts]))
 
-;; (defn beam-validator
-;;   [slug opts]
-;;   "Verify the given options make sense for the model given by slug, ie:
-;;    all fields correspond to fields the model actually has, and the
-;;    options map itself is well-formed."
-;;   (let [model (@models (keyword slug))
-;;         _ (when-not model (throw (new Exception
-;;                                       (format "no such model: %s" slug))))
-;;         where-conditions (-> opts :where)
-;;         include-conditions (-> opts :include)]
-;;     (doseq [where where-conditions]
-;;       (when-not (-> where first keyword ((:fields model)))
-;;         (throw (new Exception (str "no such field " (first where) " in model "
-;;                                    slug)))))
-;;     (doseq [include include-conditions]
-;;       (let [included (keyword (first include))
-;;             included-field (get (:fields model) included)
-;;             included-type (-> included-field :row :type)]
-;;         (when-not included-field
-;;           (throw (new Exception
-;;                       (format "no such nested model %s in model %s"
-;;                               included slug))))
-;;         (when-not (get #{"link" "part" "tie" "collection"} included-type)
-;;           (throw (new Exception
-;;                       (format "not an includable field: %s; invalid type %s."
-;;                               included included-type))))
-;;         (let [new-slug (if ((-> included-field :row :target_id (@models) :slug)
-;;               _ (when-not new-slug
-;;                   (throw (new Exception (str
-;;                                          "nested include field not recognized: "
-;;                                          included-field " has row "
-;;                                          (:row included-field)))))
-;;               new-include (second include)
-;;               new-where (or (get where-conditions included)
-;;                             (get where-conditions (name included)))
-;;               new-opts {:include new-include}
-;;               new-opts (if new-where
-;;                          (assoc new-opts :where new-where)
-;;                          new-opts)]
-;;           (beam-validator new-slug new-opts))))))
-
-(def beam-validator identity)
-
 (defn model-generator
   "Constructs a map of field generator functions for the given model and its fields."
   [model]
@@ -1989,7 +1937,7 @@
           ;; catching and printing for now until we get rid of spurious errors
           ;; (when (and (seq opts) (not (= (config/environment) :production)))
           ;;   (try
-          ;;     (beam-validator slug opts)
+          ;;     (validation/beams slug opts @models)
           ;;     (catch Exception e (.printStackTrace e))))
           (let [beams (beam-splitter opts-with-defaults)
                 resurrected (mapcat (partial uberquery model) beams)
