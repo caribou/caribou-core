@@ -334,7 +334,7 @@
     (id-models-involved this opts all))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content)
-  (target-model [this models] (validation/atomic-target this models)))
+  (validate [this opts models] (validation/for-type this opts integer? "id")))
   
 (defn convert-int
   [whatever]
@@ -384,7 +384,8 @@
     (id-models-involved this opts all))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content)
-  (target-model [this models] (validation/atomic-target this models)))
+  (validate [this opts models] (validation/for-type this opts integer?
+                                                    "integer")))
   
 (defrecord DecimalField [row env]
   Field
@@ -426,7 +427,8 @@
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
     (update-in content [(keyword (:slug row))] str))
-  (target-model [this models] (validation/atomic-target this models)))
+  (validate [this opts models] (validation/for-type this opts number?
+                                                    "decimal")))
   
 (def pool "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
            =+!@#$%^&*()_-|:;?/}]{[~` 0123456789")
@@ -472,7 +474,11 @@
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content)
-  (target-model [this models] (validation/atomic-target this models)))
+  (validate [this opts models] (validation/for-type this opts
+                                                    (fn [s]
+                                                      (or (keyword? s)
+                                                          (string? s)))
+                                                    "string")))
 
 (defrecord PasswordField [row env]
   Field
@@ -507,7 +513,8 @@
   (field-from [this content opts]
     (content (keyword (:slug row))))
   (render [this content opts] content)
-  (target-model [this models] (validation/atomic-target this models)))
+  (validate [this opts models] (validation/for-type this opts string?
+                                                    "password")))
 
 (defrecord SlugField [row env]
   Field
@@ -549,7 +556,11 @@
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content)
-  (target-model [this models] (validation/atomic-target this models)))
+  (validate [this opts models] (validation/for-type this opts
+                                                    (fn [s]
+                                                      (or (keyword? s)
+                                                          (string? s)))
+                                                    "slug")))
 
 (defrecord TextField [row env]
   Field
@@ -586,7 +597,8 @@
     (update-in
      content [(keyword (:slug row))]
      #(adapter/text-value @config/db-adapter %)))
-    (target-model [this models] (validation/atomic-target this models)))
+  (validate [this opts models] (validation/for-type this opts string?
+                                                    "text object")))
 
 (defrecord BooleanField [row env]
   Field
@@ -625,7 +637,12 @@
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content)
-  (target-model [this models] (validation/atomic-target this models)))
+  (validate [this opts models] (validation/for-type this opts
+                                                    (fn [x]
+                                                      (not (nil?
+                                                            (#{true false 0 1}
+                                                             x))))
+                                                    "boolean")))
 
 (defn- build-extract
   [field prefix slug opts [index value]]
@@ -680,9 +697,13 @@
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
     (update-in content [(keyword (:slug row))] format-date))
-  (target-model [this models] (validation/atomic-target this models)))
-
-
+  (validate [this opts models] (validation/for-type this opts
+                                                    (fn [d]
+                                                      (try
+                                                        (new Date d)
+                                                        (catch Throwable t
+                                                          false)))
+                                                        "timestamp")))
 
 ;; forward reference for Fields that need them
 (declare make-field)
@@ -803,8 +824,7 @@
 
   (render [this content opts]
     (join-render this (:asset @models) content opts))
-
-  (target-model [this models] (validation/atomic-target this models)))
+  (validate [this opts models] (validation/for-asset this opts)))
 
 (defn full-address [address]
   (string/join " " [(address :address)
@@ -893,8 +913,8 @@
 
   (render [this content opts]
     (join-render this (:location @models) content opts))
+  (validate [this opts models] (validation/for-address this opts)))
 
-  (target-model [this models] (validation/atomic-target this models)))
 
 (defn- assoc-field
   [content field opts]
@@ -1119,7 +1139,7 @@
     [this content opts]
     (collection-render this content opts))
 
-  (target-model [this models] (validation/assoc-target this models)))
+  (validate [this opts models] (validation/for-assoc this opts models)))
 
 (defn- part-fusion
   [this target prefix archetype skein opts]
@@ -1268,7 +1288,7 @@
   (render [this content opts]
     (part-render this (@models (:target_id row)) content opts))
 
-  (target-model [this models] (validation/part-target)))
+  (validate [this opts models] (validation/for-assoc this opts models)))
 
 (defrecord TieField [row env]
   Field
@@ -1365,7 +1385,7 @@
   (render [this content opts]
     (part-render this (@models (:model_id row)) content opts))
 
-  (target-model [this models] (validation/tie-target this models)))
+  (validate [this opts models] (validation/for-assoc this opts models)))
 
 (defn join-table-name
   "construct a join table name out of two link names"
@@ -1677,7 +1697,7 @@
   (render [this content opts]
     (link-render this content opts))
 
-  (target-model [this models] (validation/link-target this models)))
+  (validate [this opts models] (validation/for-assoc this opts models)))
 
 
 ;; UBERQUERY ---------------------------------------------
@@ -1936,9 +1956,11 @@
           ;; beam-validator throws an exception if opts are bad
           ;; catching and printing for now until we get rid of spurious errors
           ;; (when (and (seq opts) (not (= (config/environment) :production)))
-          ;;   (try
-          ;;     (validation/beams slug opts @models)
-          ;;     (catch Exception e (.printStackTrace e))))
+          ;; (try
+          (validation/beams slug opts @models)
+            ;; (catch Exception e
+            ;;   (println "not expected beams")
+            ;;   (.printStackTrace e)))
           (let [beams (beam-splitter opts-with-defaults)
                 resurrected (mapcat (partial uberquery model) beams)
                 fused (fusion model (name slug) resurrected opts-with-defaults)
