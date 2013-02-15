@@ -14,6 +14,9 @@
 (defn slugify [s]
   (.toLowerCase (string/replace (string/join "_" (re-seq #"[a-zA-Z0-9]+" (name s))) #"^[0-9]" "_")))
 
+(defn url-slugify [s]
+  (.toLowerCase (string/join "-" (re-seq #"[a-zA-Z0-9]+" (name s)))))
+
 (defn titleize [s]
   (string/join " " (map string/capitalize (string/split (name s) #"[^a-zA-Z]+"))))
 
