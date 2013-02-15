@@ -447,67 +447,92 @@
 
 (defn fields-types-test
   []
-  (let [agent (create :model {:name "Agent"
-                              :fields [{:name "nchildren" :type "integer"}
-                                       {:name "height" :type "decimal"}
-                                       {:name "name" :type "string"}
-                                       {:name "auth" :type "password"}
-                                       {:name "round" :type "slug"}
-                                       {:name "bio" :type "text"}
-                                       {:name "adequate" :type "boolean"}
-                                       {:name "born_at" :type "timestamp"}
-                                       {:name "dies_at" :type "timestamp"}
-                                       {:name "passport" :type "asset"}
-                                       {:name "residence" :type "address"}]})
+  (let [fields (map (fn [[n t]] {:name n :type t})
+                    [["nchildren" "integer"]
+                     ["height" "decimal"]
+                     ["name" "string"]
+                     ["auth" "password"]
+                     ["round" "slug"]
+                     ["bio" "text"]
+                     ["adequate" "boolean"]
+                     ["born_at" "timestamp"]
+                     ["dies_at" "timestamp"]
+                     ["passport" "asset"]
+                     ["residence" "address"]])
+        agent (create :model {:name "Agent"
+                              :fields fields})
         passport (create :asset {:filename "passport.picture"})
         bond-height 69.55
-        bond (create :agent {:nchildren 32767
-                             :height bond-height
-                             :name (str "James Bond" (rand-str 245))
-                             :auth "Octopu55y"
-                             :round ".38 Hollow Tip"
-                             ;; mysql text type size issue
-                             :bio (str "He did stuff: ☃" (rand-str 65500))
-                             :adequate true
-                             ;; mysql date-time precision issue
-                             :born_at "January 1 1970"
-                             ;; mysql date-time precision issue
-                             :dies_at "January 1 2037"
-                             :passport_id (:id passport)
-                             ;; connectivity issues prevent this from working
-                             ;; :residence {:address "WHITE HOUSE"
-                             ;;             :country "USA"}
-                             })
-        bond (pick :agent {:where {:id (:id bond)}})
+        bond-values {:nchildren 32767
+                     :height bond-height
+                     :name (str "James Bond" (rand-str 245))
+                     :auth "Octopu55y"
+                     :round ".38 Hollow Tip"
+                     ;; mysql text type size issue
+                     :bio (str "He did stuff: ☃" (rand-str 65500))
+                     :adequate true
+                     ;; mysql date-time precision issue
+                     :born_at "January 1 1970"
+                     ;; mysql date-time precision issue
+                     :dies_at "January 1 2037"
+                     :passport_id (:id passport)
+                     ;; connectivity issues prevent this from working
+                     ;; :residence {:address "WHITE HOUSE"
+                     ;;             :country "USA"}
+                     }
+        bond (create :agent bond-values)
+        agent-id (:id agent)
+        bond-id (:id bond)
+        bond (pick :agent {:where {:id bond-id}})
         ;; amount of floating point error that is allowable
         ;; mysql precision issue
-        EPSILON 0.000001]
-    (testing "Valid properties of field types."
-      (is (seq agent))
-      (is (seq bond))
-      ;; id fields are implicit
-      (is (number? (:id agent)))
-      (is (number? (:id bond)))
-      (is (= (:nchildren bond) 32767))
-      (is (< (java.lang.Math/abs (- bond-height (:height bond))) EPSILON))
-      ;; case sensitivity
-      (is (= "James Bond" (subs (:name bond) 0 10)))
-      (is (= (count (:name bond)) 255))
-      (is (not (= (:auth bond) "Octopu55y")))
-      (is (auth/check-password "Octopu55y" (:auth bond)))
-      ;; (is (= "_8_hollow_tip" (:round bond)))
-      ;; unicode
-      (is (= "He did stuff: ☃" (subs (:bio bond) 0 15)))
-      (is (= (count (:bio bond)) 65515))
-      ;; if this breaks...
-      (is (:adequate bond))
-      ;; unix time of 1/1/1970 / 1/1/2037
-      (is (and (= 28800000 (.getTime (:born_at bond)))
-               (= 2114409600000 (.getTime (:dies_at bond)))))
-      (is (= "passport.picture" (-> bond :passport :filename)))
-      ;; (is (and (= 0.0 (-> bond :residence :lat))
-      ;;          (= 0.0 (-> bond :residence :long))))
-      )))
+        EPSILON 0.000001
+        run-field-tests
+        (fn []
+          (testing "Valid properties of field types."
+            (is (seq agent))
+            (is (seq bond))
+            ;; id fields are implicit
+            (is (number? (:id agent)))
+            (is (number? (:id bond)))
+            (is (= (:nchildren bond) 32767))
+            (is (< (java.lang.Math/abs (- bond-height (:height bond))) EPSILON))
+            ;; case sensitivity
+            (is (= "James Bond" (subs (:name bond) 0 10)))
+            (is (= (count (:name bond)) 255))
+            (is (not (= (:auth bond) "Octopu55y")))
+            (is (auth/check-password "Octopu55y" (:auth bond)))
+            ;; (is (= "_8_hollow_tip" (:round bond)))
+            ;; unicode
+            (is (= "He did stuff: ☃" (subs (:bio bond) 0 15)))
+            (is (= (count (:bio bond)) 65515))
+            ;; if this breaks...
+            (is (:adequate bond))
+            ;; unix time of 1/1/1970 / 1/1/2037
+            (is (and (= 28800000 (.getTime (:born_at bond)))
+                     (= 2114409600000 (.getTime (:dies_at bond)))))
+            (is (= "passport.picture" (-> bond :passport :filename)))
+            ;; (is (and (= 0.0 (-> bond :residence :lat))
+            ;;          (= 0.0 (-> bond :residence :long))))
+            ))]
+    (run-field-tests)
+    (testing "Deletion of fields."
+      (is (nil?
+           (let [field-slugs (map (comp keyword :name) fields)
+                 field-ids (map (fn [slug] (-> agent :fields slug :row :id))
+                                field-slugs)
+                 field-ids (filter number? field-ids)]
+             (println "field slugs" field-slugs)
+             (println "field ids" field-ids)
+             (doseq [id field-ids]
+               (destroy :field id))))))
+    (testing "Addition of fields to a model."
+      (is (nil? (doseq [field-spec fields]
+                 (create :field (merge field-spec {:model_id agent-id}))))))
+    (testing "Updating field values."
+      (is (nil? (doseq [update-spec bond-values]
+                  (update :agent bond-id (into {} [update-spec]))))))
+    (run-field-tests)))
 
 
 (deftest ^:mysql
