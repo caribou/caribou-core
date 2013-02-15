@@ -4,6 +4,6 @@
 
 (import java.io.File)
 
-(deftest get-file-extension-test
+(deftest ^:non-db get-file-extension-test
   (let [file (File. "/foo/bar/baz/ack/bar/froot.rb")]
     (is (= ".rb" (util/get-file-extension file)))))

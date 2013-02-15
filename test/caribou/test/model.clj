@@ -7,6 +7,7 @@
             [caribou.db :as db]
             [caribou.auth :as auth]
             [caribou.util :as util]
+            [caribou.validation :as validation]
             [caribou.config :as config]))
 
 (defn test-init
@@ -252,34 +253,42 @@
       (is (= 11 (count voids)))
       (is (= 1 (count bases)))
       (is (= "DDDD" (-> bases first :thing))))
-
+    ;; these could be run without the db if we could create all the fields
+    ;; in models without the db
     (testing "Proper usage of string coercion in beam-validator."
-      (is (seq (gather "base" {:include {:levels {}}}))))
+      ;; this is good if no exception is thrown
+      (is (not (validation/beams "base" {:include {:levels {}}} @models))))
     (testing "Detection of invalid models in beam-validator."
       (is (thrown-with-msg? Exception #"no such model"
             ;; with gather this error is caught higher up currently
             ;; (gather :cheese {:include {:rennet {}}}))))
-            (beam-validator :cheese {:include {:rennet {}}}))))
+            (validation/beams :cheese {:include {:rennet {}}} @models))))
     (testing "Validation of includes and fields with nesting in beam-validator."
-      (is (thrown-with-msg? Exception #"not an includable field"
+      (is (thrown-with-msg? Exception
+            #"field of type .* cannot be included"
             ;; for now beam-validator is just having it's exception caught and
             ;; printed, until it is ready for prime time
             ;; (gather :base {:include {:thing {}}})))
-            (beam-validator :base {:include {:thing {}}})))
-      (is (thrown-with-msg? Exception #"no such nested model"
+            (validation/beams :base {:include {:thing {}}} @models)))
+      (is (thrown-with-msg? Exception
+            #"field .* not found in model"
             ;; for now beam-validator is just having it's exception caught and
             ;; printed, until it is ready for prime time
             ;; (gather :base {:include {:levels {:invalid {}}}})))
-            (beam-validator :base {:include {:levels {:invalid {}}}})))
-      (is (thrown-with-msg? Exception #"no such field"
+            (validation/beams :base {:include {:levels {:invalid {}}}}
+                              @models)))
+      (is (thrown-with-msg? Exception
+            #"field .* not found in model"
             ;; for now beam-validator is just having it's exception caught and
             ;; printed, until it is ready for prime time
             ;; (gather :base {:include {:levels {} :void {}}
             ;;                :where {:levels {:strata 5
             ;;                :invalid_field nil}}}))))))
-            (beam-validator :base {:include {:levels {} :void {}}
-                                   :where {:levels {:strata 5
-                                                    :invalid_field nil}}}))))))
+            (validation/beams :base
+                              {:include {:levels {} :void {}}
+                               :where {:levels {:strata 5
+                                                :invalid_field nil}}}
+                               @models))))))
 
 (defn localized-model-test
   []
