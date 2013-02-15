@@ -9,16 +9,6 @@
             [caribou.util :as util]
             [caribou.config :as config]))
 
-(def supported-dbs [:postgres :mysql])
-;; (def supported-dbs [:postgres])
-;; (def supported-dbs [:mysql])
-;; (def supported-dbs [:postgres :mysql :h2])
-;; (def supported-dbs [:h2])
-(def db-configs
-  (doall (map #(config/read-config (io/resource
-                                    (str "config/test-" (name %) ".clj")))
-              supported-dbs)))
-
 (defn test-init
   []
   (invoke-models)
@@ -26,33 +16,30 @@
 
 (defn db-fixture
   [f]
-  (doseq [config db-configs]
-    (println "TESTING" config)
-    (config/configure config)
-    (sql/with-connection @config/db
-      (test-init)
-      (f)
-      (doseq [slug [:yellow :purple :zap :chartreuse :fuchsia :base :level
-                    :void :white :agent]]
-        (when (db/table? slug) (destroy :model (-> @models slug :id)))
-        (when (db/table? :everywhere)
-          (do
-            (db/do-sql "delete from locale")
-            (destroy :model (-> @models :nowhere :id))
-            (destroy :model (-> @models :everywhere :id))))
-        (when-let [passport (pick :asset {:where
-                                          {:filename "passport.picture"}})]
-          (destroy :asset (:id passport)))))))
+  (sql/with-connection @config/db
+    (test-init)
+    (f)
+    (doseq [slug [:yellow :purple :zap :chartreuse :fuchsia :base :level
+                  :void :white :agent]]
+      (when (db/table? slug) (destroy :model (-> @models slug :id)))
+      (when (db/table? :everywhere)
+        (do
+          (db/do-sql "delete from locale")
+          (destroy :model (-> @models :nowhere :id))
+          (destroy :model (-> @models :everywhere :id))))
+      (when-let [passport (pick :asset {:where
+                                        {:filename "passport.picture"}})]
+        (destroy :asset (:id passport))))))
 
-(use-fixtures :each db-fixture)
-
-(deftest invoke-model-test
+(defn invoke-model-test
+  []
   (let [model (util/query "select * from model where id = 1")
         invoked (invoke-model (first model))]
     (testing "Model invocation."
       (is (= "name" (-> invoked :fields :name :row :slug))))))
 
-(deftest model-lifecycle-test
+(defn model-lifecycle-test
+  []
   (let [model (create :model
                       {:name "Yellow"
                        :description "yellowness yellow yellow"
@@ -73,7 +60,8 @@
       (is (not (db/table? :yellow)))
       (is (not (models :yellow))))))
 
-(deftest model-interaction-test
+(defn model-interaction-test
+  []
   (let [yellow-row (create :model
                            {:name "Yellow"
                             :description "yellowness yellow yellow"
@@ -143,7 +131,8 @@
                (not (db/table? :yellow))
                (not (db/table? :zap)))))))
 
-(deftest model-link-test
+(defn model-link-test
+  []
   (let [chartreuse-row
         (create :model
                 {:name "Chartreuse"
@@ -212,7 +201,8 @@
           (let [falses (gather :chartreuse {:where {:kokok false}})]
             (is (= 3 (count falses)))))))))
 
-(deftest parallel-include-test
+(defn parallel-include-test
+  []
   (let [base-row (create
                   :model
                   {:name "Base"
@@ -291,7 +281,8 @@
                                    :where {:levels {:strata 5
                                                     :invalid_field nil}}}))))))
 
-(deftest localized-model-test
+(defn localized-model-test
+  []
   (let [place (create :locale {:language "Ibeo" :region "Glass" :code "ib_or"})
         everywhere (create
                     :model
@@ -418,7 +409,8 @@
                  :limit 3
                  :locale "xo_ub"})))))
 
-(deftest nested-model-test
+(defn nested-model-test
+  []
   ;; this is also implicitly verifying :tie fields
   (let [white (create :model {:name "White" :nested true
                               :fields [{:name "Grey" :type "string"}]})
@@ -439,11 +431,13 @@
         (println (doall (str tree))))
       (is (= 1 (count tree))))))
 
-;; (deftest migration-test
+;; (defn migration-test
+;;   []
 ;;   (sql/with-connection @config/db
 ;;     (init)))
 
-(deftest fields-types-test
+(defn fields-types-test
+  []
   (let [agent (create :model {:name "Agent"
                               :fields [{:name "nchildren" :type "integer"}
                                        {:name "height" :type "decimal"}
@@ -505,3 +499,30 @@
       ;; (is (and (= 0.0 (-> bond :residence :lat))
       ;;          (= 0.0 (-> bond :residence :long))))
       )))
+
+
+(deftest ^:mysql
+  mysql-tests
+  (let [config (config/read-config (io/resource "config/test-mysql.clj"))]
+    (config/configure config)
+    (db-fixture invoke-model-test)
+    (db-fixture model-lifecycle-test)
+    (db-fixture model-interaction-test)
+    (db-fixture model-link-test)
+    (db-fixture parallel-include-test)
+    (db-fixture localized-model-test)
+    (db-fixture nested-model-test)
+    (db-fixture fields-types-test)))
+
+(deftest ^:postgres
+  postgres-tests
+  (let [config (config/read-config (io/resource "config/test-postgres.clj"))]
+    (config/configure config)
+    (db-fixture invoke-model-test)
+    (db-fixture model-lifecycle-test)
+    (db-fixture model-interaction-test)
+    (db-fixture model-link-test)
+    (db-fixture parallel-include-test)
+    (db-fixture localized-model-test)
+    (db-fixture nested-model-test)
+    (db-fixture fields-types-test)))
