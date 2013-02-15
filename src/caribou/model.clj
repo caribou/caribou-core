@@ -576,6 +576,47 @@
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
+(defrecord UrlSlugField [row env]
+  Field
+  (table-additions [this field] [[(keyword field) "varchar(255)"]])
+  (subfield-names [this field] [])
+  (setup-field [this spec] nil)
+  (rename-field [this old-slug new-slug])
+  (cleanup-field [this] nil)
+  (target-for [this] nil)
+  (update-values [this content values]
+    (let [key (keyword (:slug row))]
+      (cond
+       (env :link)
+         (let [icon (content (keyword (-> env :link :slug)))]
+           (if icon
+             (assoc values key (url-slugify icon))
+             values))
+       (contains? content key) (assoc values key (url-slugify (content key)))
+       :else values)))
+  (post-update [this content opts] content)
+  (pre-destroy [this content] content)
+  (join-fields [this prefix opts] [])
+  (join-conditions [this prefix opts] [])
+  (build-where
+    [this prefix opts]
+    (field-where this prefix opts string-where))
+  (natural-orderings [this prefix opts])
+  (build-order [this prefix opts]
+    (pure-order this prefix opts))
+  (field-generator [this generators]
+    (assoc generators (keyword (:slug row))
+           (fn []
+             (rand-str
+              (inc (rand-int 139))
+              "_abcdefghijklmnopqrstuvwxyz_"))))
+  (fuse-field [this prefix archetype skein opts]
+    (pure-fusion this prefix archetype skein opts))
+  (localized? [this] true)
+  (models-involved [this opts all] all)
+  (field-from [this content opts] (content (keyword (:slug row))))
+  (render [this content opts] content))
+
 (defrecord TextField [row env]
   Field
   (table-additions [this field] [[(keyword field) :text]])
@@ -2106,6 +2147,9 @@
    :slug (fn [row] 
            (let [link (db/choose :field (row :link_id))]
              (SlugField. row {:link link})))
+   :urlslug (fn [row] 
+              (let [link (db/choose :field (row :link_id))]
+                (UrlSlugField. row {:link link})))
    :text (fn [row] (TextField. row {}))
    :password (fn [row] (PasswordField. row {}))
    :boolean (fn [row] (BooleanField. row {}))
