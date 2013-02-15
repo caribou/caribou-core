@@ -33,4 +33,4 @@
   (field-from [this content opts]
     "retrieves the value for this field from this content item")
   (render [this content opts] "renders out a single field from this content item")
-  (target-model [this models] "tells you the model, if any, that this field connects to its owner"))
+  (validate [this opts models] "given a set of options and the models, verifies the options are appropriate and well formed for gathering"))

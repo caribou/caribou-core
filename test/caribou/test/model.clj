@@ -265,20 +265,20 @@
             (validation/beams :cheese {:include {:rennet {}}} @models))))
     (testing "Validation of includes and fields with nesting in beam-validator."
       (is (thrown-with-msg? Exception
-            #"nested include field .* cannot be included"
+            #"field of type .* cannot be included"
             ;; for now beam-validator is just having it's exception caught and
             ;; printed, until it is ready for prime time
             ;; (gather :base {:include {:thing {}}})))
             (validation/beams :base {:include {:thing {}}} @models)))
       (is (thrown-with-msg? Exception
-            #"nested include field .* cannot be included"
+            #"field .* not found in model"
             ;; for now beam-validator is just having it's exception caught and
             ;; printed, until it is ready for prime time
             ;; (gather :base {:include {:levels {:invalid {}}}})))
             (validation/beams :base {:include {:levels {:invalid {}}}}
                               @models)))
       (is (thrown-with-msg? Exception
-            #"no such field .* in model"
+            #"field .* not found in model"
             ;; for now beam-validator is just having it's exception caught and
             ;; printed, until it is ready for prime time
             ;; (gather :base {:include {:levels {} :void {}}
