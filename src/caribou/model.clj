@@ -142,14 +142,14 @@
   [date-string]
   (let [trimmed (string/trim date-string)
         default (coerce/from-string trimmed)]
-    (if (empty? default)
+    (if (nil? default)
       (let [custom (some #(try-formatter trimmed %) time-zone-formatters)]
         (if custom
           (coerce/to-timestamp custom)
           (let [custom (some #(try-formatter trimmed %) custom-formatters)]
             (if custom
               (coerce/to-timestamp (impose-time-zone custom))))))
-      (coerce/to-timestamp (impose-time-zone default (timecore/default-time-zone))))))
+      (coerce/to-timestamp (impose-time-zone default)))))
 
 (defn ago
   "given a timecore/interval, creates a string representing the time passed"
