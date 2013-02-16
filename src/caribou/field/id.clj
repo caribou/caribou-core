@@ -36,4 +36,3 @@
   (validate [this opts models] (validation/for-type this opts integer? "id")))
 
 (field/add-constructor :id (fn [row] (IdField. row {})))
-    
