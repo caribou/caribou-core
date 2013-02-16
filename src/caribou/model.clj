@@ -17,12 +17,12 @@
             [caribou.validation :as validation]
             [caribou.db.adapter.protocol :as adapter]
             [caribou.logger :as log]
-            [caribou.auth :as auth]
             ;; namespaces for fields
             caribou.field.id
             caribou.field.integer
             caribou.field.decimal
-            caribou.field.string))
+            caribou.field.string
+            caribou.field.password))
 
 (import java.util.Date)
 (import java.text.SimpleDateFormat)
@@ -176,42 +176,6 @@
 
 (def models (ref {}))
 (def model-slugs (ref {}))
-
-(defrecord PasswordField [row env]
-  field/Field
-  (table-additions [this field] [[(keyword field) "varchar(255)"]])
-  (subfield-names [this field] [])
-  (setup-field [this spec models] nil)
-  (rename-field [this old-slug new-slug])
-  (cleanup-field [this] nil)
-  (target-for [this] nil)
-  (update-values [this content values]
-    (let [key (keyword (:slug row))]
-      (if (contains? content key)
-        (assoc values key (auth/hash-password (content key)))
-        values)))
-  (post-update [this content opts] content)
-  (pre-destroy [this content] content)
-  (join-fields [this prefix opts] [])
-  (join-conditions [this prefix opts] [])
-  (build-where
-    [this prefix opts models]
-    (field/field-where this prefix opts field/string-where models))
-  (natural-orderings [this prefix opts])
-  (build-order [this prefix opts models]
-    (field/pure-order this prefix opts models))
-  (field-generator [this generators]
-    (assoc generators (keyword (:slug row))
-           (fn [] (rand-str 13))))
-  (fuse-field [this prefix archetype skein opts]
-    (field/pure-fusion this prefix archetype skein opts))
-  (localized? [this] true)
-  (models-involved [this opts all] all)
-  (field-from [this content opts]
-    (content (keyword (:slug row))))
-  (render [this content opts] content)
-  (validate [this opts models] (validation/for-type this opts string?
-                                                    "password")))
 
 (defrecord SlugField [row env]
   field/Field
@@ -1850,7 +1814,6 @@
                                  (let [link (db/choose :field (row :link_id))]
                                    (UrlSlugField. row {:link link})))
                       :text (fn [row] (TextField. row {}))
-                      :password (fn [row] (PasswordField. row {}))
                       :boolean (fn [row] (BooleanField. row {}))
                       :timestamp (fn [row] (TimestampField. row {}))
                       :asset (fn [row] (AssetField. row {}))
