@@ -10,8 +10,8 @@
             [caribou.db :as db]
             [caribou.field-protocol :as field]
             [caribou.config :as config]
-            [caribou.asset :as asset]
             [caribou.validation :as validation]
+            [caribou.model-association :as assoc]
             ;; namespaces for fields
             caribou.field.id
             caribou.field.integer
@@ -20,12 +20,26 @@
             caribou.field.password
             caribou.field.text
             caribou.field.slug
+            caribou.field.url-slug
+            caribou.field.boolean
+            caribou.field.asset
             [caribou.field.time-stamp :as time-stamp-field]))
 
 (defn db
   "Calls f in the connect of the current configured database connection."
   [f]
   (db/call f))
+
+(def operations (atom {}))
+
+(defn make-field
+  "turn a row from the field table into a full fledged Field record"
+  [row]
+  (let [type (keyword (row :type))
+        constructor (@field/field-constructors type)]
+    (when-not constructor
+      (throw (new Exception (str "no such field type: " type))))
+    (constructor row operations)))
 
 ;; CACHING -------------------------------------
 
@@ -94,214 +108,6 @@
 (def models field/models)
 (def model-slugs (ref {}))
 
-(defrecord UrlSlugField [row env]
-  field/Field
-  (table-additions [this field] [[(keyword field) "varchar(255)"]])
-  (subfield-names [this field] [])
-  (setup-field [this spec] nil)
-  (rename-field [this old-slug new-slug])
-  (cleanup-field [this] nil)
-  (target-for [this] nil)
-  (update-values [this content values]
-    (let [key (keyword (:slug row))]
-      (cond
-       (env :link)
-         (let [icon (content (keyword (-> env :link :slug)))]
-           (if icon
-             (assoc values key (url-slugify icon))
-             values))
-       (contains? content key) (assoc values key (url-slugify (content key)))
-       :else values)))
-  (post-update [this content opts] content)
-  (pre-destroy [this content] content)
-  (join-fields [this prefix opts] [])
-  (join-conditions [this prefix opts] [])
-  (build-where
-    [this prefix opts]
-    (field/field-where this prefix opts field/string-where))
-  (natural-orderings [this prefix opts])
-  (build-order [this prefix opts]
-    (field/pure-order this prefix opts))
-  (field-generator [this generators]
-    (assoc generators (keyword (:slug row))
-           (fn []
-             (rand-str
-              (inc (rand-int 139))
-              "_abcdefghijklmnopqrstuvwxyz_"))))
-  (fuse-field [this prefix archetype skein opts]
-    (field/pure-fusion this prefix archetype skein opts))
-  (localized? [this] true)
-  (models-involved [this opts all] all)
-  (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content))
-
-(defrecord BooleanField [row env]
-  field/Field
-  (table-additions [this field] [[(keyword field) :boolean]])
-  (subfield-names [this field] [])
-  (setup-field [this spec] nil)
-  (rename-field [this old-slug new-slug])
-  (cleanup-field [this] nil)
-  (target-for [this] nil)
-  (update-values [this content values]
-    (let [key (keyword (:slug row))]
-      (if (contains? content key)
-        (try
-          (let [value (content key)
-                tval (if (isa? (type value) String)
-                       (Boolean/parseBoolean value)
-                       value)]
-            (assoc values key tval))
-          (catch Exception e values))
-        values)))
-  (post-update [this content opts] content)
-  (pre-destroy [this content] content)
-  (join-fields [this prefix opts] [])
-  (join-conditions [this prefix opts] [])
-  (build-where
-    [this prefix opts]
-    (field/field-where this prefix opts field/pure-where))
-  (natural-orderings [this prefix opts])
-  (build-order [this prefix opts]
-    (field/pure-order this prefix opts))
-  (field-generator [this generators]
-    (assoc generators (keyword (:slug row)) (fn [] (= 1 (rand-int 2)))))
-  (fuse-field [this prefix archetype skein opts]
-    (field/boolean-fusion this prefix archetype skein opts))
-  (localized? [this] (not (:locked row)))
-  (models-involved [this opts all] all)
-  (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content)
-  (validate [this opts] (validation/for-type this opts
-                                             (fn [x]
-                                               (not (nil?
-                                                     (#{true false 0 1}
-                                                      x))))
-                                             "boolean")))
-
-;; forward reference for Fields that need them
-(declare make-field)
-(declare model-render)
-(declare invoke-model)
-(declare create)
-(declare update)
-(declare destroy)
-(declare model-select-fields)
-(declare model-join-fields)
-(declare model-join-conditions)
-(declare model-build-order)
-(declare model-where-conditions)
-(declare model-natural-orderings)
-(declare model-order-statement)
-(declare model-models-involved)
-(declare subfusion)
-(declare fusion)
-
-(defn- join-order
-  [field target prefix opts]
-  (let [slug (keyword (-> field :row :slug))]
-    (field/with-propagation :order opts slug
-      (fn [down]
-        (model-build-order target (str prefix "$" (name slug)) down)))))
-
-(defn- join-fusion
-  ([this target prefix archetype skein opts]
-     (join-fusion this target prefix archetype skein opts identity))
-  ([this target prefix archetype skein opts process]
-     (let [slug (keyword (-> this :row :slug))
-           value (subfusion target (str prefix "$" (name slug)) skein opts)]
-       (if (:id value)
-         (assoc archetype slug (process value))
-         archetype))))
-
-(defn- asset-fusion
-  [this prefix archetype skein opts]
-  (join-fusion
-     this (:asset @models) prefix archetype skein opts
-     (fn [master]
-       (if master
-         (assoc master :path (asset/asset-path master))))))
-
-(defn- join-render
-  [this target content opts]
-  (let [slug (keyword (-> this :row :slug))]
-    (if-let [sub (slug content)]
-      (update-in
-       content [slug]
-       (fn [part]
-         (model-render target part opts)))
-      content)))
-
-(defrecord AssetField [row env]
-  field/Field
-  (table-additions [this field] [])
-  (subfield-names [this field] [(str field "_id")])
-  (setup-field [this spec]
-    (let [id-slug (str (:slug row) "_id")
-          model (db/find-model (:model_id row) @models)]
-      (update :model (:model_id row)
-            {:fields [{:name (titleize id-slug)
-                       :type "integer"
-                       :editable false
-                       :reference :asset}]} {:op :migration})
-      (db/create-index (:slug model) id-slug)))
-
-  (rename-field [this old-slug new-slug])
-
-  (cleanup-field [this]
-    (let [fields ((@models (row :model_id)) :fields)
-          id (keyword (str (:slug row) "_id"))]
-      (destroy :field (-> fields id :row :id))))
-
-  (target-for [this] nil)
-  (update-values [this content values] values)
-  (post-update [this content opts] content)
-  (pre-destroy [this content] content)
-
-  (join-fields [this prefix opts]
-    (model-select-fields (:asset @models) (str prefix "$" (:slug row)) (dissoc opts :include)))
-
-  (join-conditions [this prefix opts]
-    (let [model (@models (:model_id row))
-          slug (:slug row)
-          id-slug (keyword (str slug "_id"))
-          id-field (-> model :fields id-slug)
-          field-select (field/coalesce-locale model id-field prefix
-                                               (name id-slug) opts)]
-      [(clause "left outer join asset %2$%1 on (%3 = %2$%1.id)"
-               [(:slug row) prefix field-select])]))
-
-  (build-where
-    [this prefix opts]
-    (field/with-propagation :where opts (:slug row)
-      (fn [down]
-        (model-where-conditions (:asset @models)
-                                (str prefix "$" (:slug row)) down))))
-
-  (natural-orderings [this prefix opts])
-
-  (build-order [this prefix opts]
-    (join-order this (:asset @models) prefix opts))
-
-  (field-generator [this generators]
-    generators)
-
-  (fuse-field [this prefix archetype skein opts]
-    (asset-fusion this prefix archetype skein opts))
-
-  (localized? [this] false)
-
-  (models-involved [this opts all] all)
-
-  (field-from [this content opts]
-    (let [asset-id (content (keyword (str (:slug row) "_id")))
-          asset (or (db/choose :asset asset-id) {})]
-      (assoc asset :path (asset/asset-path asset))))
-
-  (render [this content opts]
-    (join-render this (:asset @models) content opts))
-  (validate [this opts] (validation/for-asset this opts)))
-
 (defn full-address [address]
   (string/join " " [(address :address)
              (address :address_two)
@@ -316,6 +122,8 @@
      {}
      {:lat (-> (first code) :location :latitude)
       :lng (-> (first code) :location :longitude)})))
+
+(declare update destroy create)
 
 (defrecord AddressField [row env]
   field/Field
@@ -353,7 +161,8 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (model-select-fields (:location @models) (str prefix "$" (:slug row)) opts))
+    (assoc/model-select-fields (:location @models)
+                               (str prefix "$" (:slug row)) opts))
 
   (join-conditions [this prefix opts]
     (let [model (@models (:model_id row))
@@ -369,18 +178,18 @@
     [this prefix opts]
     (field/with-propagation :where opts (:slug row)
       (fn [down]
-        (model-where-conditions (:location @models) (str prefix "$" (:slug row)) down))))
+        (assoc/model-where-conditions (:location @models) (str prefix "$" (:slug row)) down))))
 
   (natural-orderings [this prefix opts])
 
   (build-order [this prefix opts]
-    (join-order this (:location @models) prefix opts))
+    (assoc/join-order this (:location @models) prefix opts))
 
   (field-generator [this generators]
     generators)
 
   (fuse-field [this prefix archetype skein opts]
-    (join-fusion this (:location @models) prefix archetype skein opts))
+    (assoc/join-fusion this (:location @models) prefix archetype skein opts))
 
   (localized? [this] false)
   (models-involved [this opts all] all)
@@ -389,7 +198,7 @@
     (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
 
   (render [this content opts]
-    (join-render this (:location @models) content opts))
+    (assoc/join-render this (:location @models) content opts))
   (validate [this opts] (validation/for-address this opts)))
 
 
@@ -431,7 +240,7 @@
               table-alias (str prefix "$" slug)
               field-select (field/coalesce-locale model id-field table-alias
                                                    (name link-id-slug) opts)
-              subconditions (model-where-conditions target table-alias down)
+              subconditions (assoc/model-where-conditions target table-alias down)
               params [prefix field-select (:slug target) table-alias subconditions]]
           (clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
 
@@ -448,10 +257,12 @@
              (doall
               (map
                (fn [to]
-                 (model-render target to down))
+                 (assoc/model-render target to down))
                col)))))
         content))
     content))
+
+(declare fusion)
 
 (defn- collection-fusion
   [this prefix archetype skein opts]
@@ -478,6 +289,8 @@
       (assoc content (keyword (-> field :row :slug)) updated))
     content))
 
+(declare model-models-involved)
+
 (defn span-models-involved
   [field opts all]
   (if-let [down (field/with-propagation :include opts (-> field :row :slug)
@@ -486,6 +299,23 @@
                       (model-models-involved target down all))))]
     down
     all))
+
+(declare model-join-conditions)
+
+(defn model-natural-orderings
+  "Find all orderings between included associations that depend on the association position column
+   of the given model."
+  [model prefix opts]
+  (filter
+   identity
+   (flatten
+    (map
+     (fn [order-key]
+       (if-let [field (-> model :fields order-key)]
+         (field/natural-orderings
+          field (name prefix)
+          (assoc opts :include (-> opts :include order-key)))))
+     (keys (:include opts))))))
 
 (defrecord CollectionField [row env]
   field/Field
@@ -551,7 +381,8 @@
     (field/with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
-          (model-select-fields target (str prefix "$" (:slug row)) down)))))
+          (assoc/model-select-fields target (str prefix "$" (:slug row))
+                                     down)))))
 
   (join-conditions
     [this prefix opts]
@@ -589,7 +420,7 @@
       [(str field-select " asc") downstream]))
 
   (build-order [this prefix opts]
-    (join-order this (@models (row :target_id)) prefix opts))
+    (assoc/join-order this (@models (row :target_id)) prefix opts))
 
   (field-generator [this generators]
     generators)
@@ -627,7 +458,7 @@
         fused
         (field/with-propagation :include opts slug
           (fn [down]
-            (let [value (subfusion target (str prefix "$" (name slug)) skein down)]
+            (let [value (assoc/subfusion target (str prefix "$" (name slug)) skein down)]
               (if (:id value)
                 (assoc archetype slug value)
                 archetype))))]
@@ -642,7 +473,7 @@
         (update-in
          content [slug] 
          (fn [part]
-           (model-render target part down)))
+           (assoc/model-render target part down)))
         content))
     content))
 
@@ -662,7 +493,7 @@
               table-alias (str prefix "$" slug)
               field-select (field/coalesce-locale model id-field table-alias
                                                    "id" opts)
-              subconditions (model-where-conditions target table-alias down)
+              subconditions (assoc/model-where-conditions target table-alias down)
               params [part-select field-select (:slug target) table-alias subconditions]]
           (clause "%1 in (select %2 from %3 %4 where %5)" params))))))
 
@@ -723,7 +554,8 @@
     (field/with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
-          (model-select-fields target (str prefix "$" (:slug row)) down)))))
+          (assoc/model-select-fields target (str prefix "$" (:slug row))
+                                     down)))))
 
   (join-conditions [this prefix opts]
     (field/with-propagation :include opts (:slug row)
@@ -751,7 +583,7 @@
       downstream))
 
   (build-order [this prefix opts]
-    (join-order this (@models (:target_id row)) prefix opts))
+    (assoc/join-order this (@models (:target_id row)) prefix opts))
 
   (fuse-field [this prefix archetype skein opts]
     (part-fusion this (@models (-> this :row :target_id)) prefix archetype skein opts))
@@ -810,7 +642,8 @@
     (field/with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))]
-          (model-select-fields target (str prefix "$" (:slug row)) down)))))
+          (assoc/model-select-fields target (str prefix "$" (:slug row))
+                                     down)))))
 
   (join-conditions [this prefix opts]
     (field/with-propagation :include opts (:slug row)
@@ -832,7 +665,7 @@
     (field/with-propagation :where opts (:slug row)
       (fn [down]
         (let [target (@models (:model_id row))]
-          (model-where-conditions target (str prefix "$" (:slug row)) down)))))
+          (assoc/model-where-conditions target (str prefix "$" (:slug row)) down)))))
 
   (natural-orderings [this prefix opts]
     (field/with-propagation :where opts (:slug row)
@@ -841,7 +674,7 @@
           (model-natural-orderings target (str prefix "$" (:slug row)) down)))))
 
   (build-order [this prefix opts]
-    (join-order this (@models (:model_id row)) prefix opts))
+    (assoc/join-order this (@models (:model_id row)) prefix opts))
 
   (field-generator [this generators]
     generators)
@@ -997,7 +830,7 @@
               (link-join-keys field prefix opts)
               model (@models (-> field :row :model_id))
               target (@models (-> field :row :target_id))
-              subconditions (model-where-conditions target table-alias down)
+              subconditions (assoc/model-where-conditions target table-alias down)
               params [prefix join-select join-key join-alias
                       (:slug target) link-select subconditions table-alias]] 
           (clause join-clause params))))))
@@ -1032,7 +865,7 @@
              (doall
               (map
                (fn [to]
-                 (model-render target to down))
+                 (assoc/model-render target to down))
                col)))))
         content))
     content))
@@ -1147,7 +980,8 @@
     (field/with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@models (:target_id row))]
-          (model-select-fields target (str prefix "$" (:slug row)) down)))))
+          (assoc/model-select-fields target (str prefix "$" (:slug row))
+                                     down)))))
 
   (join-conditions [this prefix opts]
     (link-join-conditions this prefix opts))
@@ -1160,7 +994,7 @@
     (link-natural-orderings this prefix opts))
 
   (build-order [this prefix opts]
-    (join-order this (@models (:target_id row)) prefix opts))
+    (assoc/join-order this (@models (:target_id row)) prefix opts))
 
   (field-generator [this generators]
     generators)
@@ -1193,15 +1027,6 @@
   [model opts all]
   (reduce #(field/models-involved %2 opts %1) all (-> model :fields vals)))
 
-(defn model-select-fields
-  "Build a set of select fields based on the given model."
-  [model prefix opts]
-  (let [fields (vals (:fields model))
-        sf (fn [field]
-             (field/select-fields model field (name prefix) opts))
-        model-fields (map sf fields)]
-    (set (apply concat model-fields))))
-
 (defn model-join-conditions
   "Find all necessary table joins for this query based on the arbitrary
    nesting of the include option."
@@ -1220,7 +1045,7 @@
   "Build the select query for this model by the given prefix based on the
    particular nesting of the include map."
   [model prefix opts]
-  (let [selects (string/join ", " (model-select-fields model prefix opts))
+  (let [selects (string/join ", " (assoc/model-select-fields model prefix opts))
         joins (string/join " " (model-join-conditions model prefix opts))]
     (string/join " " ["select" selects "from" (:slug model) (name prefix) joins])))
 
@@ -1228,46 +1053,6 @@
   "Determine the limit and offset component of the uberquery based on the given where condition."
   [limit offset]
   (clause " limit %1 offset %2" [limit offset]))
-
-(defn model-where-conditions
-  "Builds the where part of the uberquery given the model, prefix and given map of the
-   where conditions."
-  [model prefix opts]
-  (let [eyes
-        (filter
-         identity
-         (map
-          (fn [field]
-            (field/build-where field prefix opts))
-          (vals (:fields model))))]
-    (string/join " and " (flatten eyes))))
-
-(defn model-natural-orderings
-  "Find all orderings between included associations that depend on the association position column
-   of the given model."
-  [model prefix opts]
-  (filter
-   identity
-   (flatten
-    (map
-     (fn [order-key]
-       (if-let [field (-> model :fields order-key)]
-         (field/natural-orderings
-          field (name prefix)
-          (assoc opts :include (-> opts :include order-key)))))
-     (keys (:include opts))))))
-
-(defn model-build-order
-  "Builds out the order component of the uberquery given whatever ordering map
-   is found in opts."
-  [model prefix opts]
-  (filter
-   identity
-   (flatten
-    (map
-     (fn [field]
-       (field/build-order field prefix opts))
-     (vals (:fields model))))))
 
 (defn finalize-order-statement
   [orders]
@@ -1293,7 +1078,7 @@
    the order clause to ultimately be used in the uberquery."
   [model opts]
   (let [ordering (if (:order opts) opts (assoc opts :order {:position :asc}))
-        order (model-build-order model (:slug model) ordering)]
+        order (assoc/model-build-order model (:slug model) ordering)]
     (finalize-order-statement order)))
 
 (defn model-outer-condition
@@ -1306,7 +1091,7 @@
   "Given the model and map of opts, construct the corresponding uberquery (but don't call it!)"
   [model opts]
   (let [query (model-select-query model (:slug model) opts)
-        where (model-where-conditions model (:slug model) opts)
+        where (assoc/model-where-conditions model (:slug model) opts)
 
         order (model-order-statement model opts)
         
@@ -1334,16 +1119,6 @@
     ;; (println (:slug model) opts query-mass)
     (query query-mass)))
 
-(defn- subfusion
-  [model prefix skein opts]
-  (let [fields (vals (:fields model))
-        archetype
-        (reduce
-         (fn [archetype field]
-           (field/fuse-field field prefix archetype skein opts))
-         {} fields)]
-    archetype))
-
 (defn fusion
   "Takes the results of the uberquery, which could have a map for each item associated to a given
    piece of content, and fuses them into a single nested map representing that content."
@@ -1351,7 +1126,7 @@
   (let [model-key (prefix-key prefix "id")
         order (distinct (map model-key fibers))
         world (group-by model-key fibers)
-        fused (map-vals #(subfusion model prefix % opts) world)]
+        fused (map-vals #(assoc/subfusion model prefix % opts) world)]
     (map #(fused %) order)))
 
 (defn keys-difference
@@ -1572,42 +1347,18 @@
    {:name "Updated At" :slug "updated_at" :type "timestamp" :locked true :editable false}])
 
 (doseq
-    [[key construct] {:urlslug (fn [row] 
-                                 (let [link (db/choose :field (row :link_id))]
-                                   (UrlSlugField. row {:link link})))
-                      :boolean (fn [row] (BooleanField. row {}))
-                      :asset (fn [row] (AssetField. row {}))
-                      :address (fn [row] (AddressField. row {}))
-                      :collection (fn [row]
+    [[key construct] {:address (fn [row operations] (AddressField. row {}))
+                      :collection (fn [row operations]
                                     (let [link (if (row :link_id) (db/choose :field (row :link_id)))]
                                       (CollectionField. row {:link link})))
-                      :part (fn [row]
+                      :part (fn [row operations]
                               (let [link (db/choose :field (row :link_id))]
                                 (PartField. row {:link link})))
-                      :tie (fn [row] (TieField. row {}))
-                      :link (fn [row]
+                      :tie (fn [row operations] (TieField. row {}))
+                      :link (fn [row operations]
                               (let [link (db/choose :field (row :link_id))]
                                 (LinkField. row {:link link})))}]
   (field/add-constructor key construct))
-
-(defn make-field
-  "turn a row from the field table into a full fledged Field record"
-  [row]
-  (let [type (keyword (row :type))
-        constructor (@field/field-constructors type)]
-    (when-not constructor
-      (throw (new Exception (str "no such field type: " type))))
-    (constructor row)))
-
-(defn model-render
-  "render a piece of content according to the fields contained in the model
-  and given by the supplied opts"
-  [model content opts]
-  (let [fields (vals (:fields model))]
-    (reduce
-     (fn [content field]
-       (field/render field content opts))
-     content fields)))
 
 (def lifecycle-hooks (ref {}))
 
@@ -2186,3 +1937,9 @@
 
   (sql/with-connection @config/db
     (invoke-models)))
+
+(swap! operations (fn [m] (assoc m
+                            :update
+                            update
+                            :destroy
+                            destroy)))
