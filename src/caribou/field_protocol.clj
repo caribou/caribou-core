@@ -151,6 +151,14 @@
         (str (coalesce-locale model field prefix slug opts) " "
              (name by))))))
 
+(defn string-where
+  [field prefix slug opts where models]
+  (let [model-id (-> field :row :model_id)
+        model (db/find-model model-id models)
+        [operator value] (where-operator where)
+        field-select (coalesce-locale model field prefix slug opts)]
+    (util/clause "%1 %2 '%3'" [field-select operator value])))
+
 (def field-constructors
   (atom {}))
 

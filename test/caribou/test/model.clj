@@ -465,11 +465,11 @@
         bond-height 69.55
         bond-values {:nchildren 32767
                      :height bond-height
-                     :name (str "James Bond" (rand-str 245))
+                     :name (str "James Bond" (util/rand-str 245))
                      :auth "Octopu55y"
                      :round ".38 Hollow Tip"
                      ;; mysql text type size issue
-                     :bio (str "He did stuff: ☃" (rand-str 65500))
+                     :bio (str "He did stuff: ☃" (util/rand-str 65500))
                      :adequate true
                      ;; mysql date-time precision issue
                      :born_at "January 1 1970"

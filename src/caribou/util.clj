@@ -202,3 +202,14 @@
   (keyword (str (name prefix) "$" (name slug))))
 
 
+(def pool "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
+           =+!@#$%^&*()_-|:;?/}]{[~` 0123456789")
+
+(defn rand-str
+  ([n] (rand-str n pool))
+  ([n pool]
+     (string/join
+      (map
+       (fn [_]
+         (rand-nth pool))
+       (repeat n nil)))))
