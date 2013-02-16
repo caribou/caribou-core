@@ -10,7 +10,7 @@
     "the names of any additional fields added to the model
     by this field given this name")
 
-  (setup-field [this spec models] "further processing on creation of field")
+  (setup-field [this spec] "further processing on creation of field")
   (rename-field [this old-slug new-slug] "further processing on creation of field")
   (cleanup-field [this] "further processing on removal of field")
   (target-for [this] "retrieves the model this field points to, if applicable")
@@ -23,9 +23,9 @@
 
   (join-fields [this prefix opts])
   (join-conditions [this prefix opts])
-  (build-where [this prefix opts models] "creates a where clause suitable to this field from the given where map, with fields prefixed by the given prefix.")
+  (build-where [this prefix opts] "creates a where clause suitable to this field from the given where map, with fields prefixed by the given prefix.")
   (natural-orderings [this prefix opts])
-  (build-order [this prefix opts models])
+  (build-order [this prefix opts])
   (field-generator [this generators])
   (fuse-field [this prefix archetype skein opts])
 
@@ -35,7 +35,10 @@
   (field-from [this content opts]
     "retrieves the value for this field from this content item")
   (render [this content opts] "renders out a single field from this content item")
-  (validate [this opts models] "given a set of options and the models, verifies the options are appropriate and well formed for gathering"))
+  (validate [this opts] "given a set of options and the models, verifies the options are appropriate and well formed for gathering"))
+
+;; fields use the set of defined models extensively
+(def models (ref {}))
 
 (defn build-locale-field
   [prefix slug locale]
@@ -103,11 +106,11 @@
     ["=" where]))
 
 (defn field-where
-  [field prefix opts do-where models]
+  [field prefix opts do-where]
   (let [slug (keyword (-> field :row :slug))
         where (-> opts :where slug)]
     (if-not (nil? where)
-      (do-where field prefix slug opts where models))))
+      (do-where field prefix slug opts where))))
 
 (defn pure-fusion
   [this prefix archetype skein opts]
@@ -135,26 +138,26 @@
   (conj all (-> field :row :model_id)))
 
 (defn pure-where
-  [field prefix slug opts where models]
+  [field prefix slug opts where]
   (let [model-id (-> field :row :model_id)
-        model (db/find-model model-id models)
+        model (db/find-model model-id @models)
         [operator value] (where-operator where)
         field-select (coalesce-locale model field prefix slug opts)]
     (util/clause "%1 %2 %3" [field-select operator value])))
 
 (defn pure-order
-  [field prefix opts models]
+  [field prefix opts]
   (let [slug (-> field :row :slug)]
     (if-let [by (get (:order opts) (keyword slug))]
       (let [model-id (-> field :row :model_id)
-            model (db/find-model model-id models)]
+            model (db/find-model model-id @models)]
         (str (coalesce-locale model field prefix slug opts) " "
              (name by))))))
 
 (defn string-where
-  [field prefix slug opts where models]
+  [field prefix slug opts where]
   (let [model-id (-> field :row :model_id)
-        model (db/find-model model-id models)
+        model (db/find-model model-id @models)
         [operator value] (where-operator where)
         field-select (coalesce-locale model field prefix slug opts)]
     (util/clause "%1 %2 '%3'" [field-select operator value])))
