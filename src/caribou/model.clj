@@ -1,12 +1,11 @@
 (ns caribou.model
-  (:use caribou.debug)
-  (:use caribou.util)
   (:require [clojure.string :as string]
             [clojure.walk :as walk]
             [clojure.set :as set]
             [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
             [caribou.db :as db]
+            [caribou.util :as util]
             [caribou.field-protocol :as field]
             [caribou.config :as config]
             [caribou.validation :as validation]
@@ -105,13 +104,13 @@
   [query query-defaults]
   (let [expanded-include (expand-query-defaults query-defaults (:include query))
         expanded-where   (expand-query-defaults query-defaults (:where query))
-        merged-defaults  (deep-merge-with (fn [& maps] (first maps)) expanded-where expanded-include)
+        merged-defaults  (util/deep-merge-with (fn [& maps] (first maps)) expanded-where expanded-include)
         ] merged-defaults))
 
 (defn apply-query-defaults
   [query query-defaults]
   (if (not= query-defaults nil)
-    (deep-merge-with (fn [& maps] (first maps)) query {:where (expanded-query-defaults query query-defaults)})
+    (util/deep-merge-with (fn [& maps] (first maps)) query {:where (expanded-query-defaults query query-defaults)})
     query))
 
 (def model-slugs (ref {}))
@@ -132,13 +131,13 @@
 (defn model-limit-offset
   "Determine the limit and offset component of the uberquery based on the given where condition."
   [limit offset]
-  (clause " limit %1 offset %2" [limit offset]))
+  (util/clause " limit %1 offset %2" [limit offset]))
 
 (defn finalize-order-statement
   [orders]
   (let [statement (string/join ", " orders)]
     (if-not (empty? statement)
-      (clause " order by %1" [statement]))))
+      (util/clause " order by %1" [statement]))))
 
 (defn immediate-vals
   [m]
@@ -164,7 +163,7 @@
 (defn model-outer-condition
   [model inner order limit opts]
   (let [subcondition (if (not (empty? inner)) (str " where " inner))]
-    (clause " where %1.id in (select * from (select %1.id from %1 %2%3%4) as _conditions_)"
+    (util/clause " where %1.id in (select * from (select %1.id from %1 %2%3%4) as _conditions_)"
             [(:slug model) subcondition order limit])))
 
 (defn form-uberquery
@@ -197,7 +196,7 @@
   [model opts]
   (let [query-mass (form-uberquery model opts)]
     ;; (println (:slug model) opts query-mass)
-    (query query-mass)))
+    (util/query query-mass)))
 
 (defn keys-difference
   [a b]
@@ -586,7 +585,7 @@
 
 (defn- add-model-hooks []
   (add-hook :model :before_create :build_table (fn [env]
-    (create-model-table (slugify (-> env :spec :name)))
+    (create-model-table (util/slugify (-> env :spec :name)))
     env))
   
   (add-hook :model :after_create :add_base_fields (fn [env] (add-base-fields env)))
@@ -707,7 +706,7 @@
       (do
         (doseq [[old-name new-name] spawn]
           (let [field-id (-> (get model-fields (keyword old-name)) :row :id)]
-            (update :field field-id {:name new-name :slug (slugify new-name)})))
+            (update :field field-id {:name new-name :slug (util/slugify new-name)})))
 
         (doseq [[old-name new-name] transition]
           (db/rename-column model-slug old-name new-name)
@@ -765,7 +764,7 @@
       ;;   (field/cleanup-field field)
       ;;   (doall (map #(db/drop-column ((models (-> field :row :model_id)) :slug) (first %)) (field/table-additions field (-> env :content :slug))))
       ;;  env)
-      (catch Exception e (render-exception e)))
+      (catch Exception e (util/render-exception e)))
     env)))
 
 (defn add-app-model-hooks
@@ -791,8 +790,8 @@
   to its fields in a hash with keys being the field slugs
   and vals being the field invoked as a Field protocol record."
   [model]
-  (let [fields (query "select * from field where model_id = %1" (model :id))
-        field-map (seq-to-map #(keyword (-> % :row :slug)) (map make-field fields))]
+  (let [fields (util/query "select * from field where model_id = %1" (model :id))
+        field-map (util/seq-to-map #(keyword (-> % :row :slug)) (map make-field fields))]
     (make-lifecycle-hooks (model :slug))
     (assoc model :fields field-map)))
 
@@ -802,15 +801,15 @@
   this also means if a model or field is changed in any way that model will
   have to be reinvoked to reflect the current state."
   []
-  (let [rows (query "select * from model")
+  (let [rows (util/query "select * from model")
         invoked (doall (map invoke-model rows))]
      (add-model-hooks)
      (add-field-hooks)
      (dosync
       (alter models 
         (fn [in-ref new-models] new-models)
-        (merge (seq-to-map #(keyword (% :slug)) invoked)
-               (seq-to-map #(% :id) invoked)))))
+        (merge (util/seq-to-map #(keyword (% :slug)) invoked)
+               (util/seq-to-map #(% :id) invoked)))))
 
      ;; get all of our model slugs
      (dosync
@@ -824,9 +823,9 @@
 
 (defn localize-values
   [model values opts]
-  (let [locale (zap (:locale opts))]
+  (let [locale (util/zap (:locale opts))]
     (if (and locale (:localized model))
-      (map-map
+      (util/map-map
        (fn [k v]
          (let [kk (keyword k)
                field (-> model :fields kk)]
@@ -877,7 +876,7 @@
            limit (str (or (opts :limit) 30))
            offset (str (or (opts :offset) 0))
            where (str (or (opts :where) "1=1"))]
-       (doall (map #(assoc/from model % opts) (query "select * from %1 where %2 order by %3 %4 limit %5 offset %6" slug where order-by order limit offset))))))
+       (doall (map #(assoc/from model % opts) (util/query "select * from %1 where %2 order by %3 %4 limit %5 offset %6" slug where order-by order limit offset))))))
 
 (defn update
   "slug represents the model to be updated.
@@ -895,7 +894,7 @@
            _update (run-hook slug :before_update _save)
            local-values (localize-values model (:values _update) opts)
            success (db/update
-                    slug ["id = ?" (convert-int id)]
+                    slug ["id = ?" (util/convert-int id)]
                     (assoc local-values :updated_at
                            (time-stamp-field/current-timestamp)))
            content (db/choose slug id)
@@ -927,8 +926,8 @@
      (let [model (models (keyword slug))]
        (if (model :nested)
          (let [field-names (assoc/table-columns slug)
-               base-where (clause "id = %1" [id])
-               recur-where (clause "%1_tree.parent_id = %1.id" [slug])
+               base-where (util/clause "id = %1" [id])
+               recur-where (util/clause "%1_tree.parent_id = %1.id" [slug])
                before (db/recursive-query slug field-names base-where recur-where)]
            (doall (map #(assoc/from model % opts) before)))
          [(assoc/from model (db/choose slug id) opts)]))))
@@ -941,8 +940,8 @@
      (let [model (models (keyword slug))]
        (if (model :nested)
          (let [field-names (assoc/table-columns slug)
-               base-where (clause "id = %1" [id])
-               recur-where (clause "%1_tree.id = %1.parent_id" [slug])
+               base-where (util/clause "id = %1" [id])
+               recur-where (util/clause "%1_tree.id = %1.parent_id" [slug])
                before (db/recursive-query slug field-names base-where recur-where)]
            (doall (map #(assoc/from model % opts) before)))
          [(assoc/from model (db/choose slug id) opts)]))))
@@ -1009,13 +1008,13 @@
      (let [{from-key :from to-key :to join-key :join} (assoc/link-keys field)
            target-id (-> field :row :target_id)
            target (or (get @models target-id)
-                      (first (query "select * from model where id = %1"
+                      (first (util/query "select * from model where id = %1"
                                          target-id)))
            locale (if (and (:localized target) (:locale opts)) (str (name (:locale opts)) "_") "")
            linkage (create (:slug target) b opts)
            params [join-key from-key (:id linkage) to-key (:id a) locale]
            preexisting (apply
-                        (partial query
+                        (partial util/query
                                  "select * from %1 where %6%2 = %3 and %6%4 = %5")
                         params)]
        (if preexisting
