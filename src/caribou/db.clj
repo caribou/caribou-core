@@ -87,6 +87,10 @@
     (first (query "select * from %1 where id = %2" (zap (name table)) (zap (str id))))
     nil))
 
+(defn find-model
+  [id models]
+  (or (get models id) (choose :model id)))
+
 (defn commit
   []
   (sql/do-commands "commit"))
