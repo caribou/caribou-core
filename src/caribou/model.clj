@@ -6,26 +6,20 @@
             [clojure.set :as set]
             [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
-            [clj-time.core :as timecore]
-            [clj-time.format :as format]
-            [clj-time.coerce :as coerce]
             [geocoder.core :as geo]
             [caribou.db :as db]
             [caribou.field-protocol :as field]
             [caribou.config :as config]
             [caribou.asset :as asset]
             [caribou.validation :as validation]
-            [caribou.logger :as log]
             ;; namespaces for fields
             caribou.field.id
             caribou.field.integer
             caribou.field.decimal
             caribou.field.string
             caribou.field.password
-            caribou.field.text))
-
-(import java.util.Date)
-(import java.text.SimpleDateFormat)
+            caribou.field.text
+            [caribou.field.time-stamp :as time-stamp-field]))
 
 (defn db
   "Calls f in the connect of the current configured database connection."
@@ -95,84 +89,6 @@
   (if (not= query-defaults nil)
     (deep-merge-with (fn [& maps] (first maps)) query {:where (expanded-query-defaults query query-defaults)})
     query))
-
-;; DATE AND TIME ---------------------------------------------------
-
-(defn current-timestamp
-  []
-  (coerce/to-timestamp (timecore/now)))
-
-(def simple-date-format
-  (java.text.SimpleDateFormat. "MMMMMMMMM dd', 'yyyy HH':'mm"))
-
-(defn format-date
-  "given a date object, return a string representing the canonical format for that date"
-  [date]
-  (if date
-    (.format simple-date-format date)))
-
-(def custom-formatters
-  (map #(format/formatter %)
-       ["MM/dd/yy"
-        "MM/dd/yyyy"
-        "MMMMMMMMM dd, yyyy"
-        "MMMMMMMMM dd, yyyy HH:mm"
-        "MMMMMMMMM dd, yyyy HH:mm:ss"
-        "MMMMMMMMM dd yyyy"
-        "MMMMMMMMM dd yyyy HH:mm"
-        "MMMMMMMMM dd yyyy HH:mm:ss"]))
-
-(def time-zone-formatters
-  (map #(format/formatter %)
-       ["MM/dd/yy Z"
-        "MM/dd/yyyy Z"
-        "MMMMMMMMM dd, yyyy Z"
-        "MMMMMMMMM dd, yyyy HH:mm Z"
-        "MMMMMMMMM dd, yyyy HH:mm:ss Z"
-        "MMMMMMMMM dd yyyy Z"
-        "MMMMMMMMM dd yyyy HH:mm Z"
-        "MMMMMMMMM dd yyyy HH:mm:ss Z"]))
-
-(defn try-formatter
-  [date-string formatter]
-  (try
-    (format/parse formatter date-string)
-    (catch Exception e nil)))
-
-(defn impose-time-zone
-  [timestamp]
-  (timecore/from-time-zone timestamp (timecore/default-time-zone)))
-
-(defn read-date
-  "Given a string try every imaginable thing to parse it into something
-   resembling a date."
-  [date-string]
-  (let [trimmed (string/trim date-string)
-        default (coerce/from-string trimmed)]
-    (if (nil? default)
-      (let [custom (some #(try-formatter trimmed %) time-zone-formatters)]
-        (if custom
-          (coerce/to-timestamp custom)
-          (let [custom (some #(try-formatter trimmed %) custom-formatters)]
-            (if custom
-              (coerce/to-timestamp (impose-time-zone custom))))))
-      (coerce/to-timestamp (impose-time-zone default)))))
-
-(defn ago
-  "given a timecore/interval, creates a string representing the time passed"
-  [interval]
-  (let [notzero (fn [convert data]
-                  (let [span (convert data)]
-                    (if (== span 0)
-                      false
-                      span)))
-        ago-str (fn [string num]
-                  (str num " " string (if (== num 1) "s" "") " ago"))]
-    (condp notzero interval
-      timecore/in-years :>> #(ago-str "year" %)
-      timecore/in-months :>> #(ago-str "month" %)
-      timecore/in-days :>> #(ago-str "day" %)
-      (constantly 1) (ago-str "hour" (timecore/in-hours interval)))))
 
 (def models (ref {}))
 (def model-slugs (ref {}))
@@ -307,75 +223,6 @@
                                                             (#{true false 0 1}
                                                              x))))
                                                     "boolean")))
-
-(defn- build-extract
-  [field prefix slug opts [index value]]
-  (let [model-id (-> field :row :model_id)
-        model (@models model-id)
-        field-select (field/coalesce-locale model field prefix slug opts)]
-    (clause "extract(%1 from %2) = %3" [(name index) field-select value])))
-
-(defn- suffix-prefix
-  [prefix]
-  (if (or (nil? prefix) (empty? prefix))
-    ""
-    (str prefix ".")))
-
-(defn- timestamp-where
-  "To find something by a certain timestamp you must provide a map with keys into
-   the date or time.  Example:
-     (timestamp-where :created_at {:day 15 :month 7 :year 2020})
-   would find all rows who were created on July 15th, 2020."
-  [field prefix slug opts where models]
-  (string/join " and " (map (partial build-extract field
-                                     (suffix-prefix prefix) slug opts)
-                            where)))
-
-(defrecord TimestampField [row env]
-  field/Field
-  (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL"]])
-  (subfield-names [this field] [])
-  (setup-field [this spec models] nil)
-  (rename-field [this old-slug new-slug])
-  (cleanup-field [this] nil)
-  (target-for [this] nil)
-  (update-values
-    [this content values]
-    (let [key (keyword (:slug row))]
-      (cond
-       (contains? content key)
-       (let [value (content key)
-             timestamp (if (string? value) (read-date value) value)]
-         (if timestamp
-           (assoc values key timestamp)
-           values))
-       :else values)))
-  (post-update [this content opts] content)
-  (pre-destroy [this content] content)
-  (join-fields [this prefix opts] [])
-  (join-conditions [this prefix opts] [])
-  (build-where
-    [this prefix opts models]
-    (field/field-where this prefix opts timestamp-where models))
-  (natural-orderings [this prefix opts])
-  (build-order [this prefix opts models]
-    (field/pure-order this prefix opts models))
-  (field-generator [this generators]
-    generators)
-  (fuse-field [this prefix archetype skein opts]
-    (field/pure-fusion this prefix archetype skein opts))
-  (localized? [this] (not (:locked row)))
-  (models-involved [this opts all] all)
-  (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts]
-    (update-in content [(keyword (:slug row))] format-date))
-  (validate [this opts models] (validation/for-type this opts
-                                                    (fn [d]
-                                                      (try
-                                                        (new Date d)
-                                                        (catch Throwable t
-                                                          false)))
-                                                        "timestamp")))
 
 ;; forward reference for Fields that need them
 (declare make-field)
@@ -1776,7 +1623,6 @@
                                  (let [link (db/choose :field (row :link_id))]
                                    (UrlSlugField. row {:link link})))
                       :boolean (fn [row] (BooleanField. row {}))
-                      :timestamp (fn [row] (TimestampField. row {}))
                       :asset (fn [row] (AssetField. row {}))
                       :address (fn [row] (AddressField. row {}))
                       :collection (fn [row]
@@ -1925,7 +1771,7 @@
      (merge
       field
       {:model_id (-> env :content :id)
-       :updated_at (current-timestamp)})))
+       :updated_at (time-stamp-field/current-timestamp)})))
   env)
 
 (defn add-status-to-model [model]
@@ -2166,13 +2012,7 @@
                          ;; this done for side effects, so we want to reload
                          ;; whenever applicable
                          (try (require ns :reload)
-                              ;; (log/info (str "loading hook ns " ns)
-                              ;;           :HOOKS)
-                              (catch java.io.FileNotFoundException e
-                                nil
-                                ;; (log/debug (str "did not find hooks for "
-                                ;;                 ns) :HOOKS)
-                                )))]
+                              (catch java.io.FileNotFoundException e nil)))]
     (when hooks-ns
       (doseq [model-slug @model-slugs]
         (-> model-slug make-hook-ns sloppy-require)))))
@@ -2249,7 +2089,9 @@
              _save (run-hook slug :before_save env)
              _create (run-hook slug :before_create _save)
              local-values (localize-values model (:values _create) opts)
-             content (db/insert slug (assoc local-values :updated_at (current-timestamp)))
+             content (db/insert slug (assoc local-values
+                                       :updated_at
+                                       (time-stamp-field/current-timestamp)))
              merged (merge (:spec _create) content)
              _after (run-hook slug :after_create (merge _create {:content merged}))
              post (reduce #(field/post-update %2 %1 opts) (:content _after) (vals (:fields model)))
@@ -2288,7 +2130,8 @@
            local-values (localize-values model (:values _update) opts)
            success (db/update
                     slug ["id = ?" (convert-int id)]
-                    (assoc local-values :updated_at (current-timestamp)))
+                    (assoc local-values :updated_at
+                           (time-stamp-field/current-timestamp)))
            content (db/choose slug id)
            merged (merge (_update :spec) content)
            _after (run-hook slug :after_update (merge _update {:content merged}))
