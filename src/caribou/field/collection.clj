@@ -1,0 +1,200 @@
+(ns caribou.field.collection
+  (:require [clojure.string :as string]
+            [caribou.field-protocol :as field]
+            [caribou.util :as util]
+            [caribou.db :as db]
+            [caribou.validation :as validation]
+            [caribou.model-association :as assoc]))
+
+
+(defn collection-where
+  [field prefix opts]
+  (let [slug (-> field :row :slug)]
+    (field/with-propagation :where opts slug
+      (fn [down]
+        (let [model (@field/models (-> field :row :model_id))
+              target (@field/models (-> field :row :target_id))
+              link (-> field :env :link :slug)
+              link-id-slug (keyword (str link "_id"))
+              id-field (-> target :fields link-id-slug)
+              table-alias (str prefix "$" slug)
+              field-select (field/coalesce-locale model id-field table-alias
+                                                   (name link-id-slug) opts)
+              subconditions (assoc/model-where-conditions target table-alias
+                                                          down)
+              params [prefix field-select (:slug target) table-alias
+                      subconditions]]
+          (util/clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
+
+(defn collection-render
+  [field content opts]
+  (if-let [include (:include opts)]
+    (let [slug (keyword (-> field :row :slug))]
+      (if-let [sub (slug include)]
+        (let [target (@field/models (-> field :row :target_id))
+              down {:include sub}]
+          (update-in
+           content [slug]
+           (fn [col]
+             (doall
+              (map
+               (fn [to]
+                 (assoc/model-render target to down))
+               col)))))
+        content))
+    content))
+
+(defn collection-post-update
+  [field content opts operations]
+  (if-let [collection (get content (-> field :row :slug keyword))]
+    (let [part-field (-> field :env :link)
+          part-key (-> part-field :slug (str "_id") keyword)
+          model (get @field/models (:model_id part-field))
+          model-key (-> model :slug keyword)
+          updated (doseq [part collection]
+                    (let [part-opts (assoc part part-key (:id content))]
+                      ((get @operations :create) model-key part-opts)))]
+      (assoc content (keyword (-> field :row :slug)) updated))
+    content))
+
+(defrecord CollectionField [row env operations]
+  field/Field
+  (table-additions [this field] [])
+  (subfield-names [this field] [])
+
+  (setup-field
+    [this spec]
+    (if (or (nil? (:link_id row)) (zero? (:link_id row)))
+      (let [model (db/find-model (:model_id row) @field/models)
+            target (db/find-model (:target_id row) @field/models)
+            reciprocal-name (or (:reciprocal_name spec) (:name model))
+            part ((get @operations :create) :field
+                   {:name reciprocal-name
+                    :type "part"
+                    :model_id (:target_id row)
+                    :target_id (:model_id row)
+                    :link_id (:id row)
+                    :dependent (:dependent row)})]
+        (db/update :field ["id = ?" (util/convert-int (:id row))]
+                   {:link_id (:id part)}))))
+
+  (rename-field [this old-slug new-slug])
+
+  (cleanup-field
+    [this]
+    (try
+      ((get @operations :destroy) :field (-> env :link :id))
+      (catch Exception e (str e))))
+
+  (target-for
+    [this]
+    (@field/models (:target_id row)))
+
+  (update-values
+    [this content values]
+    (let [removed (keyword (str "removed_" (:slug row)))]
+      (if (assoc/present? (content removed))
+        (let [ex (map util/convert-int (string/split (content removed) #","))
+              part (env :link)
+              part-key (keyword (str (part :slug) "_id"))
+              target ((@field/models (row :target_id)) :slug)]
+          (doseq [gone ex]
+            (if (:dependent row)
+              ((get @operations :destroy) target gone)
+              ((get @operations :update) target gone {part-key nil}))))))
+    values)
+
+  (post-update
+    [this content opts]
+    (collection-post-update this content opts operations))
+
+  (pre-destroy
+    [this content]
+    (if (or (row :dependent) (-> env :link :dependent))
+      (let [parts (field/field-from this content {:include {(keyword (:slug row)) {}}})
+            target (keyword (get (field/target-for this) :slug))]
+        (doseq [part parts]
+          ((get @operations :destroy) target (:id part)))))
+    content)
+
+  (join-fields
+    [this prefix opts]
+    (field/with-propagation :include opts (:slug row)
+      (fn [down]
+        (let [target (@field/models (:target_id row))]
+          (assoc/model-select-fields target (str prefix "$" (:slug row))
+                                     down)))))
+
+  (join-conditions
+    [this prefix opts]
+    (field/with-propagation :include opts (:slug row)
+      (fn [down]
+        (let [model (@field/models (:model_id row))
+              target (@field/models (:target_id row))
+              link (-> this :env :link :slug)
+              link-id-slug (keyword (str link "_id"))
+              id-field (-> target :fields link-id-slug)
+              table-alias (str prefix "$" (:slug row))
+              field-select (field/coalesce-locale model id-field table-alias
+                                                   (name link-id-slug) opts)
+              downstream (assoc/model-join-conditions target table-alias down)
+              params [(:slug target) table-alias prefix field-select]]
+          (concat
+           [(util/clause "left outer join %1 %2 on (%3.id = %4)" params)]
+           downstream)))))
+
+  (build-where
+    [this prefix opts]
+    (collection-where this prefix opts))
+
+  (natural-orderings
+    [this prefix opts]
+    (let [model (@field/models (:model_id row))
+          target (@field/models (:target_id row))
+          link (-> this :env :link :slug)
+          link-position-slug (keyword (str link "_position"))
+          position-field (-> target :fields link-position-slug)
+          table-alias (str prefix "$" (:slug row))
+          field-select (field/coalesce-locale model position-field table-alias
+                                               (name link-position-slug) opts)
+          downstream (assoc/model-natural-orderings target table-alias opts)]
+      [(str field-select " asc") downstream]))
+
+  (build-order [this prefix opts]
+    (assoc/join-order this (@field/models (row :target_id)) prefix opts))
+
+  (field-generator [this generators]
+    generators)
+
+  (fuse-field
+    [this prefix archetype skein opts]
+    (assoc/collection-fusion this prefix archetype skein opts))
+
+  (localized? [this] false)
+
+  (models-involved [this opts all]
+    (assoc/span-models-involved this opts all))
+
+  (field-from
+    [this content opts]
+    (field/with-propagation :include opts (:slug row)
+      (fn [down]
+        (let [link (-> this :env :link :slug)
+              parts (db/fetch
+                     (-> (field/target-for this) :slug)
+                     (str link "_id = %1 order by %2 asc")
+                     (content :id)
+                     (str link "_position"))]
+          (map #(assoc/from (field/target-for this) % down) parts)))))
+
+  (render
+    [this content opts]
+    (collection-render this content opts))
+
+  (validate [this opts] (validation/for-assoc this opts)))
+
+(field/add-constructor :collection
+                       (fn [row operations]
+                         (let [link (if (row :link_id)
+                                      (db/choose :field (row :link_id)))]
+                           (CollectionField. row {:link link} operations))))
