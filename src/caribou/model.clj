@@ -26,6 +26,7 @@
             caribou.field.collection
             caribou.field.part
             caribou.field.link
+            caribou.field.tie
             [caribou.field.time-stamp :as time-stamp-field]))
 
 (def retrieve-links assoc/retrieve-links)
@@ -117,105 +118,6 @@
 
 
 (declare update destroy create)
-
-(defrecord TieField [row env]
-  field/Field
-
-  (table-additions [this field] [])
-  (subfield-names [this field] [(str field "_id")])
-
-  (setup-field [this spec]
-    (let [model_id (:model_id row)
-          model (@models model_id)
-          id-slug (str (:slug row) "_id")]
-      (update :model model_id
-        {:fields
-         [{:name (titleize id-slug)
-           :type "integer"
-           :editable false
-           :reference (:slug model)}]} {:op :migration})
-      (db/create-index (:slug model) id-slug)))
-
-  (rename-field [this old-slug new-slug])
-
-  (cleanup-field [this]
-    (let [fields ((@models (row :model_id)) :fields)
-          id (keyword (str (:slug row) "_id"))]
-      (destroy :field (-> fields id :row :id))))
-
-  (target-for [this] this)
-
-  (update-values [this content values] values)
-
-  (post-update [this content opts] content)
-
-  (pre-destroy [this content] content)
-
-  (join-fields [this prefix opts]
-    (field/with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [target (@models (:model_id row))]
-          (assoc/model-select-fields target (str prefix "$" (:slug row))
-                                     down)))))
-
-  (join-conditions [this prefix opts]
-    (field/with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [target (@models (:model_id row))
-              id-slug (keyword (str (:slug row) "_id"))
-              id-field (-> target :fields id-slug)
-              table-alias (str prefix "$" (:slug row))
-              field-select (field/coalesce-locale target id-field prefix
-                                                   (name id-slug) opts)
-              downstream (assoc/model-join-conditions target table-alias down)
-              params [(:slug target) table-alias field-select]]
-          (concat
-           [(clause "left outer join %1 %2 on (%3 = %2.id)" params)]
-           downstream)))))
-
-  (build-where
-    [this prefix opts]
-    (field/with-propagation :where opts (:slug row)
-      (fn [down]
-        (let [target (@models (:model_id row))]
-          (assoc/model-where-conditions target (str prefix "$" (:slug row)) down)))))
-
-  (natural-orderings [this prefix opts]
-    (field/with-propagation :where opts (:slug row)
-      (fn [down]
-        (let [target (@models (:model_id row))]
-          (assoc/model-natural-orderings target (str prefix "$" (:slug row)) down)))))
-
-  (build-order [this prefix opts]
-    (assoc/join-order this (@models (:model_id row)) prefix opts))
-
-  (field-generator [this generators]
-    generators)
-
-  (fuse-field [this prefix archetype skein opts]
-    (assoc/part-fusion this (@models (-> this :row :model_id)) prefix archetype skein opts))
-
-  (localized? [this] false)
-
-  (models-involved [this opts all]
-    (if-let [down (field/with-propagation :include opts (:slug row)
-                    (fn [down]
-                      (let [target (@models (:model_id row))]
-                        (assoc/model-models-involved target down all))))]
-      down
-      all))
-
-  (field-from [this content opts]
-    (field/with-propagation :include opts (:slug row)
-      (fn [down]
-        (if-let [tie-key (keyword (str (:slug row) "_id"))]
-          (let [model (@models (:model_id row))]
-            (assoc/from model (db/choose (:slug model) (content tie-key)) down))))))
-
-  (render [this content opts]
-    (assoc/part-render this (@models (:model_id row)) content opts))
-
-  (validate [this opts] (validation/for-assoc this opts)))
 
 ;; UBERQUERY ---------------------------------------------
 
@@ -451,11 +353,14 @@
     {}))
 
 (defn process-include
-  "The :include option is parsed into a nested map suitable for calling by the uberquery.
-   It translates strings of the form:
+  "The :include option is parsed into a nested map suitable for calling
+  by the uberquery.
+
+  It translates strings of the form:
      'association.further_association,other_association'
-   into -->
-     {:association {:further_association {}} :other_association {}}"
+
+   into --> {:association {:further_association {}} :other_association
+     {}}"
   [include]
   (translate-directive
    include
@@ -463,11 +368,12 @@
      [(map keyword (string/split include #"\.")) {}])))
 
 (defn process-where
-  "The :where option is parsed into a nested map suitable for calling by the uberquery.
-   It translates strings of the form:
-     'fields.slug=name'
-   into -->
-     {:fields {:slug \"name\"}"
+  "The :where option is parsed into a nested map suitable for calling
+  by the uberquery.
+
+   It translates strings of the form: 'fields.slug=name'
+
+   into --> {:fields {:slug \"name\"}"
   [where]
   (translate-directive
    where
@@ -476,11 +382,11 @@
        [(map keyword (string/split path #"\.")) condition]))))
 
 (defn process-order
-  "The :order option is parsed into a nested map suitable for calling by the uberquery.
-   It translates strings of the form:
-     'fields.slug asc,position desc'
-   into -->
-     {:fields {:slug :asc} :position :desc}"
+  "The :order option is parsed into a nested map suitable for calling
+  by the uberquery.
+
+   It translates strings of the form: 'fields.slug asc,position desc'
+     into --> {:fields {:slug :asc} :position :desc}"
   [order]
   (translate-directive
    order
@@ -490,8 +396,10 @@
         (keyword (or condition "asc"))]))))
 
 (defn find-all
-  "This function is the same as gather, but uses strings for all the options that are transformed into
-   the nested maps that gather requires.  See the various process-* functions in this same namespace."
+  "This function is the same as gather, but uses strings for all the
+   options that are transformed into the nested maps that gather
+   requires.  See the various process-* functions in this same
+   namespace."
   [slug opts]
   (let [include (process-include (:include opts))
         where (process-where (:where opts))
@@ -504,8 +412,6 @@
   ;; (let [oneify (assoc opts :limit 1)]
   (first (find-all slug opts)))
 
-;; HOOKS -------------------------------------------------------
-
 (def base-fields
   [{:name "Id" :slug "id" :type "id" :locked true :immutable true :editable false}
    {:name "Position" :slug "position" :type "integer" :locked true}
@@ -514,10 +420,7 @@
    {:name "Created At" :slug "created_at" :type "timestamp" :default_value "current_timestamp" :locked true :immutable true :editable false}
    {:name "Updated At" :slug "updated_at" :type "timestamp" :locked true :editable false}])
 
-(doseq
-    [[key construct] {:tie (fn [row operations] (TieField. row {}))
-                      }]
-  (field/add-constructor key construct))
+;; HOOKS -------------------------------------------------------
 
 (def lifecycle-hooks (ref {}))
 
