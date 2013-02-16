@@ -188,3 +188,8 @@
         (apply f maps)))
     maps))
 
+(defn prefix-key
+  [prefix slug]
+  (keyword (str (name prefix) "$" (name slug))))
+
+
