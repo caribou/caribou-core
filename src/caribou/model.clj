@@ -31,7 +31,7 @@
 (def retrieve-links assoc/retrieve-links)
 (def present? assoc/present?)
 (def models field/models)
-
+(def from assoc/from)
 
 (defn db
   "Calls f in the connect of the current configured database connection."
