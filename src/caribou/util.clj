@@ -8,6 +8,15 @@
 (import java.sql.SQLException)
 (import java.io.File)
 
+(defn convert-int
+  [whatever]
+  (if whatever
+    (if (= (type whatever) java.lang.String)
+      (try
+        (Integer. whatever)
+        (catch Exception e nil))
+      (.intValue whatever))))
+
 (defn seq-to-map [f q]
   (reduce #(assoc %1 (f %2) %2) {} q))
 

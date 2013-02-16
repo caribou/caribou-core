@@ -19,7 +19,8 @@
             [caribou.logger :as log]
             [caribou.auth :as auth]
             ;; namespaces for fields
-            caribou.field.id))
+            caribou.field.id
+            caribou.field.integer))
 
 (import java.util.Date)
 (import java.text.SimpleDateFormat)
@@ -182,56 +183,6 @@
         field-select (field/coalesce-locale model field prefix slug opts)]
     (clause "%1 %2 '%3'" [field-select operator value])))
 
-(defn convert-int
-  [whatever]
-  (if whatever
-    (if (= (type whatever) java.lang.String)
-      (try
-        (Integer. whatever)
-        (catch Exception e nil))
-      (.intValue whatever))))
-
-(defn integer-update-values
-  [field content values]
-  (let [key (-> field :row :slug keyword)]
-    (if (contains? content key)
-      (let [value (get content key)
-            tval (convert-int value)]
-        (assoc values key tval))
-      values)))
-
-(defrecord IntegerField [row env]
-  field/Field
-  (table-additions [this field] [[(keyword field) :integer]])
-  (subfield-names [this field] [])
-  (setup-field [this spec models] nil)
-  (rename-field [this old-slug new-slug])
-  (cleanup-field [this] nil)
-  (target-for [this] nil)
-
-  (update-values [this content values] (integer-update-values this content values))
-
-  (post-update [this content opts] content)
-  (pre-destroy [this content] content)
-  (join-fields [this prefix opts] [])
-  (join-conditions [this prefix opts] [])
-  (build-where
-    [this prefix opts models]
-    (field/field-where this prefix opts field/pure-where models))
-  (natural-orderings [this prefix opts])
-  (build-order [this prefix opts models]
-    (field/pure-order this prefix opts models))
-  (field-generator [this generators]
-    (assoc generators (keyword (:slug row)) (fn [] (rand-int 777777777))))
-  (fuse-field [this prefix archetype skein opts]
-    (field/pure-fusion this prefix archetype skein opts))
-  (localized? [this] true)
-  (models-involved [this opts all]
-    (field/id-models-involved this opts all))
-  (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content)
-  (validate [this opts models] (validation/for-type this opts integer?
-                                                    "integer")))
   
 (defrecord DecimalField [row env]
   field/Field
@@ -1992,8 +1943,7 @@
    {:name "Updated At" :slug "updated_at" :type "timestamp" :locked true :editable false}])
 
 (doseq
-    [[key construct] {:integer (fn [row] (IntegerField. row {}))
-                      :decimal (fn [row] (DecimalField. row {}))
+    [[key construct] {:decimal (fn [row] (DecimalField. row {}))
                       :string (fn [row] (StringField. row {}))
                       :slug (fn [row] 
                               (let [link (db/choose :field (row :link_id))]
