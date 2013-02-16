@@ -15,7 +15,6 @@
             [caribou.config :as config]
             [caribou.asset :as asset]
             [caribou.validation :as validation]
-            [caribou.db.adapter.protocol :as adapter]
             [caribou.logger :as log]
             ;; namespaces for fields
             caribou.field.id
