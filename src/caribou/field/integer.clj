@@ -45,4 +45,4 @@
   (render [this content opts] content)
   (validate [this opts] (validation/for-type this opts integer? "integer")))
 
-(field/add-constructor :integer (fn [row] (IntegerField. row {})))
+(field/add-constructor :integer (fn [row operations] (IntegerField. row {})))

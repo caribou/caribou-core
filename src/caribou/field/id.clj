@@ -35,4 +35,4 @@
   (render [this content opts] content)
   (validate [this opts] (validation/for-type this opts integer? "id")))
 
-(field/add-constructor :id (fn [row] (IdField. row {})))
+(field/add-constructor :id (fn [row operations] (IdField. row {})))

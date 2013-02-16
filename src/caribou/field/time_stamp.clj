@@ -155,5 +155,6 @@
                              (catch Throwable t false)))
                          "timestamp")))
 
-(field/add-constructor :timestamp (fn [row] (TimestampField. row {})))
+(field/add-constructor :timestamp (fn [row operations]
+                                    (TimestampField. row {})))
 

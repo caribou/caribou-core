@@ -1,9 +1,10 @@
-(ns caribou.field.string
-  (:require [caribou.field-protocol :as field]
+(ns caribou.field.url-slug
+  (:require [caribou.db :as db]
             [caribou.util :as util]
+            [caribou.field-protocol :as field]
             [caribou.validation :as validation]))
 
-(defrecord StringField [row env]
+(defrecord UrlSlugField [row env]
   field/Field
   (table-additions [this field] [[(keyword field) "varchar(255)"]])
   (subfield-names [this field] [])
@@ -13,10 +14,15 @@
   (target-for [this] nil)
   (update-values [this content values]
     (let [key (keyword (:slug row))]
-      (if (contains? content key)
-        (assoc values key (content key))
-        values)))
-
+      (cond
+       (env :link)
+       (let [icon (content (keyword (-> env :link :slug)))]
+         (if icon
+           (assoc values key (util/url-slugify icon))
+           values))
+       (contains? content key) (assoc values key
+                                      (util/url-slugify (content key)))
+         :else values)))
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
@@ -29,18 +35,18 @@
     (field/pure-order this prefix opts))
   (field-generator [this generators]
     (assoc generators (keyword (:slug row))
-           (fn [] (util/rand-str (inc (rand-int 139))))))
+           (fn []
+             (util/rand-str
+              (inc (rand-int 139))
+              "_abcdefghijklmnopqrstuvwxyz_"))))
   (fuse-field [this prefix archetype skein opts]
     (field/pure-fusion this prefix archetype skein opts))
   (localized? [this] true)
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
-  (render [this content opts] content)
-  (validate [this opts]
-    (validation/for-type this opts
-                         (fn [s]
-                           (or (keyword? s)
-                               (string? s)))
-                         "string")))
+  (render [this content opts] content))
 
-(field/add-constructor :string (fn [row operations] (StringField. row {})))
+(field/add-constructor :urlslug (fn [row operations]
+                                  (let [link (db/choose :field (row :link_id))]
+                                    (UrlSlugField. row {:link link}))))
+                      

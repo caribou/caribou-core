@@ -43,4 +43,4 @@
      #(adapter/text-value @config/db-adapter %)))
   (validate [this opts] (validation/for-type this opts string? "text object")))
 
-(field/add-constructor :text (fn [row] (TextField. row {})))
+(field/add-constructor :text (fn [row operations] (TextField. row {})))
