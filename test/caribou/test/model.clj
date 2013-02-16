@@ -257,26 +257,25 @@
     ;; in models without the db
     (testing "Proper usage of string coercion in beam-validator."
       ;; this is good if no exception is thrown
-      (is (not (validation/beams "base" {:include {:levels {}}} @models))))
+      (is (not (validation/beams "base" {:include {:levels {}}}))))
     (testing "Detection of invalid models in beam-validator."
       (is (thrown-with-msg? Exception #"no such model"
             ;; with gather this error is caught higher up currently
             ;; (gather :cheese {:include {:rennet {}}}))))
-            (validation/beams :cheese {:include {:rennet {}}} @models))))
+            (validation/beams :cheese {:include {:rennet {}}}))))
     (testing "Validation of includes and fields with nesting in beam-validator."
       (is (thrown-with-msg? Exception
             #"field of type .* cannot be included"
             ;; for now beam-validator is just having it's exception caught and
             ;; printed, until it is ready for prime time
             ;; (gather :base {:include {:thing {}}})))
-            (validation/beams :base {:include {:thing {}}} @models)))
+            (validation/beams :base {:include {:thing {}}})))
       (is (thrown-with-msg? Exception
             #"field .* not found in model"
             ;; for now beam-validator is just having it's exception caught and
             ;; printed, until it is ready for prime time
             ;; (gather :base {:include {:levels {:invalid {}}}})))
-            (validation/beams :base {:include {:levels {:invalid {}}}}
-                              @models)))
+            (validation/beams :base {:include {:levels {:invalid {}}}})))
       (is (thrown-with-msg? Exception
             #"field .* not found in model"
             ;; for now beam-validator is just having it's exception caught and
@@ -287,8 +286,7 @@
             (validation/beams :base
                               {:include {:levels {} :void {}}
                                :where {:levels {:strata 5
-                                                :invalid_field nil}}}
-                               @models))))))
+                                                :invalid_field nil}}}))))))
 
 (defn localized-model-test
   []

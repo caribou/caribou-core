@@ -87,9 +87,9 @@
       (constantly 1) (ago-str "hour" (timecore/in-hours interval)))))
 
 (defn build-extract
-  [field prefix slug opts models [index value]]
+  [field prefix slug opts [index value]]
   (let [model-id (-> field :row :model_id)
-        model (models model-id)
+        model (@field/models model-id)
         field-select (field/coalesce-locale model field prefix slug opts)]
     (util/clause "extract(%1 from %2) = %3" [(name index) field-select value])))
 
@@ -104,16 +104,16 @@
    the date or time.  Example:
      (timestamp-where :created_at {:day 15 :month 7 :year 2020})
    would find all rows who were created on July 15th, 2020."
-  [field prefix slug opts where models]
+  [field prefix slug opts where]
   (string/join " and " (map (partial build-extract field
-                                     (suffix-prefix prefix) slug opts models)
+                                     (suffix-prefix prefix) slug opts)
                             where)))
 
 (defrecord TimestampField [row env]
   field/Field
   (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL"]])
   (subfield-names [this field] [])
-  (setup-field [this spec models] nil)
+  (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
@@ -133,11 +133,11 @@
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where
-    [this prefix opts models]
-    (field/field-where this prefix opts timestamp-where models))
+    [this prefix opts]
+    (field/field-where this prefix opts timestamp-where))
   (natural-orderings [this prefix opts])
-  (build-order [this prefix opts models]
-    (field/pure-order this prefix opts models))
+  (build-order [this prefix opts]
+    (field/pure-order this prefix opts))
   (field-generator [this generators]
     generators)
   (fuse-field [this prefix archetype skein opts]
@@ -147,13 +147,13 @@
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts]
     (update-in content [(keyword (:slug row))] format-date))
-  (validate [this opts models] (validation/for-type this opts
-                                                    (fn [d]
-                                                      (try
-                                                        (new Date d)
-                                                        (catch Throwable t
-                                                          false)))
-                                                        "timestamp")))
+  (validate [this opts]
+    (validation/for-type this opts
+                         (fn [d]
+                           (try
+                             (new Date d)
+                             (catch Throwable t false)))
+                         "timestamp")))
 
 (field/add-constructor :timestamp (fn [row] (TimestampField. row {})))
 

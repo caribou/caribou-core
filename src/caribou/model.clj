@@ -90,14 +90,14 @@
     (deep-merge-with (fn [& maps] (first maps)) query {:where (expanded-query-defaults query query-defaults)})
     query))
 
-(def models (ref {}))
+(def models field/models)
 (def model-slugs (ref {}))
 
 (defrecord SlugField [row env]
   field/Field
   (table-additions [this field] [[(keyword field) "varchar(255)"]])
   (subfield-names [this field] [])
-  (setup-field [this spec models] nil)
+  (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
@@ -116,11 +116,11 @@
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where
-    [this prefix opts models]
-    (field/field-where this prefix opts field/string-where models))
+    [this prefix opts]
+    (field/field-where this prefix opts field/string-where))
   (natural-orderings [this prefix opts])
-  (build-order [this prefix opts models]
-    (field/pure-order this prefix opts models))
+  (build-order [this prefix opts]
+    (field/pure-order this prefix opts))
   (field-generator [this generators]
     (assoc generators (keyword (:slug row))
            (fn []
@@ -133,17 +133,17 @@
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content)
-  (validate [this opts models] (validation/for-type this opts
-                                                    (fn [s]
-                                                      (or (keyword? s)
-                                                          (string? s)))
-                                                    "slug")))
+  (validate [this opts] (validation/for-type this opts
+                                             (fn [s]
+                                               (or (keyword? s)
+                                                   (string? s)))
+                                             "slug")))
 
 (defrecord UrlSlugField [row env]
   field/Field
   (table-additions [this field] [[(keyword field) "varchar(255)"]])
   (subfield-names [this field] [])
-  (setup-field [this spec models] nil)
+  (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
@@ -162,11 +162,11 @@
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where
-    [this prefix opts models]
-    (field/field-where this prefix opts field/string-where models))
+    [this prefix opts]
+    (field/field-where this prefix opts field/string-where))
   (natural-orderings [this prefix opts])
-  (build-order [this prefix opts models]
-    (field/pure-order this prefix opts models))
+  (build-order [this prefix opts]
+    (field/pure-order this prefix opts))
   (field-generator [this generators]
     (assoc generators (keyword (:slug row))
            (fn []
@@ -184,7 +184,7 @@
   field/Field
   (table-additions [this field] [[(keyword field) :boolean]])
   (subfield-names [this field] [])
-  (setup-field [this spec models] nil)
+  (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
@@ -204,11 +204,11 @@
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where
-    [this prefix opts models]
-    (field/field-where this prefix opts field/pure-where models))
+    [this prefix opts]
+    (field/field-where this prefix opts field/pure-where))
   (natural-orderings [this prefix opts])
-  (build-order [this prefix opts models]
-    (field/pure-order this prefix opts models))
+  (build-order [this prefix opts]
+    (field/pure-order this prefix opts))
   (field-generator [this generators]
     (assoc generators (keyword (:slug row)) (fn [] (= 1 (rand-int 2)))))
   (fuse-field [this prefix archetype skein opts]
@@ -217,12 +217,12 @@
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content)
-  (validate [this opts models] (validation/for-type this opts
-                                                    (fn [x]
-                                                      (not (nil?
-                                                            (#{true false 0 1}
-                                                             x))))
-                                                    "boolean")))
+  (validate [this opts] (validation/for-type this opts
+                                             (fn [x]
+                                               (not (nil?
+                                                     (#{true false 0 1}
+                                                      x))))
+                                             "boolean")))
 
 ;; forward reference for Fields that need them
 (declare make-field)
@@ -281,9 +281,9 @@
   field/Field
   (table-additions [this field] [])
   (subfield-names [this field] [(str field "_id")])
-  (setup-field [this spec models]
+  (setup-field [this spec]
     (let [id-slug (str (:slug row) "_id")
-          model (db/find-model (:model_id row) models)]
+          model (db/find-model (:model_id row) @models)]
       (update :model (:model_id row)
             {:fields [{:name (titleize id-slug)
                        :type "integer"
@@ -294,7 +294,7 @@
   (rename-field [this old-slug new-slug])
 
   (cleanup-field [this]
-    (let [fields ((models (row :model_id)) :fields)
+    (let [fields ((@models (row :model_id)) :fields)
           id (keyword (str (:slug row) "_id"))]
       (destroy :field (-> fields id :row :id))))
 
@@ -317,15 +317,16 @@
                [(:slug row) prefix field-select])]))
 
   (build-where
-    [this prefix opts models]
+    [this prefix opts]
     (field/with-propagation :where opts (:slug row)
       (fn [down]
-        (model-where-conditions (:asset models) (str prefix "$" (:slug row)) down))))
+        (model-where-conditions (:asset @models)
+                                (str prefix "$" (:slug row)) down))))
 
   (natural-orderings [this prefix opts])
 
-  (build-order [this prefix opts models]
-    (join-order this (:asset models) prefix opts))
+  (build-order [this prefix opts]
+    (join-order this (:asset @models) prefix opts))
 
   (field-generator [this generators]
     generators)
@@ -344,7 +345,7 @@
 
   (render [this content opts]
     (join-render this (:asset @models) content opts))
-  (validate [this opts models] (validation/for-asset this opts)))
+  (validate [this opts] (validation/for-asset this opts)))
 
 (defn full-address [address]
   (string/join " " [(address :address)
@@ -365,9 +366,9 @@
   field/Field
   (table-additions [this field] [])
   (subfield-names [this field] [(str field "_id")])
-  (setup-field [this spec models]
+  (setup-field [this spec]
     (let [id-slug (str (:slug row) "_id")
-          model (db/find-model (:model_id row) models)]
+          model (db/find-model (:model_id row) @models)]
       (update :model (:model_id row)
               {:fields [{:name (titleize id-slug)
                          :type "integer"
@@ -378,7 +379,7 @@
   (rename-field [this old-slug new-slug])
 
   (cleanup-field [this]
-    (let [fields ((models (:model_id row)) :fields)
+    (let [fields ((@models (:model_id row)) :fields)
           id (keyword (str (:slug row) "_id"))]
       (destroy :field (-> fields id :row :id))))
 
@@ -410,15 +411,15 @@
                [(:slug row) prefix field-select])]))
 
   (build-where
-    [this prefix opts models]
+    [this prefix opts]
     (field/with-propagation :where opts (:slug row)
       (fn [down]
-        (model-where-conditions (:location models) (str prefix "$" (:slug row)) down))))
+        (model-where-conditions (:location @models) (str prefix "$" (:slug row)) down))))
 
   (natural-orderings [this prefix opts])
 
-  (build-order [this prefix opts models]
-    (join-order this (:location models) prefix opts))
+  (build-order [this prefix opts]
+    (join-order this (:location @models) prefix opts))
 
   (field-generator [this generators]
     generators)
@@ -434,7 +435,7 @@
 
   (render [this content opts]
     (join-render this (:location @models) content opts))
-  (validate [this opts models] (validation/for-address this opts)))
+  (validate [this opts] (validation/for-address this opts)))
 
 
 (defn- assoc-field
@@ -463,12 +464,12 @@
        (or (number? x) (keyword? x) (= (type x) Boolean) (not (empty? x)))))
 
 (defn- collection-where
-  [field prefix opts models]
+  [field prefix opts]
   (let [slug (-> field :row :slug)]
     (field/with-propagation :where opts slug
       (fn [down]
-        (let [model (models (-> field :row :model_id))
-              target (models (-> field :row :target_id))
+        (let [model (@models (-> field :row :model_id))
+              target (@models (-> field :row :target_id))
               link (-> field :env :link :slug)
               link-id-slug (keyword (str link "_id"))
               id-field (-> target :fields link-id-slug)
@@ -537,10 +538,10 @@
   (subfield-names [this field] [])
 
   (setup-field
-    [this spec models]
+    [this spec]
     (if (or (nil? (:link_id row)) (zero? (:link_id row)))
-      (let [model (db/find-model (:model_id row) models)
-            target (db/find-model (:target_id row) models)
+      (let [model (db/find-model (:model_id row) @models)
+            target (db/find-model (:target_id row) @models)
             reciprocal-name (or (:reciprocal_name spec) (:name model))
             part (create :field
                    {:name reciprocal-name
@@ -561,7 +562,7 @@
 
   (target-for
     [this]
-    (models (:target_id row)))
+    (@models (:target_id row)))
 
   (update-values
     [this content values]
@@ -570,7 +571,7 @@
         (let [ex (map convert-int (string/split (content removed) #","))
               part (env :link)
               part-key (keyword (str (part :slug) "_id"))
-              target ((models (row :target_id)) :slug)]
+              target ((@models (row :target_id)) :slug)]
           (doseq [gone ex]
             (if (:dependent row)
               (destroy target gone)
@@ -616,8 +617,8 @@
            downstream)))))
 
   (build-where
-    [this prefix opts models]
-    (collection-where this prefix opts models))
+    [this prefix opts]
+    (collection-where this prefix opts))
 
   (natural-orderings
     [this prefix opts]
@@ -632,8 +633,8 @@
           downstream (model-natural-orderings target table-alias opts)]
       [(str field-select " asc") downstream]))
 
-  (build-order [this prefix opts models]
-    (join-order this (models (row :target_id)) prefix opts))
+  (build-order [this prefix opts]
+    (join-order this (@models (row :target_id)) prefix opts))
 
   (field-generator [this generators]
     generators)
@@ -663,7 +664,7 @@
     [this content opts]
     (collection-render this content opts))
 
-  (validate [this opts models] (validation/for-assoc this opts models)))
+  (validate [this opts] (validation/for-assoc this opts)))
 
 (defn- part-fusion
   [this target prefix archetype skein opts]
@@ -691,7 +692,7 @@
     content))
 
 (defn- part-where
-  [field prefix opts models]
+  [field prefix opts]
   (let [slug (-> field :row :slug)]
     (field/with-propagation :where opts slug
       (fn [down]
@@ -716,10 +717,10 @@
   (table-additions [this field] [])
   (subfield-names [this field] [(str field "_id") (str field "_position")])
 
-  (setup-field [this spec models]
+  (setup-field [this spec]
     (let [model-id (:model_id row)
-          model (db/find-model model-id models)
-          target (db/find-model (:target_id row) models)
+          model (db/find-model model-id @models)
+          target (db/find-model (:target_id row) @models)
           reciprocal-name (or (:reciprocal_name spec) (:name model))
           id-slug (str (:slug row) "_id")]
       (if (or (nil? (:link_id row)) (zero? (:link_id row)))
@@ -786,16 +787,16 @@
            downstream)))))
 
   (build-where
-    [this prefix opts models]
-    (part-where this prefix opts models))
+    [this prefix opts]
+    (part-where this prefix opts))
 
   (natural-orderings [this prefix opts]
     (let [target (@models (:target_id row))
           downstream (model-natural-orderings target (str prefix "$" (:slug row)) opts)]
       downstream))
 
-  (build-order [this prefix opts models]
-    (join-order this (models (:target_id row)) prefix opts))
+  (build-order [this prefix opts]
+    (join-order this (@models (:target_id row)) prefix opts))
 
   (fuse-field [this prefix archetype skein opts]
     (part-fusion this (@models (-> this :row :target_id)) prefix archetype skein opts))
@@ -815,7 +816,7 @@
   (render [this content opts]
     (part-render this (@models (:target_id row)) content opts))
 
-  (validate [this opts models] (validation/for-assoc this opts models)))
+  (validate [this opts] (validation/for-assoc this opts)))
 
 (defrecord TieField [row env]
   field/Field
@@ -823,9 +824,9 @@
   (table-additions [this field] [])
   (subfield-names [this field] [(str field "_id")])
 
-  (setup-field [this spec models]
+  (setup-field [this spec]
     (let [model_id (:model_id row)
-          model (models model_id)
+          model (@models model_id)
           id-slug (str (:slug row) "_id")]
       (update :model model_id
         {:fields
@@ -872,10 +873,10 @@
            downstream)))))
 
   (build-where
-    [this prefix opts models]
+    [this prefix opts]
     (field/with-propagation :where opts (:slug row)
       (fn [down]
-        (let [target (models (:model_id row))]
+        (let [target (@models (:model_id row))]
           (model-where-conditions target (str prefix "$" (:slug row)) down)))))
 
   (natural-orderings [this prefix opts]
@@ -884,8 +885,8 @@
         (let [target (@models (:model_id row))]
           (model-natural-orderings target (str prefix "$" (:slug row)) down)))))
 
-  (build-order [this prefix opts models]
-    (join-order this (models (:model_id row)) prefix opts))
+  (build-order [this prefix opts]
+    (join-order this (@models (:model_id row)) prefix opts))
 
   (field-generator [this generators]
     generators)
@@ -913,7 +914,7 @@
   (render [this content opts]
     (part-render this (@models (:model_id row)) content opts))
 
-  (validate [this opts models] (validation/for-assoc this opts models)))
+  (validate [this opts] (validation/for-assoc this opts)))
 
 (defn join-table-name
   "construct a join table name out of two link names"
@@ -1032,15 +1033,15 @@
            downstream))))))
 
 (defn- link-where
-  [field prefix opts models]
+  [field prefix opts]
   (let [slug (-> field :row :slug)
         join-clause "%1.id in (select %2 from %3 %4 inner join %5 %8 on (%6 = %8.id) where %7)"]
     (field/with-propagation :where opts slug
       (fn [down]
         (let [{:keys [join-key join-alias join-select table-alias link-select]}
               (link-join-keys field prefix opts)
-              model (models (-> field :row :model_id))
-              target (models (-> field :row :target_id))
+              model (@models (-> field :row :model_id))
+              target (@models (-> field :row :target_id))
               subconditions (model-where-conditions target table-alias down)
               params [prefix join-select join-key join-alias
                       (:slug target) link-select subconditions table-alias]] 
@@ -1120,10 +1121,10 @@
   (subfield-names [this field] [])
 
   (setup-field
-    [this spec models]
+    [this spec]
     (if (or (nil? (:link_id row)) (zero? (:link_id row)))
-      (let [model (db/find-model (:model_id row) models)
-            target (db/find-model (:target_id row) models)
+      (let [model (db/find-model (:model_id row) @models)
+            target (db/find-model (:target_id row) @models)
             reciprocal-name (or (:reciprocal_name spec) (:name model))
             join-name (join-table-name (:name spec) reciprocal-name)
 
@@ -1168,7 +1169,7 @@
         (destroy :field (row :link_id)))
       (catch Exception e (str e))))
 
-  (target-for [this] (models (row :target_id)))
+  (target-for [this] (@models (row :target_id)))
 
   (update-values [this content values]
     (let [removed (content (keyword (str "removed_" (:slug row))))]
@@ -1197,14 +1198,14 @@
     (link-join-conditions this prefix opts))
 
   (build-where
-    [this prefix opts models]
-    (link-where this prefix opts models))
+    [this prefix opts]
+    (link-where this prefix opts))
 
   (natural-orderings [this prefix opts]
     (link-natural-orderings this prefix opts))
 
-  (build-order [this prefix opts models]
-    (join-order this (models (:target_id row)) prefix opts))
+  (build-order [this prefix opts]
+    (join-order this (@models (:target_id row)) prefix opts))
 
   (field-generator [this generators]
     generators)
@@ -1228,7 +1229,7 @@
   (render [this content opts]
     (link-render this content opts))
 
-  (validate [this opts models] (validation/for-assoc this opts models)))
+  (validate [this opts] (validation/for-assoc this opts)))
 
 
 ;; UBERQUERY ---------------------------------------------
@@ -1282,7 +1283,7 @@
          identity
          (map
           (fn [field]
-            (field/build-where field prefix opts @models))
+            (field/build-where field prefix opts))
           (vals (:fields model))))]
     (string/join " and " (flatten eyes))))
 
@@ -1310,7 +1311,7 @@
    (flatten
     (map
      (fn [field]
-       (field/build-order field prefix opts @models))
+       (field/build-order field prefix opts))
      (vals (:fields model))))))
 
 (defn finalize-order-statement
@@ -1487,11 +1488,11 @@
           ;; beam-validator throws an exception if opts are bad
           ;; catching and printing for now until we get rid of spurious errors
           ;; (when (and (seq opts) (not (= (config/environment) :production)))
-          (try
-            (validation/beams slug opts @models)
-            (catch Exception e
-            ;;   (println "not expected beams")
-              (.printStackTrace e)))
+          ;; (try
+            (validation/beams slug opts)
+            ;; (catch Exception e
+              ;; (println "not expected beams")
+              ;; (.printStackTrace e)))
           (let [beams (beam-splitter opts-with-defaults)
                 resurrected (mapcat (partial uberquery model) beams)
                 fused (fusion model (name slug) resurrected opts-with-defaults)
@@ -1901,7 +1902,7 @@
          model-slug
          (name (first addition))
          (rest addition))))
-    (field/setup-field field (env :spec) @models)
+    (field/setup-field field (env :spec))
 
     (if (present? default)
       (db/set-default model-slug slug default))

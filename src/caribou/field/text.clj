@@ -9,7 +9,7 @@
   field/Field
   (table-additions [this field] [[(keyword field) :text]])
   (subfield-names [this field] [])
-  (setup-field [this spec models] nil)
+  (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
@@ -23,11 +23,11 @@
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where
-    [this prefix opts models]
-    (field/field-where this prefix opts field/string-where models))
+    [this prefix opts]
+    (field/field-where this prefix opts field/string-where))
   (natural-orderings [this prefix opts])
-  (build-order [this prefix opts models]
-    (field/pure-order this prefix opts models))
+  (build-order [this prefix opts]
+    (field/pure-order this prefix opts))
   (field-generator [this generators]
     (assoc generators (keyword (:slug row))
            (fn [] (util/rand-str (+ 141 (rand-int 5555))))))
@@ -41,7 +41,6 @@
     (update-in
      content [(keyword (:slug row))]
      #(adapter/text-value @config/db-adapter %)))
-  (validate [this opts models] (validation/for-type this opts string?
-                                                    "text object")))
+  (validate [this opts] (validation/for-type this opts string? "text object")))
 
 (field/add-constructor :text (fn [row] (TextField. row {})))

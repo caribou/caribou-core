@@ -16,23 +16,24 @@
   field/Field
   (table-additions [this field] [[(keyword field) :integer]])
   (subfield-names [this field] [])
-  (setup-field [this spec models] nil)
+  (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
   (target-for [this] nil)
 
-  (update-values [this content values] (integer-update-values this content values))
+  (update-values [this content values]
+    (integer-update-values this content values))
 
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where
-    [this prefix opts models]
-    (field/field-where this prefix opts field/pure-where models))
+    [this prefix opts]
+    (field/field-where this prefix opts field/pure-where))
   (natural-orderings [this prefix opts])
-  (build-order [this prefix opts models]
-    (field/pure-order this prefix opts models))
+  (build-order [this prefix opts]
+    (field/pure-order this prefix opts))
   (field-generator [this generators]
     (assoc generators (keyword (:slug row)) (fn [] (rand-int 777777777))))
   (fuse-field [this prefix archetype skein opts]
@@ -42,7 +43,6 @@
     (field/id-models-involved this opts all))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content)
-  (validate [this opts models] (validation/for-type this opts integer?
-                                                    "integer")))
+  (validate [this opts] (validation/for-type this opts integer? "integer")))
 
 (field/add-constructor :integer (fn [row] (IntegerField. row {})))

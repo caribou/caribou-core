@@ -7,8 +7,8 @@
   field/Field
   (table-additions [this field] [[(keyword field) "SERIAL" "PRIMARY KEY"]])
   (subfield-names [this field] [])
-  (setup-field [this spec models]
-    (let [model (db/find-model (:model_id row) models)]
+  (setup-field [this spec]
+    (let [model (db/find-model (:model_id row) @field/models)]
       (db/create-index (:slug model) (:slug row))))
   (rename-field [this old-slug new-slug])
   (cleanup-field [this] nil)
@@ -19,11 +19,11 @@
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where
-    [this prefix opts models]
-    (field/field-where this prefix opts field/pure-where models))
+    [this prefix opts]
+    (field/field-where this prefix opts field/pure-where))
   (natural-orderings [this prefix opts])
-  (build-order [this prefix opts models]
-    (field/pure-order this prefix opts models))
+  (build-order [this prefix opts]
+    (field/pure-order this prefix opts))
   (field-generator [this generators]
     generators)
   (fuse-field [this prefix archetype skein opts]
@@ -33,6 +33,6 @@
     (field/id-models-involved this opts all))
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content)
-  (validate [this opts models] (validation/for-type this opts integer? "id")))
+  (validate [this opts] (validation/for-type this opts integer? "id")))
 
 (field/add-constructor :id (fn [row] (IdField. row {})))
