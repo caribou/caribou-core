@@ -5,7 +5,6 @@
   (:require [clojure.java.jdbc :as sql]
             [clojure.java.io :as io]
             [caribou.db :as db]
-            [caribou.model-association :as assoc]
             [caribou.auth :as auth]
             [caribou.util :as util]
             [caribou.validation :as validation]
@@ -101,9 +100,9 @@
         (is (= ((db/choose :yellow (yyy :id)) :gogon) "binbin"))
         (is (= (zap-reload :yobob) "oooooo_mmmmm_zzzzzzzzzz"))
         (is (= "OOOOOO mmmmm   ZZZZZZZZZZ"
-               ((assoc/from zap zap-reload {:include {}})
+               ((from zap zap-reload {:include {}})
                 :ibibib)))
-        (is (= 4 (count ((assoc/from zap zap-reload {:include {:yellows {}}})
+        (is (= 4 (count ((from zap zap-reload {:include {:yellows {}}})
                          :yellows))))
 
         (update :model (zap :id)
@@ -179,7 +178,7 @@
                                                        [{:zozoz "granular"}]}]})
 
     (testing "Model links."
-      (let [fff-X (assoc/from (models :fuchsia) fff
+      (let [fff-X (from (models :fuchsia) fff
                               {:include {:chartreusii {}}})
             cec (pick :chartreuse {:where {:ondondon "ikikik"}
                                    :include {:fuchsia {}}})]
