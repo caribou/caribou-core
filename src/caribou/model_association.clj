@@ -3,6 +3,52 @@
             [caribou.util :as util]
             [caribou.field-protocol :as field]))
 
+(defn join-table-name
+  "construct a join table name out of two link names"
+  [a b]
+  (string/join "_" (sort (map util/slugify [a b]))))
+
+(defn table-columns
+  "Return a list of all columns for the table corresponding to this model."
+  [slug]
+  (let [model (@field/models (keyword slug))]
+    (apply
+     concat
+     (map
+      (fn [field]
+        (map
+         #(name (first %))
+         (field/table-additions field (-> field :row :slug))))
+      (vals (model :fields))))))
+
+(defn link-keys
+  "Find all related keys given by this link field."
+  [field]
+  (let [reciprocal (-> field :env :link)
+        from-name (-> field :row :slug)
+        from-key (keyword (str from-name "_id"))
+        to-name (reciprocal :slug)
+        to-key (keyword (str to-name "_id"))
+        join-key (keyword (join-table-name from-name to-name))]
+    {:from from-key :to to-key :join join-key}))
+
+(defn retrieve-links
+  "Given a link field and a row, find all target rows linked to the given row
+   by this field."
+  ([field content]
+     (retrieve-links field content {}))
+  ([field content opts]
+     (let [{from-key :from to-key :to join-key :join} (link-keys field)
+           target (@field/models (-> field :row :target_id))
+           target-slug (target :slug)
+           locale (if (:locale opts) (str (name (:locale opts)) "_") "")
+           field-names (map #(str target-slug "." %)
+                            (table-columns target-slug))
+           field-select (string/join "," field-names)
+           join-query "select %1 from %2 inner join %3 on (%2.id = %3.%7%4) where %3.%7%5 = %6"
+           params [field-select target-slug join-key from-key to-key (content :id) locale]]
+       (apply (partial util/query join-query) params))))
+
 (defn present?
   [x]
   (and (not (nil? x))
@@ -124,6 +170,19 @@
          {} fields)]
     archetype))
 
+(defn part-fusion
+  [this target prefix archetype skein opts]
+  (let [slug (keyword (-> this :row :slug))
+        fused
+        (field/with-propagation :include opts slug
+          (fn [down]
+            (let [value (subfusion target (str prefix "$" (name slug))
+                                   skein down)]
+              (if (:id value)
+                (assoc archetype slug value)
+                archetype))))]
+    (or fused archetype)))
+
 (defn fusion
   "Takes the results of the uberquery, which could have a map for each
    item associated to a given piece of content, and fuses them into a
@@ -174,3 +233,15 @@
          (model-render target part opts)))
       content)))
 
+(defn part-render
+  [this target content opts]
+  (if-let [include (:include opts)]
+    (let [slug (keyword (-> this :row :slug))
+          down {:include (slug include)}]
+      (if-let [sub (slug content)]
+        (update-in
+         content [slug] 
+         (fn [part]
+           (model-render target part down)))
+        content))
+    content))

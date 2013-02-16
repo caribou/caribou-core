@@ -24,7 +24,14 @@
             caribou.field.asset
             caribou.field.address
             caribou.field.collection
+            caribou.field.part
+            caribou.field.link
             [caribou.field.time-stamp :as time-stamp-field]))
+
+(def retrieve-links assoc/retrieve-links)
+(def present? assoc/present?)
+(def models field/models)
+
 
 (defn db
   "Calls f in the connect of the current configured database connection."
@@ -106,166 +113,10 @@
     (deep-merge-with (fn [& maps] (first maps)) query {:where (expanded-query-defaults query query-defaults)})
     query))
 
-(def models field/models)
 (def model-slugs (ref {}))
 
-;; code often uses model/present, leave this here now that we have moved it
-(def present? assoc/present?)
 
 (declare update destroy create)
-
-(defn- part-fusion
-  [this target prefix archetype skein opts]
-  (let [slug (keyword (-> this :row :slug))
-        fused
-        (field/with-propagation :include opts slug
-          (fn [down]
-            (let [value (assoc/subfusion target (str prefix "$" (name slug)) skein down)]
-              (if (:id value)
-                (assoc archetype slug value)
-                archetype))))]
-    (or fused archetype)))
-
-(defn- part-render
-  [this target content opts]
-  (if-let [include (:include opts)]
-    (let [slug (keyword (-> this :row :slug))
-          down {:include (slug include)}]
-      (if-let [sub (slug content)]
-        (update-in
-         content [slug] 
-         (fn [part]
-           (assoc/model-render target part down)))
-        content))
-    content))
-
-(defn- part-where
-  [field prefix opts]
-  (let [slug (-> field :row :slug)]
-    (field/with-propagation :where opts slug
-      (fn [down]
-        (let [model (models (-> field :row :model_id))
-              target (models (-> field :row :target_id))
-              part (-> field :row :slug)
-              part-id-slug (keyword (str part "_id"))
-              part-id-field (-> model :fields part-id-slug)
-              part-select (field/coalesce-locale model part-id-field prefix
-                                                  (name part-id-slug) opts)
-              id-field (-> target :fields :id)
-              table-alias (str prefix "$" slug)
-              field-select (field/coalesce-locale model id-field table-alias
-                                                   "id" opts)
-              subconditions (assoc/model-where-conditions target table-alias down)
-              params [part-select field-select (:slug target) table-alias subconditions]]
-          (clause "%1 in (select %2 from %3 %4 where %5)" params))))))
-
-(defrecord PartField [row env]
-  field/Field
-
-  (table-additions [this field] [])
-  (subfield-names [this field] [(str field "_id") (str field "_position")])
-
-  (setup-field [this spec]
-    (let [model-id (:model_id row)
-          model (db/find-model model-id @models)
-          target (db/find-model (:target_id row) @models)
-          reciprocal-name (or (:reciprocal_name spec) (:name model))
-          id-slug (str (:slug row) "_id")]
-      (if (or (nil? (:link_id row)) (zero? (:link_id row)))
-        (let [collection (create :field
-                           {:name reciprocal-name
-                            :type "collection"
-                            :model_id (:target_id row)
-                            :target_id model-id
-                            :link_id (:id row)})]
-          (db/update :field ["id = ?" (convert-int (:id row))] {:link_id (:id collection)})))
-
-      (update :model model-id
-        {:fields
-         [{:name (titleize id-slug)
-           :type "integer"
-           :editable false
-           :reference (:slug target)
-           :dependent (:dependent spec)}
-          {:name (titleize (str (:slug row) "_position"))
-           :type "integer"
-           :editable false}]} {:op :migration})
-      (db/create-index (:slug model) id-slug)))
-
-  (rename-field [this old-slug new-slug])
-
-  (cleanup-field [this]
-    (let [fields ((@models (row :model_id)) :fields)
-          id (keyword (str (:slug row) "_id"))
-          position (keyword (str (:slug row) "_position"))]
-      (destroy :field (-> fields id :row :id))
-      (destroy :field (-> fields position :row :id))
-      (try
-        (do (destroy :field (-> env :link :id)))
-        (catch Exception e (str e)))))
-
-  (target-for [this] (@models (-> this :row :target_id)))
-
-  (update-values [this content values] values)
-
-  (post-update [this content opts] content)
-
-  (pre-destroy [this content] content)
-
-  (join-fields [this prefix opts]
-    (field/with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [target (@models (:target_id row))]
-          (assoc/model-select-fields target (str prefix "$" (:slug row))
-                                     down)))))
-
-  (join-conditions [this prefix opts]
-    (field/with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [model (@models (:model_id row))
-              target (@models (:target_id row))
-              id-slug (keyword (str (:slug row) "_id"))
-              id-field (-> model :fields id-slug)
-              table-alias (str prefix "$" (:slug row))
-              field-select (field/coalesce-locale model id-field prefix
-                                                   (name id-slug) opts)
-              downstream (assoc/model-join-conditions target table-alias down)
-              params [(:slug target) table-alias field-select]]
-          (concat
-           [(clause "left outer join %1 %2 on (%3 = %2.id)" params)]
-           downstream)))))
-
-  (build-where
-    [this prefix opts]
-    (part-where this prefix opts))
-
-  (natural-orderings [this prefix opts]
-    (let [target (@models (:target_id row))
-          downstream (assoc/model-natural-orderings target (str prefix "$" (:slug row)) opts)]
-      downstream))
-
-  (build-order [this prefix opts]
-    (assoc/join-order this (@models (:target_id row)) prefix opts))
-
-  (fuse-field [this prefix archetype skein opts]
-    (part-fusion this (@models (-> this :row :target_id)) prefix archetype skein opts))
-
-  (localized? [this] false)
-
-  (models-involved [this opts all]
-    (assoc/span-models-involved this opts all))
-
-  (field-from [this content opts]
-    (field/with-propagation :include opts (:slug row)
-      (fn [down]
-        (if-let [pointing (content (keyword (str (:slug row) "_id")))]
-          (let [collector (db/choose (-> (field/target-for this) :slug) pointing)]
-            (assoc/from (field/target-for this) collector down))))))
-
-  (render [this content opts]
-    (part-render this (@models (:target_id row)) content opts))
-
-  (validate [this opts] (validation/for-assoc this opts)))
 
 (defrecord TieField [row env]
   field/Field
@@ -342,7 +193,7 @@
     generators)
 
   (fuse-field [this prefix archetype skein opts]
-    (part-fusion this (@models (-> this :row :model_id)) prefix archetype skein opts))
+    (assoc/part-fusion this (@models (-> this :row :model_id)) prefix archetype skein opts))
 
   (localized? [this] false)
 
@@ -362,326 +213,9 @@
             (assoc/from model (db/choose (:slug model) (content tie-key)) down))))))
 
   (render [this content opts]
-    (part-render this (@models (:model_id row)) content opts))
+    (assoc/part-render this (@models (:model_id row)) content opts))
 
   (validate [this opts] (validation/for-assoc this opts)))
-
-(defn join-table-name
-  "construct a join table name out of two link names"
-  [a b]
-  (string/join "_" (sort (map slugify [a b]))))
-
-(defn link-join-name
-  "Given a link field, return the join table name used by that link."
-  [field]
-  (let [reciprocal (-> field :env :link)
-        from-name (-> field :row :name)
-        to-name (:slug reciprocal)]
-    (keyword (join-table-name from-name to-name))))
-
-(defn link-keys
-  "Find all related keys given by this link field."
-  [field]
-  (let [reciprocal (-> field :env :link)
-        from-name (-> field :row :slug)
-        from-key (keyword (str from-name "_id"))
-        to-name (reciprocal :slug)
-        to-key (keyword (str to-name "_id"))
-        join-key (keyword (join-table-name from-name to-name))]
-    {:from from-key :to to-key :join join-key}))
-
-(defn link-join-keys
-  [this prefix opts]
-  (let [{from-key :from to-key :to join-key :join} (link-keys this)
-        from-name (-> this :row :slug)
-        join-model (get @models join-key)
-        join-alias (str prefix "$" from-name "_join")
-        join-field (-> join-model :fields to-key)
-        link-field (-> join-model :fields from-key)
-        table-alias (str prefix "$" from-name)
-        join-select (field/coalesce-locale join-model join-field join-alias
-                                            (name to-key) opts)
-        link-select (field/coalesce-locale join-model link-field join-alias
-                                            (name from-key) opts)]
-    {:join-key (name join-key)
-     :join-alias join-alias
-     :join-select join-select
-     :table-alias table-alias
-     :link-select link-select}))
-
-(defn link
-  "Link two rows by the given LinkField.  This function accepts its arguments
-   in order, so that 'a' is a row from the model containing the given field."
-  ([field a b]
-     (link field a b {}))
-  ([field a b opts]
-     (let [{from-key :from to-key :to join-key :join} (link-keys field)
-           target-id (-> field :row :target_id)
-           target (or (get @models target-id) (first (query "select * from model where id = %1" target-id)))
-           locale (if (and (:localized target) (:locale opts)) (str (name (:locale opts)) "_") "")
-           linkage (create (:slug target) b opts)
-           params [join-key from-key (:id linkage) to-key (:id a) locale]
-           preexisting (apply (partial query "select * from %1 where %6%2 = %3 and %6%4 = %5") params)]
-       (if preexisting
-         preexisting
-         (create join-key {from-key (:id linkage) to-key (:id a)} opts)))))
-
-(defn table-columns
-  "Return a list of all columns for the table corresponding to this model."
-  [slug]
-  (let [model (@models (keyword slug))]
-    (apply
-     concat
-     (map
-      (fn [field]
-        (map
-         #(name (first %))
-         (field/table-additions field (-> field :row :slug))))
-      (vals (model :fields))))))
-
-(defn retrieve-links
-  "Given a link field and a row, find all target rows linked to the given row
-   by this field."
-  ([field content]
-     (retrieve-links field content {}))
-  ([field content opts]
-     (let [{from-key :from to-key :to join-key :join} (link-keys field)
-           target (@models (-> field :row :target_id))
-           target-slug (target :slug)
-           locale (if (:locale opts) (str (name (:locale opts)) "_") "")
-           field-names (map #(str target-slug "." %) (table-columns target-slug))
-           field-select (string/join "," field-names)
-           join-query "select %1 from %2 inner join %3 on (%2.id = %3.%7%4) where %3.%7%5 = %6"
-           params [field-select target-slug join-key from-key to-key (content :id) locale]]
-       (apply (partial query join-query) params))))
-
-(defn remove-link
-  ([field from-id to-id]
-     (remove-link field from-id to-id {}))
-  ([field from-id to-id opts]
-     (let [{from-key :from to-key :to join-key :join} (link-keys field)
-           locale (if (:locale opts) (str (name (:locale opts)) "_") "")
-           params [join-key from-key to-id to-key from-id locale]
-           preexisting (first (apply (partial query "select * from %1 where %6%2 = %3 and %6%4 = %5") params))]
-       (if preexisting
-         (destroy join-key (preexisting :id))))))
-
-(defn- link-join-conditions
-  [field prefix opts]
-  (let [slug (-> field :row :slug)]
-    (field/with-propagation :include opts slug
-      (fn [down]
-        (let [{:keys [join-key join-alias join-select table-alias link-select]}
-              (link-join-keys field prefix opts)
-              target (@models (-> field :row :target_id))
-              join-params [join-key join-alias join-select prefix]
-              link-params [(:slug target) table-alias link-select]
-              downstream (assoc/model-join-conditions target table-alias down)]
-          (concat
-           [(clause "left outer join %1 %2 on (%3 = %4.id)" join-params)
-            (clause "left outer join %1 %2 on (%2.id = %3)" link-params)]
-           downstream))))))
-
-(defn- link-where
-  [field prefix opts]
-  (let [slug (-> field :row :slug)
-        join-clause "%1.id in (select %2 from %3 %4 inner join %5 %8 on (%6 = %8.id) where %7)"]
-    (field/with-propagation :where opts slug
-      (fn [down]
-        (let [{:keys [join-key join-alias join-select table-alias link-select]}
-              (link-join-keys field prefix opts)
-              model (@models (-> field :row :model_id))
-              target (@models (-> field :row :target_id))
-              subconditions (assoc/model-where-conditions target table-alias down)
-              params [prefix join-select join-key join-alias
-                      (:slug target) link-select subconditions table-alias]] 
-          (clause join-clause params))))))
-
-(defn- link-natural-orderings
-  [field prefix opts]
-  (let [slug (-> field :row :slug)
-        reciprocal (-> field :env :link)
-        model (@models (-> field :row :model_id))
-        target (@models (-> field :row :target_id))
-        to-name (reciprocal :slug)
-        from-key (keyword (str slug "_position"))
-        join-alias (str prefix "$" slug "_join")
-        join-key (keyword (join-table-name slug to-name))
-        join-model (@models join-key)
-        join-field (-> join-model :fields from-key)
-        join-select (field/coalesce-locale model join-field join-alias
-                                            (name from-key) opts)
-        downstream (assoc/model-natural-orderings target (str prefix "$" slug) opts)]
-    [(str join-select " asc") downstream]))
-
-(defn- link-render
-  [this content opts]
-  (if-let [include (:include opts)]
-    (let [slug (keyword (-> this :row :slug))]
-      (if-let [sub (slug include)]
-        (let [target (@models (-> this :row :target_id))
-              down {:include sub}]
-          (update-in
-           content [slug]
-           (fn [col]
-             (doall
-              (map
-               (fn [to]
-                 (assoc/model-render target to down))
-               col)))))
-        content))
-    content))
-
-(defn link-rename-field
-  [field old-slug new-slug]
-  (let [model (get @models (:model_id (:row field)))
-        target (get @models (:target_id (:row field)))
-        reciprocal (-> field :env :link)
-        reciprocal-slug (:slug reciprocal)
-        old-join-key (keyword (str (name old-slug) "_join"))
-        old-join-name (join-table-name (name old-slug) reciprocal-slug)
-        new-join-key (keyword (str (name new-slug) "_join"))
-        new-join-name (join-table-name (name new-slug) reciprocal-slug)
-        join-model (get @models (keyword old-join-name))
-        join-collection (-> model :fields old-join-key)
-        old-key (keyword old-slug)
-        join-target (-> join-model :fields old-key)]
-    (update :field (-> join-collection :row :id) {:name (titleize new-join-key) :slug (name new-join-key)})
-    (update :field (-> join-target :row :id) {:name (titleize new-slug) :slug (name new-slug)})
-    (update :model (:id join-model) {:name (titleize new-join-name) :slug new-join-name})))
-
-(defn link-models-involved
-  [field opts all]
-  (if-let [down (field/with-propagation :include opts (-> field :row :slug)
-                  (fn [down]
-                    (let [slug (-> field :row :slug)
-                          reciprocal (-> field :env :link)
-                          to-name (reciprocal :slug)
-                          join-key (keyword (join-table-name slug to-name))
-                          join-id (-> @models join-key :id)
-                          target (@models (-> field :row :target_id))]
-                      (assoc/model-models-involved target down (conj all join-id)))))]
-    down
-    all))
-
-(defrecord LinkField [row env]
-  field/Field
-
-  (table-additions [this field] [])
-  (subfield-names [this field] [])
-
-  (setup-field
-    [this spec]
-    (if (or (nil? (:link_id row)) (zero? (:link_id row)))
-      (let [model (db/find-model (:model_id row) @models)
-            target (db/find-model (:target_id row) @models)
-            reciprocal-name (or (:reciprocal_name spec) (:name model))
-            join-name (join-table-name (:name spec) reciprocal-name)
-
-            link
-            (create
-             :field
-             {:name reciprocal-name
-              :type "link"
-              :model_id (:target_id row)
-              :target_id (:model_id row)
-              :link_id (:id row)
-              :dependent (:dependent row)})
-
-            join-model
-            (create
-             :model
-             {:name (titleize join-name)
-              :join_model true
-              :localized (or (:localized model) (:localized target))
-              :fields
-              [{:name (:name spec)
-                :type "part"
-                :dependent true
-                :reciprocal_name (str reciprocal-name " Join")
-                :target_id (:target_id row)}
-               {:name reciprocal-name
-                :type "part"
-                :dependent true
-                :reciprocal_name (str (:name spec) " Join")
-                :target_id (:model_id row)}]} {:op :migration})]
-
-        (db/update :field ["id = ?" (convert-int (:id row))] {:link_id (:id link)}))))
-
-  (rename-field
-    [this old-slug new-slug]
-    (link-rename-field this old-slug new-slug))
-
-  (cleanup-field [this]
-    (try
-      (let [join-name (link-join-name this)]
-        (destroy :model (-> @models join-name :id))
-        (destroy :field (row :link_id)))
-      (catch Exception e (str e))))
-
-  (target-for [this] (@models (row :target_id)))
-
-  (update-values [this content values]
-    (let [removed (content (keyword (str "removed_" (:slug row))))]
-      (if (present? removed)
-        (let [ex (map convert-int (string/split removed #","))]
-          (doall (map #(remove-link this (content :id) %) ex)))))
-    values)
-
-  (post-update [this content opts]
-    (if-let [collection (content (keyword (:slug row)))]
-      (let [linked (doall (map #(link this content % opts) collection))
-            with-links (assoc content (keyword (str (:slug row) "_join")) linked)]
-        (assoc content (:slug row) (retrieve-links this content opts))))
-    content)
-
-  (pre-destroy [this content]
-    content)
-
-  (join-fields [this prefix opts]
-    (field/with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [target (@models (:target_id row))]
-          (assoc/model-select-fields target (str prefix "$" (:slug row))
-                                     down)))))
-
-  (join-conditions [this prefix opts]
-    (link-join-conditions this prefix opts))
-
-  (build-where
-    [this prefix opts]
-    (link-where this prefix opts))
-
-  (natural-orderings [this prefix opts]
-    (link-natural-orderings this prefix opts))
-
-  (build-order [this prefix opts]
-    (assoc/join-order this (@models (:target_id row)) prefix opts))
-
-  (field-generator [this generators]
-    generators)
-
-  (fuse-field [this prefix archetype skein opts]
-    (assoc/collection-fusion this prefix archetype skein opts))
-
-  (localized? [this] false)
-
-  (models-involved [this opts all]
-    (link-models-involved this opts all))
-
-  (field-from [this content opts]
-    (field/with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [target (field/target-for this)]
-          (map
-           #(assoc/from target % down)
-           (retrieve-links this content opts))))))
-
-  (render [this content opts]
-    (link-render this content opts))
-
-  (validate [this opts] (validation/for-assoc this opts)))
-
 
 ;; UBERQUERY ---------------------------------------------
 
@@ -981,13 +515,8 @@
    {:name "Updated At" :slug "updated_at" :type "timestamp" :locked true :editable false}])
 
 (doseq
-    [[key construct] {:part (fn [row operations]
-                              (let [link (db/choose :field (row :link_id))]
-                                (PartField. row {:link link})))
-                      :tie (fn [row operations] (TieField. row {}))
-                      :link (fn [row operations]
-                              (let [link (db/choose :field (row :link_id))]
-                                (LinkField. row {:link link})))}]
+    [[key construct] {:tie (fn [row operations] (TieField. row {}))
+                      }]
   (field/add-constructor key construct))
 
 (def lifecycle-hooks (ref {}))
@@ -1494,7 +1023,7 @@
   ([slug id opts]
      (let [model (models (keyword slug))]
        (if (model :nested)
-         (let [field-names (table-columns slug)
+         (let [field-names (assoc/table-columns slug)
                base-where (clause "id = %1" [id])
                recur-where (clause "%1_tree.parent_id = %1.id" [slug])
                before (db/recursive-query slug field-names base-where recur-where)]
@@ -1508,7 +1037,7 @@
   ([slug id opts]
      (let [model (models (keyword slug))]
        (if (model :nested)
-         (let [field-names (table-columns slug)
+         (let [field-names (assoc/table-columns slug)
                base-where (clause "id = %1" [id])
                recur-where (clause "%1_tree.id = %1.parent_id" [slug])
                before (db/recursive-query slug field-names base-where recur-where)]
@@ -1568,7 +1097,30 @@
   (sql/with-connection @config/db
     (invoke-models)))
 
+(defn link
+  "Link two rows by the given LinkField.  This function accepts its arguments
+   in order, so that 'a' is a row from the model containing the given field."
+  ([field a b]
+     (link field a b {}))
+  ([field a b opts]
+     (let [{from-key :from to-key :to join-key :join} (assoc/link-keys field)
+           target-id (-> field :row :target_id)
+           target (or (get @models target-id)
+                      (first (query "select * from model where id = %1"
+                                         target-id)))
+           locale (if (and (:localized target) (:locale opts)) (str (name (:locale opts)) "_") "")
+           linkage (create (:slug target) b opts)
+           params [join-key from-key (:id linkage) to-key (:id a) locale]
+           preexisting (apply
+                        (partial query
+                                 "select * from %1 where %6%2 = %3 and %6%4 = %5")
+                        params)]
+       (if preexisting
+         preexisting
+         (create join-key {from-key (:id linkage) to-key (:id a)} opts)))))
+
 (swap! operations (fn [m] (assoc m
+                            :link link
                             :create create
                             :update update
                             :destroy destroy)))
