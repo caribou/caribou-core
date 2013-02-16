@@ -111,7 +111,8 @@
   (pre-destroy
     [this content]
     (if (or (row :dependent) (-> env :link :dependent))
-      (let [parts (field/field-from this content {:include {(keyword (:slug row)) {}}})
+      (let [parts (field/field-from this content
+                                    {:include {(keyword (:slug row)) {}}})
             target (keyword (get (field/target-for this) :slug))]
         (doseq [part parts]
           ((get @operations :destroy) target (:id part)))))
