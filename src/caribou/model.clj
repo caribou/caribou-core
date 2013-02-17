@@ -38,8 +38,13 @@
   [f]
   (db/call f))
 
+;; will hold functions, this is passed to fields that manipulate models
+;; along with field/models above, this enables all the recursion needed
+;; to isolate most of fields and their specific logic from models and
+;; their own specific logic
 (def operations (atom {}))
 
+;; aiding the transition from the domain of fields to this domain, of models:
 (defn make-field
   "turn a row from the field table into a full fledged Field record"
   [row]
@@ -129,7 +134,8 @@
     (string/join " " ["select" selects "from" (:slug model) (name prefix) joins])))
 
 (defn model-limit-offset
-  "Determine the limit and offset component of the uberquery based on the given where condition."
+  "Determine the limit and offset component of the uberquery based on
+  the given where condition."
   [limit offset]
   (util/clause " limit %1 offset %2" [limit offset]))
 
@@ -153,8 +159,9 @@
     m)))
 
 (defn model-order-statement
-  "Joins the natural orderings and the given orderings from the opts map and constructs
-   the order clause to ultimately be used in the uberquery."
+  "Joins the natural orderings and the given orderings from the opts
+   map and constructs the order clause to ultimately be used in the
+   uberquery."
   [model opts]
   (let [ordering (if (:order opts) opts (assoc opts :order {:position :asc}))
         order (assoc/model-build-order model (:slug model) ordering)]
@@ -167,7 +174,8 @@
             [(:slug model) subcondition order limit])))
 
 (defn form-uberquery
-  "Given the model and map of opts, construct the corresponding uberquery (but don't call it!)"
+  "Given the model and map of opts, construct the corresponding
+  uberquery (but don't call it!)"
   [model opts]
   (let [query (model-select-query model (:slug model) opts)
         where (assoc/model-where-conditions model (:slug model) opts)
@@ -205,8 +213,10 @@
 (def split-keys [:include :order])
 
 (defn beam-splitter
-  "Splits the given options (:include, :where, :order) out into parallel paths to avoid übercombinatoric explosion!
-   Returns a list of options each of which correspond to an independent set of includes."
+  "Splits the given options (:include, :where, :order) out into
+   parallel paths to avoid übercombinatoric explosion!  Returns a list
+   of options each of which correspond to an independent set of
+   includes."
   [opts]
   (if-let [include-keys (-> opts :include keys)]
     (let [unsplit (apply (partial dissoc opts) split-keys)]
@@ -224,38 +234,6 @@
           {} split-keys))
        include-keys))
     [opts]))
-
-(defn model-generator
-  "Constructs a map of field generator functions for the given model and its fields."
-  [model]
-  (let [fields (vals (:fields model))]
-    (reduce #(field/field-generator %2 %1) {} fields)))
-
-(defn generate
-  "Given a map of field generator functions, create a new map that has a value in each key
-   given by the field generator for that key."
-  [basis]
-  (loop [basis (seq basis)
-         spawn {}]
-    (if basis
-      (let [[key well] (first basis)]
-        (recur
-         (next basis)
-         (assoc spawn key (well))))
-      spawn)))
-
-(defn generate-model
-  "Given a slug and a number n, generate that number of instances of the model given by that slug."
-  [slug n]
-  (let [g (model-generator (slug @models))]
-    (map (fn [_] (generate g)) (repeat n nil))))
-
-(defn spawn-model
-  "Given a slug and a number n, actually create the given number of model instances in the db given
-   by the field generators for that model."
-  [slug n]
-  (let [generated (generate-model slug n)]
-    (doall (map #(create slug %) generated))))
 
 (defn gather
   "The main function to retrieve instances of a model given by the slug.
@@ -302,14 +280,16 @@
             fused)))))))
 
 (defn pick
-  "pick is the same as gather, but returns only the first result, so is not a list of maps but a single map result."
+  "pick is the same as gather, but returns only the first result, so is
+  not a list of maps but a single map result."
   ([slug] (pick slug {}))
   ([slug opts]
      (first (gather slug (assoc opts :limit 1)))))
 
 (defn impose
-  "impose is identical to pick except that if the record with the given :where conditions is not found,
-   it is created according to that :where map."
+  "impose is identical to pick except that if the record with the given
+   :where conditions is not found, it is created according to that
+   :where map."
   [slug opts]
   (or
    (pick slug opts)
@@ -459,8 +439,9 @@
       env)))
 
 (defn add-hook
-  "add a hook for the given model slug for the given timing.
-  each hook must have a unique id, or it overwrites the previous hook at that id."
+  "add a hook for the given model slug for the given timing.  each hook
+  must have a unique id, or it overwrites the previous hook at that
+  id."
   [slug timings id func]
   (let [timings (if (keyword? timings) [timings] timings)]
     (doseq [timing timings]
@@ -786,8 +767,8 @@
 ;; MODELS --------------------------------------------------------------------
 
 (defn invoke-model
-  "translates a row from the model table into a nested hash with references
-  to its fields in a hash with keys being the field slugs
+  "translates a row from the model table into a nested hash with
+  references to its fields in a hash with keys being the field slugs
   and vals being the field invoked as a Field protocol record."
   [model]
   (let [fields (util/query "select * from field where model_id = %1" (model :id))
@@ -798,8 +779,8 @@
 (defn invoke-models
   "call to populate the application model cache in model/models.
   (otherwise we hit the db all the time with model and field selects)
-  this also means if a model or field is changed in any way that model will
-  have to be reinvoked to reflect the current state."
+  this also means if a model or field is changed in any way that model
+  will have to be reinvoked to reflect the current state."
   []
   (let [rows (util/query "select * from model")
         invoked (doall (map invoke-model rows))]
@@ -836,13 +817,14 @@
       values)))
 
 (defn create
-  "slug represents the model to be updated.
-  the spec contains all information about how to update this row,
-  including nested specs which update across associations.
-  the only difference between a create and an update is if an id is supplied,
-  hence this will automatically forward to update if it finds an id in the spec.
-  this means you can use this create method to create or update something,
-  using the presence or absence of an id to signal which operation gets triggered."
+  "slug represents the model to be updated.  the spec contains all
+  information about how to update this row, including nested specs
+  which update across associations.  the only difference between a
+  create and an update is if an id is supplied, hence this will
+  automatically forward to update if it finds an id in the spec.  this
+  means you can use this create method to create or update something,
+  using the presence or absence of an id to signal which operation
+  gets triggered."
   ([slug spec]
      (create slug spec {}))
   ([slug spec opts]
@@ -865,9 +847,12 @@
          (:content _final)))))
 
 (defn rally
-  "Pull a set of content up through the model system with the given options.
-   Avoids the uberquery so is considered deprecated and inferior, left here for historical reasons
-   (and as a hedge in case the uberquery really does explode someday!)"
+  "Pull a set of content up through the model system with the given
+  options.
+
+   Avoids the uberquery so is considered deprecated and inferior, left
+   here for historical reasons (and as a hedge in case the uberquery
+   really does explode someday!)"
   ([slug] (rally slug {}))
   ([slug opts]
      (let [model (models (keyword slug))
@@ -876,11 +861,14 @@
            limit (str (or (opts :limit) 30))
            offset (str (or (opts :offset) 0))
            where (str (or (opts :where) "1=1"))]
-       (doall (map #(assoc/from model % opts) (util/query "select * from %1 where %2 order by %3 %4 limit %5 offset %6" slug where order-by order limit offset))))))
+       (doall (map #(assoc/from model % opts)
+                   (util/query "select * from %1 where %2 order by %3 %4 limit %5 offset %6" slug where order-by order limit offset))))))
 
 (defn update
   "slug represents the model to be updated.
+
   id is the specific row to update.
+
   the spec contains all information about how to update this row,
   including nested specs which update across associations."
   ([slug id spec]
@@ -919,8 +907,8 @@
     (_after :content)))
 
 (defn progenitors
-  "if the model given by slug is nested,
-  return a list of the item given by this id along with all of its ancestors."
+  "if the model given by slug is nested, return a list of the item
+  given by this id along with all of its ancestors."
   ([slug id] (progenitors slug id {}))
   ([slug id opts]
      (let [model (models (keyword slug))]
@@ -933,8 +921,8 @@
          [(assoc/from model (db/choose slug id) opts)]))))
 
 (defn descendents
-  "pull up all the descendents of the item given by id
-  in the nested model given by slug."
+  "pull up all the descendents of the item given by id in the nested
+  model given by slug."
   ([slug id] (descendents slug id {}))
   ([slug id opts]
      (let [model (models (keyword slug))]
@@ -1026,3 +1014,41 @@
                             :create create
                             :update update
                             :destroy destroy)))
+
+;; MODEL GENERATION -------------------
+;; this could go in its own namespace
+
+(defn model-generator
+  "Constructs a map of field generator functions for the given model
+  and its fields."
+  [model]
+  (let [fields (vals (:fields model))]
+    (reduce #(field/field-generator %2 %1) {} fields)))
+
+(defn generate
+  "Given a map of field generator functions, create a new map that has
+   a value in each key given by the field generator for that key."
+  [basis]
+  (loop [basis (seq basis)
+         spawn {}]
+    (if basis
+      (let [[key well] (first basis)]
+        (recur
+         (next basis)
+         (assoc spawn key (well))))
+      spawn)))
+
+(defn generate-model
+  "Given a slug and a number n, generate that number of instances of
+  the model given by that slug."
+  [slug n]
+  (let [g (model-generator (slug @models))]
+    (map (fn [_] (generate g)) (repeat n nil))))
+
+(defn spawn-model
+  "Given a slug and a number n, actually create the given number of
+   model instances in the db given by the field generators for that
+   model."
+  [slug n]
+  (let [generated (generate-model slug n)]
+    (doall (map #(create slug %) generated))))
