@@ -236,12 +236,6 @@
   (let [query-mass (form-uberquery model opts)]
     (util/query query-mass)))
 
-(defn keys-difference
-  [a b]
-  (set/difference (-> a keys set) (-> b keys set)))
-
-(def split-keys [:include :order])
-
 (defn beam-splitter
   "Splits the given options (:include, :where, :order) out into
    parallel paths to avoid übercombinatoric explosion!  Returns a list
@@ -249,7 +243,10 @@
    includes."
   [opts]
   (if-let [include-keys (-> opts :include keys)]
-    (let [unsplit (apply (partial dissoc opts) split-keys)
+    (let [keys-difference (fn   [a b]
+                            (set/difference (-> a keys set) (-> b keys set)))
+          split-keys [:include :order]
+          unsplit (apply (partial dissoc opts) split-keys)
           reduce-split
           (fn [include-key split key]
             (let [split-opts (if-let [inner (-> opts key include-key)]
@@ -264,52 +261,69 @@
               (merge ultimate unsplit)))]
       (map (fn [include-key]
              (reduce (partial reduce-split include-key)
-                     {} split-keys)) include-keys))
+                     {} split-keys))
+           include-keys))
     [opts]))
 
 (defn gather
-  "The main function to retrieve instances of a model given by the slug.
+  "The main function to retrieve instances of a model given by the
+  slug.
+
    The possible keys in the opts map are:
-     :include - a nested map of associated content to include with the found instances.
-     :where - a nested map of conditions given to constrain the results found, which could include associated content.
-     :order - a nested map of ordering statements which may or may not be across associations.
-     :limit - The number of primary results to return (the number of associated instances given by the :include
-              option are not limited).
+
+     :include - a nested map of associated content to include with the
+     found instances.
+
+     :where - a nested map of conditions given to constrain the
+     results found, which could include associated content.
+
+     :order - a nested map of ordering statements which may or may not
+     be across associations.
+
+     :limit - The number of primary results to return (the number of
+              associated instances given by the :include option are
+              not limited).
+
      :offset - how many records into the result set are returned.
 
-   Example:  (gather :model {:include {:fields {:link {}}}
-                             :where {:fields {:slug \"name\"}}
-                             :order {:slug :asc}
-                             :limit 10 :offset 3})
-     --> returns 10 models and all their associated fields (and those fields' links if they exist) who have a
-         field with the slug of 'name', ordered by the model slug and offset by 3."
+   Example: (gather :model {:include {:fields {:link {}}}
+                            :where {:fields {:slug \"name\"}}
+                            :order {:slug :asc}
+                            :limit 10
+                            :offset 3})
+
+     --> returns 10 models and all their associated fields (and those
+         fields' links if they exist) who have a field with the slug
+         of 'name', ordered by the model slug and offset by 3."
   ([slug] (gather slug {}))
   ([slug opts]
-    ; I am not comfortable putting this here:
-    (let [opts-with-defaults (apply-query-defaults opts (:query-defaults @config/app))]
-      (let [query-hash (hash-query slug opts-with-defaults)
-            cache @queries]
-      (if-let [cached (and (:enable-query-cache @config/app) (get @queries query-hash))]
-        cached
-        (let [model ((keyword slug) @models)]
-          (when-not model
-            (throw (new Exception (str "invalid caribou model:" slug))))
-          ;; beam-validator throws an exception if opts are bad
-          ;; catching and printing for now until we get rid of spurious errors
-          ;; (when (and (seq opts) (not (= (config/environment) :production)))
-          ;; (try
-            (validation/beams slug opts)
-            ;; (catch Exception e
-              ;; (println "not expected beams")
-              ;; (.printStackTrace e)))
-          (let [beams (beam-splitter opts-with-defaults)
-                resurrected (mapcat (partial uberquery model) beams)
-                fused (assoc/fusion model (name slug) resurrected opts-with-defaults)
-                involved (assoc/model-models-involved model opts-with-defaults #{})]
-            (swap! queries #(assoc % query-hash fused))
-            (doseq [m involved]
-              (reverse-cache-add m query-hash))
-            fused)))))))
+     (let [query-defaults (:query-defaults @config/app)
+           opts-with-defaults (apply-query-defaults opts query-defaults)
+           query-hash (hash-query slug opts-with-defaults)
+           cache @queries]
+       (if-let [cached (and (:enable-query-cache @config/app)
+                            (get @queries query-hash))]
+         cached
+         (let [model ((keyword slug) @models)]
+           (when-not model
+             (throw (new Exception (str "invalid caribou model:" slug))))
+           ;; beam-validator throws an exception if opts are bad
+           (when (and (seq opts) (not (= (config/environment) :production)))
+             ;; (try
+             (validation/beams slug opts))
+             ;; (catch Exception e
+             ;; (println "not expected beams")
+             ;; (.printStackTrace e)))
+           (let [beams (beam-splitter opts-with-defaults)
+                 resurrected (mapcat (partial uberquery model) beams)
+                 fused (assoc/fusion model (name slug) resurrected
+                                     opts-with-defaults)
+                 involved (assoc/model-models-involved model opts-with-defaults
+                                                       #{})]
+             (swap! queries #(assoc % query-hash fused))
+             (doseq [m involved]
+               (reverse-cache-add m query-hash))
+             fused))))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is
