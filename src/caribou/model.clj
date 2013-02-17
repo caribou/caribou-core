@@ -111,7 +111,8 @@
 
 (defn clear-model-cache
   [ids]
-  (swap! queries #(apply (partial dissoc %) (mapcat (fn [id] (reverse-cache-get id)) ids)))
+  (swap! queries #(apply (partial dissoc %)
+                         (mapcat (fn [id] (reverse-cache-get id)) ids)))
   (reverse-cache-delete ids))
 
 (defn clear-queries
@@ -120,32 +121,39 @@
   (swap! reverse-cache (fn [_] {})))
 
 
-;; Query defaults - this could live elsewhere
+;; QUERY DEFAULTS ----------------------------------------
+;; this could live elsewhere
 (defn expand-query-defaults
   [query-defaults clause]
   (if (not (empty? clause))
-    (into query-defaults (for [[k v] (filter #(-> % val map?) clause)] [k (expand-query-defaults query-defaults v)]))
+    (into query-defaults
+          (for [[k v] (filter #(-> % val map?) clause)]
+            [k (expand-query-defaults query-defaults v)]))
     query-defaults))
 
 (defn expanded-query-defaults
   [query query-defaults]
   (let [expanded-include (expand-query-defaults query-defaults (:include query))
         expanded-where   (expand-query-defaults query-defaults (:where query))
-        merged-defaults  (util/deep-merge-with (fn [& maps] (first maps)) expanded-where expanded-include)
-        ] merged-defaults))
+        merged-defaults  (util/deep-merge-with (fn [& maps] (first maps))
+                                               expanded-where expanded-include)]
+    merged-defaults))
 
 (defn apply-query-defaults
   [query query-defaults]
   (if (not= query-defaults nil)
-    (util/deep-merge-with (fn [& maps] (first maps)) query {:where (expanded-query-defaults query query-defaults)})
+    (util/deep-merge-with
+     (fn [& maps] (first maps)) query
+     {:where (expanded-query-defaults query
+                                      query-defaults)})
     query))
+
+;; UBERQUERY ---------------------------------------------
 
 (def model-slugs (ref {}))
 
 
 (declare update destroy create)
-
-;; UBERQUERY ---------------------------------------------
 
 (defn model-select-query
   "Build the select query for this model by the given prefix based on the
@@ -153,7 +161,8 @@
   [model prefix opts]
   (let [selects (string/join ", " (assoc/model-select-fields model prefix opts))
         joins (string/join " " (assoc/model-join-conditions model prefix opts))]
-    (string/join " " ["select" selects "from" (:slug model) (name prefix) joins])))
+    (string/join " "
+                 ["select" selects "from" (:slug model) (name prefix) joins])))
 
 (defn model-limit-offset
   "Determine the limit and offset component of the uberquery based on
@@ -191,9 +200,12 @@
 
 (defn model-outer-condition
   [model inner order limit opts]
-  (let [subcondition (if (not (empty? inner)) (str " where " inner))]
-    (util/clause " where %1.id in (select * from (select %1.id from %1 %2%3%4) as _conditions_)"
-            [(:slug model) subcondition order limit])))
+  (let [subcondition (if (not (empty? inner)) (str " where " inner))
+        query-string (string/join " " [" where %1.id in"
+                                       "(select * from (select %1.id"
+                                       "from %1 %2%3%4) as _conditions_)"])]
+    (util/clause query-string
+                 [(:slug model) subcondition order limit])))
 
 (defn form-uberquery
   "Given the model and map of opts, construct the corresponding
