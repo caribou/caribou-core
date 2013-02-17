@@ -218,18 +218,15 @@
         
         natural (assoc/model-natural-orderings model (:slug model) opts)
         immediate-order (immediate-vals (:order opts))
-        base-order (model-order-statement model (if (empty? immediate-order) {} {:order immediate-order}))
-
-        final-order
-        (if (empty? order)
-          (finalize-order-statement natural)
-          (string/join ", " (cons order natural)))
-        
-        limit-offset 
-        (if-let [limit (:limit opts)]
-          (model-limit-offset limit (or (:offset opts) 0)))
-
-        condition (model-outer-condition model where base-order limit-offset opts)]
+        base-opts (if (empty? immediate-order) {} {:order immediate-order})
+        base-order (model-order-statement model base-opts)
+        final-order (if (empty? order)
+                      (finalize-order-statement natural)
+                      (string/join ", " (cons order natural)))
+        limit-offset (when-let [limit (:limit opts)]
+                       (model-limit-offset limit (or (:offset opts) 0)))
+        condition (model-outer-condition model where base-order limit-offset
+                                         opts)]
     (str query condition final-order)))
 
 (defn uberquery
@@ -237,7 +234,6 @@
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
   (let [query-mass (form-uberquery model opts)]
-    ;; (println (:slug model) opts query-mass)
     (util/query query-mass)))
 
 (defn keys-difference
@@ -253,20 +249,22 @@
    includes."
   [opts]
   (if-let [include-keys (-> opts :include keys)]
-    (let [unsplit (apply (partial dissoc opts) split-keys)]
-      (map
-       (fn [include-key]
-         (reduce
-          (fn [split key]
+    (let [unsplit (apply (partial dissoc opts) split-keys)
+          reduce-split
+          (fn [include-key split key]
             (let [split-opts (if-let [inner (-> opts key include-key)]
                                (assoc split key {include-key inner})
                                split)
                   subopts (get opts key)
                   other-keys (keys-difference subopts (:include opts))
-                  ultimate (update-in split-opts [key] (fn [a] (merge a (select-keys subopts other-keys))))]
-              (merge ultimate unsplit)))
-          {} split-keys))
-       include-keys))
+                  merge-subopts-other
+                  (fn [a]
+                    (merge a (select-keys subopts other-keys)))
+                  ultimate (update-in split-opts [key] merge-subopts-other)]
+              (merge ultimate unsplit)))]
+      (map (fn [include-key]
+             (reduce (partial reduce-split include-key)
+                     {} split-keys)) include-keys))
     [opts]))
 
 (defn gather
