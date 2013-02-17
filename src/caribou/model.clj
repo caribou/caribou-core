@@ -67,6 +67,14 @@
 
 (def operations (atom {})) ; holds things fields want to do to models
 
+(defn define-ops
+  [create update link destroy]
+  (swap! operations (fn [m] (assoc m
+                              :create create
+                              :update update
+                              :link link
+                              :destroy destroy))))
+
 (defn make-field
   "turn a row from the field table into a full fledged Field record"
   [row]
@@ -924,7 +932,8 @@
      (if (present? (:id spec))
        (update slug (:id spec) spec opts)
        (let [model (models (keyword slug))
-             values (reduce (update-values-reduction spec) {} (vals (dissoc (:fields model) :updated_at)))
+             values (reduce (update-values-reduction spec)
+                            {} (vals (dissoc (:fields model) :updated_at)))
              env {:model model :values values :spec spec :op :create :opts opts}
              _save (run-hook slug :before_save env)
              _create (run-hook slug :before_create _save)
@@ -933,8 +942,11 @@
                                        :updated_at
                                        (time-stamp-field/current-timestamp)))
              merged (merge (:spec _create) content)
-             _after (run-hook slug :after_create (merge _create {:content merged}))
-             post (reduce #(field/post-update %2 %1 opts) (:content _after) (vals (:fields model)))
+             _after (run-hook slug :after_create
+                              (merge _create {:content merged}))
+             post (reduce #(field/post-update %2 %1 opts)
+                          (:content _after)
+                          (vals (:fields model)))
              _final (run-hook slug :after_save (merge _after {:content post}))]
          (clear-model-cache (list (:id model)))
          (:content _final)))))
@@ -951,8 +963,10 @@
   ([slug id spec opts]
      (let [model (models (keyword slug))
            original (db/choose slug id)
-           values (reduce #(field/update-values %2 (assoc spec :id id) %1) {} (vals (model :fields)))
-           env {:model model :values values :spec spec :original original :op :update :opts opts}
+           values (reduce #(field/update-values %2 (assoc spec :id id) %1)
+                          {} (vals (model :fields)))
+           env {:model model :values values :spec spec :original original
+                :op :update :opts opts}
            _save (run-hook slug :before_save env)
            _update (run-hook slug :before_update _save)
            local-values (localize-values model (:values _update) opts)
@@ -962,8 +976,10 @@
                            (time-stamp-field/current-timestamp)))
            content (db/choose slug id)
            merged (merge (_update :spec) content)
-           _after (run-hook slug :after_update (merge _update {:content merged}))
-           post (reduce #(field/post-update %2 %1 opts) (_after :content) (vals (model :fields)))
+           _after (run-hook slug :after_update
+                            (merge _update {:content merged}))
+           post (reduce #(field/post-update %2 %1 opts)
+                        (_after :content) (vals (model :fields)))
            _final (run-hook slug :after_save (merge _after {:content post}))]
        (clear-model-cache (list (:id model)))
        (_final :content))))
@@ -975,7 +991,8 @@
         content (db/choose slug id)
         env {:model model :content content :slug slug :op :destroy}
         _before (run-hook slug :before_destroy env)
-        pre (reduce #(field/pre-destroy %2 %1) (_before :content) (-> model :fields vals))
+        pre (reduce #(field/pre-destroy %2 %1)
+                    (_before :content) (-> model :fields vals))
         deleted (db/delete slug "id = %1" id)
         _after (run-hook slug :after_destroy (merge _before {:content pre}))]
     (clear-model-cache (list (:id model)))
@@ -991,7 +1008,8 @@
          (let [field-names (assoc/table-columns slug)
                base-where (util/clause "id = %1" [id])
                recur-where (util/clause "%1_tree.parent_id = %1.id" [slug])
-               before (db/recursive-query slug field-names base-where recur-where)]
+               before (db/recursive-query slug field-names base-where
+                                          recur-where)]
            (doall (map #(assoc/from model % opts) before)))
          [(assoc/from model (db/choose slug id) opts)]))))
 
@@ -1005,7 +1023,8 @@
          (let [field-names (assoc/table-columns slug)
                base-where (util/clause "id = %1" [id])
                recur-where (util/clause "%1_tree.id = %1.parent_id" [slug])
-               before (db/recursive-query slug field-names base-where recur-where)]
+               before (db/recursive-query slug field-names base-where
+                                          recur-where)]
            (doall (map #(assoc/from model % opts) before)))
          [(assoc/from model (db/choose slug id) opts)]))))
 
@@ -1073,22 +1092,20 @@
            target (or (get @models target-id)
                       (first (util/query "select * from model where id = %1"
                                          target-id)))
-           locale (if (and (:localized target) (:locale opts)) (str (name (:locale opts)) "_") "")
+           locale (if (and (:localized target)
+                           (:locale opts))
+                    (str (name (:locale opts)) "_")
+                    "")
            linkage (create (:slug target) b opts)
            params [join-key from-key (:id linkage) to-key (:id a) locale]
-           preexisting (apply
-                        (partial util/query
-                                 "select * from %1 where %6%2 = %3 and %6%4 = %5")
-                        params)]
+           query "select * from %1 where %6%2 = %3 and %6%4 = %5"
+           preexisting (apply (partial util/query query) params)]
        (if preexisting
          preexisting
          (create join-key {from-key (:id linkage) to-key (:id a)} opts)))))
 
-(swap! operations (fn [m] (assoc m
-                            :link link
-                            :create create
-                            :update update
-                            :destroy destroy)))
+;; define the operations used by association fields
+(define-ops create update link destroy)
 
 ;; MODEL GENERATION -------------------
 ;; this could go in its own namespace
