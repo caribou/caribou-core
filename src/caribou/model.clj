@@ -438,28 +438,67 @@
   (first (find-all slug opts)))
 
 (def base-fields
-  [{:name "Id" :slug "id" :type "id" :locked true :immutable true :editable false}
+  [{:name "Id" :slug "id" :type "id" :locked true :immutable true
+    :editable false}
    {:name "Position" :slug "position" :type "integer" :locked true}
    {:name "Env Id" :slug "env_id" :type "integer" :locked true :editable false}
-   {:name "Locked" :slug "locked" :type "boolean" :locked true :immutable true :editable false :default_value false}
-   {:name "Created At" :slug "created_at" :type "timestamp" :default_value "current_timestamp" :locked true :immutable true :editable false}
-   {:name "Updated At" :slug "updated_at" :type "timestamp" :locked true :editable false}])
+   {:name "Locked" :slug "locked" :type "boolean" :locked true :immutable true
+    :editable false :default_value false}
+   {:name "Created At" :slug "created_at" :type "timestamp"
+    :default_value "current_timestamp" :locked true :immutable true
+    :editable false}
+   {:name "Updated At" :slug "updated_at" :type "timestamp" :locked true
+    :editable false}])
 
 ;; HOOKS -------------------------------------------------------
+
+
+(defn add-app-model-hooks
+  "finds and loads every namespace under the hooks-ns that matches the
+  app's model names
+
+  we are only loading the namespaces for their side effects, it is
+  assumed that in each namespace hooks are set via add-hook as defined
+  below"
+  []
+  (let [hooks-ns (@config/app :hooks-ns)
+        make-hook-ns (fn [slug] (symbol (str hooks-ns "." (name slug))))
+        sloppy-require (fn [ns]
+                         ;; this done for side effects, so we want to reload
+                         ;; whenever applicable
+                         (try (require ns :reload)
+                              (catch java.io.FileNotFoundException e nil)))]
+    (when hooks-ns
+      (doseq [model-slug @model-slugs]
+        (-> model-slug make-hook-ns sloppy-require)))))
 
 (def lifecycle-hooks (ref {}))
 
 (defn make-lifecycle-hooks
-  "establish the set of functions which are called throughout the lifecycle
-  of all rows for a given model (slug).  the possible hook points are:
-    :before_create     -- called for create only, before the record is made
-    :after_create      -- called for create only, now the record has an id
-    :before_update     -- called for update only, before any changes are made
-    :after_update      -- called for update only, now the changes have been committed
-    :before_save       -- called for create and update
-    :after_save        -- called for create and update
-    :before_destroy    -- only called on destruction, record has not yet been removed
-    :after_destroy     -- only called on destruction, now the db has no record of it"
+  "establish the set of functions which are called throughout the
+  lifecycle of all rows for a given model (slug).  the possible hook
+  points are:
+
+    :before_create -- called for create only, before the record is
+    made
+
+    :after_create -- called for create only, now the record has an id
+
+    :before_update -- called for update only, before any changes are
+    made
+
+    :after_update -- called for update only, now the changes have been
+    committed
+
+    :before_save -- called for create and update
+
+    :after_save -- called for create and update
+
+    :before_destroy -- only called on destruction, record has not yet
+    been removed
+
+    :after_destroy -- only called on destruction, now the db has no
+    record of it"
   [slug]
   (if (not (@lifecycle-hooks (keyword slug)))
     (let [hooks {(keyword slug)
@@ -475,8 +514,9 @@
        (alter lifecycle-hooks merge hooks)))))
 
 (defn run-hook
-  "run the hooks for the given model slug given by timing.
-  env contains any necessary additional information for the running of the hook"
+  "run the hooks for the given model slug given by timing.  env
+  contains any necessary additional information for the running of the
+  hook"
   [slug timing env]
   (let [kind (@lifecycle-hooks (keyword slug))]
     (if kind
@@ -496,7 +536,8 @@
           (let [hook-name (keyword id)]
             (dosync
              (alter hook merge {hook-name func})))
-            (throw (Exception. (format "No model lifecycle hook called %s" timing))))
+          (throw (Exception. (format "No model lifecycle hook called %s"
+                                     timing))))
         (throw (Exception. (format "No model called %s" slug)))))))
 
 (defn create-model-table
@@ -518,6 +559,9 @@
      :field
      {:name "Parent Id" :model_id (-> env :content :id) :type "integer"}))
   env)
+
+;; LOCALIZATION --------------------------
+;; could be in its own ns?
 
 (defn localized-slug
   [code slug]
@@ -571,7 +615,8 @@
                                         :type "part"
                                         :target_id (-> @models :status :id)
                                         :reciprocal_name (:name model)}]})
-  (let [status-id-field (pick :field {:where {:name "Status Id" :model_id (:id model)}})]
+  (let [status-id-field (pick :field {:where {:name "Status Id"
+                                              :model_id (:id model)}})]
     (update :field (:id status-id-field) {:default_value 1})))
 
 (defn add-status-part
@@ -580,8 +625,6 @@
         model-sans-status (pick :model {:where {:id model-id}})]
     (add-status-to-model model-sans-status))
   env)
-
-(declare invoke-models)
 
 (defn add-localization
   [env]
@@ -603,6 +646,8 @@
       (update-locale old-code new-code)))
   env)
 
+(declare invoke-models)
+
 (defn model-after-save
   [env]
   (add-parent-id env)
@@ -615,8 +660,9 @@
     (create-model-table (util/slugify (-> env :spec :name)))
     env))
   
-  (add-hook :model :after_create :add_base_fields (fn [env] (add-base-fields env)))
-    ;; (assoc-in env [:spec :fields] (concat (-> env :spec :fields) base-fields))))
+  (add-hook :model :after_create :add_base_fields
+            (fn [env] (add-base-fields env)))
+  ;; (assoc-in env [:spec :fields] (concat (-> env :spec :fields) base-fields))))
 
   ;; (add-hook :model :before_save :write_migrations (fn [env]
   ;;   (try                                                 
@@ -666,11 +712,13 @@
        (fn [env]
          (rename-updated-locale env)))))
 
-
   (if (:status @models)
-    (add-hook :model :after_create :add_status_part (fn [env] (add-status-part env)))))
+    (add-hook :model :after_create :add_status_part
+              (fn [env] (add-status-part env)))))
 
-  
+
+;; MORE FIELD FUNCTIONALITY --------------------------
+
 (defn process-default
   [field-type default]
   (if (and (= "boolean" field-type) (string? default))
@@ -684,7 +732,8 @@
         model (db/find-model model-id @models)
         model-slug (:slug model)
         slug (-> env :content :slug)
-        default (process-default (-> env :spec :type) (-> env :spec :default_value))
+        default (process-default (-> env :spec :type)
+                                 (-> env :spec :default_value))
         reference (-> env :spec :reference)]
 
     (doseq [addition (field/table-additions field slug)]
@@ -698,7 +747,10 @@
     (if (present? default)
       (db/set-default model-slug slug default))
     (if (present? reference)
-      (db/add-reference model-slug slug reference (if (-> env :content :dependent) :destroy :default)))
+      (db/add-reference model-slug slug reference
+                        (if (-> env :content :dependent)
+                          :destroy
+                          :default)))
     (if (-> env :spec :required)
       (db/set-required model-slug slug true))
     (if (-> env :spec :disjoint)
@@ -727,19 +779,25 @@
         unique (:unique content)
         
         spawn (apply zipmap (map #(field/subfield-names field %) [oslug slug]))
-        transition (apply zipmap (map #(map first (field/table-additions field %)) [oslug slug]))]
+        transition (apply zipmap (map (fn [slugs]
+                                        (map first
+                                             (field/table-additions field
+                                                                    slugs)))
+                                      [oslug slug]))]
 
     (if (not (= oslug slug))
       (do
         (doseq [[old-name new-name] spawn]
           (let [field-id (-> (get model-fields (keyword old-name)) :row :id)]
-            (update :field field-id {:name new-name :slug (util/slugify new-name)})))
+            (update :field field-id {:name new-name
+                                     :slug (util/slugify new-name)})))
 
         (doseq [[old-name new-name] transition]
           (db/rename-column model-slug old-name new-name)
           (if local-field?
             (doseq [code locales]
-              (db/rename-column model-slug (str code "_" (name old-name)) (str code "_" (name new-name))))))
+              (db/rename-column model-slug (str code "_" (name old-name))
+                                (str code "_" (name new-name))))))
 
         (field/rename-field field oslug slug)))
 
@@ -761,25 +819,28 @@
     (if (-> env :spec :link_slug)
       (let [model_id (-> env :spec :model_id)
             link_slug (-> env :spec :link_slug)
-            fetch (db/fetch :field "model_id = %1 and slug = '%2'" model_id link_slug)
+            fetch (db/fetch :field "model_id = %1 and slug = '%2'"
+                            model_id link_slug)
             linked (first fetch)]
         (assoc (:values env) :link_id (:id linked)))
       (:values env))))
 
 (defn- add-field-hooks []
-  (add-hook :field :before_save :check_link_slug (fn [env] (field-check-link-slug env)))
-    ;; (assoc env :values 
-    ;;   (if (-> env :spec :link_slug)
-    ;;     (let [model_id (-> env :spec :model_id)
-    ;;           link_slug (-> env :spec :link_slug)
-    ;;           fetch (db/fetch :field "model_id = %1 and slug = '%2'" model_id link_slug)
-    ;;           linked (first fetch)]
-    ;;       (assoc (env :values) :link_id (linked :id)))
-    ;;     (env :values)))))
+  (add-hook :field :before_save :check_link_slug
+            (fn [env] (field-check-link-slug env)))
+  ;; (assoc env :values 
+  ;;   (if (-> env :spec :link_slug)
+  ;;     (let [model_id (-> env :spec :model_id)
+  ;;           link_slug (-> env :spec :link_slug)
+  ;;           fetch (db/fetch :field "model_id = %1 and slug = '%2'" model_id link_slug)
+  ;;           linked (first fetch)]
+  ;;       (assoc (env :values) :link_id (linked :id)))
+  ;;     (env :values)))))
   
-  (add-hook :field :after_create :add_columns (fn [env] (field-add-columns env)))
-  (add-hook :field :after_update :reify_field (fn [env] (field-reify-column env)))
-
+  (add-hook :field :after_create :add_columns
+            (fn [env] (field-add-columns env)))
+  (add-hook :field :after_update :reify_field
+            (fn [env] (field-reify-column env)))
   (add-hook :field :after_destroy :drop_columns (fn [env]
     (try                                                  
       (if-let [content (:content env)]
@@ -794,22 +855,6 @@
       (catch Exception e (util/render-exception e)))
     env)))
 
-(defn add-app-model-hooks
-  "finds and loads every namespace under the hooks-ns that matches the
-  app's model names"
-  []
-  (let [hooks-ns (@config/app :hooks-ns)
-        make-hook-ns (fn [slug] (symbol (str hooks-ns "." (name slug))))
-        sloppy-require (fn [ns]
-                         ;; this done for side effects, so we want to reload
-                         ;; whenever applicable
-                         (try (require ns :reload)
-                              (catch java.io.FileNotFoundException e nil)))]
-    (when hooks-ns
-      (doseq [model-slug @model-slugs]
-        (-> model-slug make-hook-ns sloppy-require)))))
-
-
 ;; MODELS --------------------------------------------------------------------
 
 (defn invoke-model
@@ -817,8 +862,10 @@
   references to its fields in a hash with keys being the field slugs
   and vals being the field invoked as a Field protocol record."
   [model]
-  (let [fields (util/query "select * from field where model_id = %1" (model :id))
-        field-map (util/seq-to-map #(keyword (-> % :row :slug)) (map make-field fields))]
+  (let [fields (util/query "select * from field where model_id = %1"
+                           (get model :id))
+        field-map (util/seq-to-map #(keyword (-> % :row :slug))
+                                   (map make-field fields))]
     (make-lifecycle-hooks (model :slug))
     (assoc model :fields field-map)))
 
