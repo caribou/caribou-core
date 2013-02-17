@@ -76,6 +76,31 @@
       (throw (new Exception (str "no such field type: " type))))
     (constructor row operations)))
 
+(def base-fields
+  [{:name "Id" :slug "id" :type "id" :locked true :immutable true
+    :editable false}
+   {:name "Position" :slug "position" :type "integer" :locked true}
+   {:name "Env Id" :slug "env_id" :type "integer" :locked true :editable false}
+   {:name "Locked" :slug "locked" :type "boolean" :locked true :immutable true
+    :editable false :default_value false}
+   {:name "Created At" :slug "created_at" :type "timestamp"
+    :default_value "current_timestamp" :locked true :immutable true
+    :editable false}
+   {:name "Updated At" :slug "updated_at" :type "timestamp" :locked true
+    :editable false}])
+
+(defn add-base-fields
+  [env]
+  (println "Adding base fields to model with id" (-> env :content :id))
+  (doseq [field base-fields]
+    (db/insert
+     :field
+     (merge
+      field
+      {:model_id (-> env :content :id)
+       :updated_at (time-stamp-field/current-timestamp)})))
+  env)
+
 ;; CACHING -------------------------------------
 
 (def queries (atom {}))
@@ -437,19 +462,6 @@
   ;; (let [oneify (assoc opts :limit 1)]
   (first (find-all slug opts)))
 
-(def base-fields
-  [{:name "Id" :slug "id" :type "id" :locked true :immutable true
-    :editable false}
-   {:name "Position" :slug "position" :type "integer" :locked true}
-   {:name "Env Id" :slug "env_id" :type "integer" :locked true :editable false}
-   {:name "Locked" :slug "locked" :type "boolean" :locked true :immutable true
-    :editable false :default_value false}
-   {:name "Created At" :slug "created_at" :type "timestamp"
-    :default_value "current_timestamp" :locked true :immutable true
-    :editable false}
-   {:name "Updated At" :slug "updated_at" :type "timestamp" :locked true
-    :editable false}])
-
 ;; HOOKS -------------------------------------------------------
 
 
@@ -540,18 +552,6 @@
                                      timing))))
         (throw (Exception. (format "No model called %s" slug)))))))
 
-(defn create-model-table
-  "create a table with the given name."
-  [name]
-  (db/create-table
-   (keyword name)
-   [:id "SERIAL" "PRIMARY KEY"]
-   [:position :integer "DEFAULT 0"]
-   [:env_id :integer "DEFAULT 1"]
-   [:locked :boolean "DEFAULT false"]
-   [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
-   [:updated_at "timestamp" "NOT NULL"]))
-
 (defn add-parent-id
   [env]
   (if (and (-> env :content :nested) (not (-> env :original :nested)))
@@ -562,6 +562,20 @@
 
 ;; LOCALIZATION --------------------------
 ;; could be in its own ns?
+
+(defn localize-values
+  [model values opts]
+  (let [locale (util/zap (:locale opts))]
+    (if (and locale (:localized model))
+      (util/map-map
+       (fn [k v]
+         (let [kk (keyword k)
+               field (-> model :fields kk)]
+           (if (field/localized? field)
+             [(str locale "_" (name k)) v]
+             [k v])))
+       values)
+      values)))
 
 (defn localized-slug
   [code slug]
@@ -597,18 +611,6 @@
             old-slug (localized-slug old-code field-slug)
             new-slug (localized-slug new-code field-slug)]
         (db/rename-column (:slug model) old-slug new-slug)))))
-
-(defn add-base-fields
-  [env]
-  (println "Adding base fields to model with id" (-> env :content :id))
-  (doseq [field base-fields]
-    (db/insert
-     :field
-     (merge
-      field
-      {:model_id (-> env :content :id)
-       :updated_at (time-stamp-field/current-timestamp)})))
-  env)
 
 (defn add-status-to-model [model]
   (update :model (:id model) {:fields [{:name "Status"
@@ -654,6 +656,18 @@
   (invoke-models)
   (add-localization env)
   env)
+
+(defn create-model-table
+  "create a table with the given name."
+  [name]
+  (db/create-table
+   (keyword name)
+   [:id "SERIAL" "PRIMARY KEY"]
+   [:position :integer "DEFAULT 0"]
+   [:env_id :integer "DEFAULT 1"]
+   [:locked :boolean "DEFAULT false"]
+   [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
+   [:updated_at "timestamp" "NOT NULL"]))
 
 (defn- add-model-hooks []
   (add-hook :model :before_create :build_table (fn [env]
@@ -894,20 +908,6 @@
   [spec]
   (fn [values field]
     (field/update-values field spec values)))
-
-(defn localize-values
-  [model values opts]
-  (let [locale (util/zap (:locale opts))]
-    (if (and locale (:localized model))
-      (util/map-map
-       (fn [k v]
-         (let [kk (keyword k)
-               field (-> model :fields kk)]
-           (if (field/localized? field)
-             [(str locale "_" (name k)) v]
-             [k v])))
-       values)
-      values)))
 
 (defn create
   "slug represents the model to be updated.  the spec contains all
