@@ -28,23 +28,45 @@
             caribou.field.tie
             [caribou.field.time-stamp :as time-stamp-field]))
 
-(def retrieve-links assoc/retrieve-links)
-(def present? assoc/present?)
-(def models field/models)
-(def from assoc/from)
-
 (defn db
   "Calls f in the connect of the current configured database connection."
   [f]
   (db/call f))
 
-;; will hold functions, this is passed to fields that manipulate models
-;; along with field/models above, this enables all the recursion needed
-;; to isolate most of fields and their specific logic from models and
-;; their own specific logic
-(def operations (atom {}))
+;; COMPATIBILITY ----------------
+;; stuff that is here because it is proably still being used by somebody
+(def retrieve-links assoc/retrieve-links)
+(def present? assoc/present?)
+(def from assoc/from)
 
-;; aiding the transition from the domain of fields to this domain, of models:
+(defn rally
+  "Pull a set of content up through the model system with the given
+  options.
+
+   Avoids the uberquery so is considered deprecated and inferior, left
+   here for historical reasons (and as a hedge in case the uberquery
+   really does explode someday!)"
+  ([slug] (rally slug {}))
+  ([slug opts]
+     (let [model (@field/models (keyword slug))
+           order (or (opts :order) "asc")
+           order-by (or (opts :order_by) "position")
+           limit (str (or (opts :limit) 30))
+           offset (str (or (opts :offset) 0))
+           where (str (or (opts :where) "1=1"))
+           query-str (string/join " "
+                                  ["select * from %1 where %2 order by %3 %4"
+                                   "limit %5 offset %6"])]
+       (doall (map #(assoc/from model % opts)
+                   (util/query query-str slug
+                               where order-by order limit offset))))))
+
+;; FIELD INTEGRATION -----------------
+
+(def models field/models)
+
+(def operations (atom {})) ; holds things fields want to do to models
+
 (defn make-field
   "turn a row from the field table into a full fledged Field record"
   [row]
@@ -845,24 +867,6 @@
              _final (run-hook slug :after_save (merge _after {:content post}))]
          (clear-model-cache (list (:id model)))
          (:content _final)))))
-
-(defn rally
-  "Pull a set of content up through the model system with the given
-  options.
-
-   Avoids the uberquery so is considered deprecated and inferior, left
-   here for historical reasons (and as a hedge in case the uberquery
-   really does explode someday!)"
-  ([slug] (rally slug {}))
-  ([slug opts]
-     (let [model (models (keyword slug))
-           order (or (opts :order) "asc")
-           order-by (or (opts :order_by) "position")
-           limit (str (or (opts :limit) 30))
-           offset (str (or (opts :offset) 0))
-           where (str (or (opts :where) "1=1"))]
-       (doall (map #(assoc/from model % opts)
-                   (util/query "select * from %1 where %2 order by %3 %4 limit %5 offset %6" slug where order-by order limit offset))))))
 
 (defn update
   "slug represents the model to be updated.
