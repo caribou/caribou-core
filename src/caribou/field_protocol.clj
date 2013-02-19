@@ -40,6 +40,7 @@
 ;; fields use the set of defined models extensively
 (def models (ref {}))
 
+;; functions for localized fields
 (defn build-locale-field
   [prefix slug locale]
   (str prefix "." (name locale) "_" (name slug)))
@@ -69,7 +70,6 @@
       (build-select-field prefix slug))))
 
 ;; functions used throughout field definitions
-
 (defn where-operator
   [where]
   (if (map? where)
