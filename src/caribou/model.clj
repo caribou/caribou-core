@@ -68,11 +68,11 @@
 (def operations (atom {})) ; holds things fields want to do to models
 
 (defn define-ops
-  [create update link destroy]
+  [create update destroy]
   (swap! operations (fn [m] (assoc m
                               :create create
                               :update update
-                              :link link
+                              ;; :link link
                               :destroy destroy))))
 
 (defn make-field
@@ -1081,31 +1081,8 @@
   (sql/with-connection @config/db
     (invoke-models)))
 
-(defn link
-  "Link two rows by the given LinkField.  This function accepts its arguments
-   in order, so that 'a' is a row from the model containing the given field."
-  ([field a b]
-     (link field a b {}))
-  ([field a b opts]
-     (let [{from-key :from to-key :to join-key :join} (assoc/link-keys field)
-           target-id (-> field :row :target_id)
-           target (or (get @models target-id)
-                      (first (util/query "select * from model where id = %1"
-                                         target-id)))
-           locale (if (and (:localized target)
-                           (:locale opts))
-                    (str (name (:locale opts)) "_")
-                    "")
-           linkage (create (:slug target) b opts)
-           params [join-key from-key (:id linkage) to-key (:id a) locale]
-           query "select * from %1 where %6%2 = %3 and %6%4 = %5"
-           preexisting (apply (partial util/query query) params)]
-       (if preexisting
-         preexisting
-         (create join-key {from-key (:id linkage) to-key (:id a)} opts)))))
-
 ;; define the operations used by association fields
-(define-ops create update link destroy)
+(define-ops create update destroy)
 
 ;; MODEL GENERATION -------------------
 ;; this could go in its own namespace
