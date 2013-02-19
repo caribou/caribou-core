@@ -3,6 +3,13 @@
             [caribou.util :as util]
             [caribou.field-protocol :as field]))
 
+(defn with-propagation
+  [sign opts field includer]
+  (if-let [outer (sign opts)]
+    (if-let [inner (outer (keyword field))]
+      (let [down (assoc opts sign inner)]
+        (includer down)))))
+
 (defn join-table-name
   "construct a join table name out of two link names"
   [a b]
@@ -109,7 +116,7 @@
 
 (defn span-models-involved
   [field opts all]
-  (if-let [down (field/with-propagation :include opts (-> field :row :slug)
+  (if-let [down (with-propagation :include opts (-> field :row :slug)
                   (fn [down]
                     (let [target (@field/models (-> field :row :target_id))]
                       (model-models-involved target down all))))]
@@ -129,12 +136,36 @@
           (vals (:fields model))))]
     (string/join " and " (flatten eyes))))
 
+;; the next few functions are all really helpers for model-select-fields
+
+(defn table-fields
+  "This is part of the Field protocol that is the same for all fields.
+  Returns the set of fields that could play a role in the select. "
+  [field]
+  (concat (map first (field/table-additions field (-> field :row :slug)))
+          (field/subfield-names field (-> field :row :slug))))
+
+(defn build-alias
+  [model field prefix slug opts]
+  (let [select-field (field/coalesce-locale model field prefix slug opts)]
+    (str select-field " as " prefix "$" (name slug))))
+
+(defn select-fields
+  "Find all necessary columns for the select query based on the given include nesting
+   and fashion them into sql form."
+  [model field prefix opts]
+  (let [columns (table-fields field)
+        next-prefix (str prefix (:slug field))
+        model-fields (map #(build-alias model field prefix % opts) columns)
+        join-model-fields (field/join-fields field next-prefix opts)]
+    (concat model-fields join-model-fields)))
+
 (defn model-select-fields
   "Build a set of select fields based on the given model."
   [model prefix opts]
   (let [fields (vals (:fields model))
         sf (fn [field]
-             (field/select-fields model field (name prefix) opts))
+             (select-fields model field (name prefix) opts))
         model-fields (map sf fields)]
     (set (apply concat model-fields))))
 
@@ -174,7 +205,7 @@
   [this target prefix archetype skein opts]
   (let [slug (keyword (-> this :row :slug))
         fused
-        (field/with-propagation :include opts slug
+        (with-propagation :include opts slug
           (fn [down]
             (let [value (subfusion target (str prefix "$" (name slug))
                                    skein down)]
@@ -198,7 +229,7 @@
   [this prefix archetype skein opts]
   (let [slug (keyword (-> this :row :slug))
         nesting 
-        (field/with-propagation :include opts slug
+        (with-propagation :include opts slug
           (fn [down]
             (let [target (@field/models (-> this :row :target_id))
                   value (fusion target (str prefix "$" (name slug)) skein down)
@@ -209,7 +240,7 @@
 (defn join-order
   [field target prefix opts]
   (let [slug (keyword (-> field :row :slug))]
-    (field/with-propagation :order opts slug
+    (with-propagation :order opts slug
       (fn [down]
         (model-build-order target (str prefix "$" (name slug)) down)))))
 

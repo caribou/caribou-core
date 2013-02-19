@@ -68,36 +68,7 @@
       (build-coalesce prefix slug locale)
       (build-select-field prefix slug))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn table-fields
-  "This is part of the Field protocol that is the same for all fields.
-  Returns the set of fields that could play a role in the select. "
-  [field]
-  (concat (map first (table-additions field (-> field :row :slug)))
-          (subfield-names field (-> field :row :slug))))
-
-(defn build-alias
-  [model field prefix slug opts]
-  (let [select-field (coalesce-locale model field prefix slug opts)]
-    (str select-field " as " prefix "$" (name slug))))
-
-(defn select-fields
-  "Find all necessary columns for the select query based on the given include nesting
-   and fashion them into sql form."
-  [model field prefix opts]
-  (let [columns (table-fields field)
-        next-prefix (str prefix (:slug field))
-        model-fields (map #(build-alias model field prefix % opts) columns)
-        join-model-fields (join-fields field next-prefix opts)]
-    (concat model-fields join-model-fields)))
-
-(defn with-propagation
-  [sign opts field includer]
-  (if-let [outer (sign opts)]
-    (if-let [inner (outer (keyword field))]
-      (let [down (assoc opts sign inner)]
-        (includer down)))))
+;; functions used throughout field definitions
 
 (defn where-operator
   [where]
@@ -119,8 +90,6 @@
         containing (drop-while #(nil? (get % bit)) skein)
         value (get (first containing) bit)]
     (assoc archetype slug value)))
-
-;; put this in assoc-field namespace?
 
 (defn id-models-involved
   [field opts all]

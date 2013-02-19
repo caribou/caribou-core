@@ -39,14 +39,14 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (field/with-propagation :include opts (:slug row)
+    (assoc/with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@field/models (:model_id row))]
           (assoc/model-select-fields target (str prefix "$" (:slug row))
                                      down)))))
 
   (join-conditions [this prefix opts]
-    (field/with-propagation :include opts (:slug row)
+    (assoc/with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@field/models (:model_id row))
               id-slug (keyword (str (:slug row) "_id"))
@@ -62,13 +62,13 @@
 
   (build-where
     [this prefix opts]
-    (field/with-propagation :where opts (:slug row)
+    (assoc/with-propagation :where opts (:slug row)
       (fn [down]
         (let [target (@field/models (:model_id row))]
           (assoc/model-where-conditions target (str prefix "$" (:slug row)) down)))))
 
   (natural-orderings [this prefix opts]
-    (field/with-propagation :where opts (:slug row)
+    (assoc/with-propagation :where opts (:slug row)
       (fn [down]
         (let [target (@field/models (:model_id row))]
           (assoc/model-natural-orderings target (str prefix "$" (:slug row)) down)))))
@@ -85,7 +85,7 @@
   (localized? [this] false)
 
   (models-involved [this opts all]
-    (if-let [down (field/with-propagation :include opts (:slug row)
+    (if-let [down (assoc/with-propagation :include opts (:slug row)
                     (fn [down]
                       (let [target (@field/models (:model_id row))]
                         (assoc/model-models-involved target down all))))]
@@ -93,7 +93,7 @@
       all))
 
   (field-from [this content opts]
-    (field/with-propagation :include opts (:slug row)
+    (assoc/with-propagation :include opts (:slug row)
       (fn [down]
         (if-let [tie-key (keyword (str (:slug row) "_id"))]
           (let [model (@field/models (:model_id row))]

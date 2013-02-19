@@ -47,7 +47,7 @@
 (defn- link-join-conditions
   [field prefix opts]
   (let [slug (-> field :row :slug)]
-    (field/with-propagation :include opts slug
+    (assoc/with-propagation :include opts slug
       (fn [down]
         (let [{:keys [join-key join-alias join-select table-alias link-select]}
               (link-join-keys field prefix opts)
@@ -64,7 +64,7 @@
   [field prefix opts]
   (let [slug (-> field :row :slug)
         join-clause "%1.id in (select %2 from %3 %4 inner join %5 %8 on (%6 = %8.id) where %7)"]
-    (field/with-propagation :where opts slug
+    (assoc/with-propagation :where opts slug
       (fn [down]
         (let [{:keys [join-key join-alias join-select table-alias link-select]}
               (link-join-keys field prefix opts)
@@ -133,7 +133,7 @@
 
 (defn link-models-involved
   [field opts all]
-  (if-let [down (field/with-propagation :include opts (-> field :row :slug)
+  (if-let [down (assoc/with-propagation :include opts (-> field :row :slug)
                   (fn [down]
                     (let [slug (-> field :row :slug)
                           reciprocal (-> field :env :link)
@@ -223,7 +223,7 @@
     content)
 
   (join-fields [this prefix opts]
-    (field/with-propagation :include opts (:slug row)
+    (assoc/with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@field/models (:target_id row))]
           (assoc/model-select-fields target (str prefix "$" (:slug row))
@@ -254,7 +254,7 @@
     (link-models-involved this opts all))
 
   (field-from [this content opts]
-    (field/with-propagation :include opts (:slug row)
+    (assoc/with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (field/target-for this)]
           (map
