@@ -35,7 +35,7 @@
 
 ;; COMPATIBILITY ----------------
 ;; stuff that is here because it is proably still being used by somebody
-(def retrieve-links assoc/retrieve-links)
+(def retrieve-links link-field/retrieve-links)
 (def present? assoc/present?)
 (def from assoc/from)
 (defn rally
