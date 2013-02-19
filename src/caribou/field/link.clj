@@ -149,9 +149,9 @@
 (defn link
   "Link two rows by the given LinkField.  This function accepts its arguments
    in order, so that 'a' is a row from the model containing the given field."
-  ([field a b]
-     (link field a b {}))
-  ([field a b opts]
+  ([field a b operations]
+     (link field a b {} operations))
+  ([field a b opts operations]
      (let [{from-key :from to-key :to join-key :join} (assoc/link-keys field)
            target-id (-> field :row :target_id)
            target (or (get @field/models target-id)
@@ -161,13 +161,14 @@
                            (:locale opts))
                     (str (name (:locale opts)) "_")
                     "")
-           linkage (create (:slug target) b opts)
+           linkage ((get @operations :create) (:slug target) b opts)
            params [join-key from-key (:id linkage) to-key (:id a) locale]
            query "select * from %1 where %6%2 = %3 and %6%4 = %5"
            preexisting (apply (partial util/query query) params)]
        (if preexisting
          preexisting
-         (create join-key {from-key (:id linkage) to-key (:id a)} opts)))))
+         ((get @operations :create) join-key {from-key (:id linkage)
+                                              to-key (:id a)} opts)))))
 
 (defrecord LinkField [row env operations]
   field/Field
@@ -236,7 +237,7 @@
 
   (post-update [this content opts]
     (if-let [collection (content (keyword (:slug row)))]
-      (let [linked (doall (map #(link this content % opts)
+      (let [linked (doall (map #(link this content % opts operations)
                                collection))
             with-links (assoc content (keyword (str (:slug row) "_join")) linked)]
         (assoc content (:slug row) (assoc/retrieve-links this content opts))))
