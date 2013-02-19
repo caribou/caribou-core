@@ -10,7 +10,7 @@
 (defn collection-where
   [field prefix opts]
   (let [slug (-> field :row :slug)]
-    (field/with-propagation :where opts slug
+    (assoc/with-propagation :where opts slug
       (fn [down]
         (let [model (@field/models (-> field :row :model_id))
               target (@field/models (-> field :row :target_id))
@@ -120,7 +120,7 @@
 
   (join-fields
     [this prefix opts]
-    (field/with-propagation :include opts (:slug row)
+    (assoc/with-propagation :include opts (:slug row)
       (fn [down]
         (let [target (@field/models (:target_id row))]
           (assoc/model-select-fields target (str prefix "$" (:slug row))
@@ -128,7 +128,7 @@
 
   (join-conditions
     [this prefix opts]
-    (field/with-propagation :include opts (:slug row)
+    (assoc/with-propagation :include opts (:slug row)
       (fn [down]
         (let [model (@field/models (:model_id row))
               target (@field/models (:target_id row))
@@ -178,7 +178,7 @@
 
   (field-from
     [this content opts]
-    (field/with-propagation :include opts (:slug row)
+    (assoc/with-propagation :include opts (:slug row)
       (fn [down]
         (let [link (-> this :env :link :slug)
               parts (db/fetch

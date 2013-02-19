@@ -74,7 +74,7 @@
 
   (build-where
     [this prefix opts]
-    (field/with-propagation :where opts (:slug row)
+    (assoc/with-propagation :where opts (:slug row)
       (fn [down]
         (assoc/model-where-conditions (:location @field/models)
                                       (str prefix "$" (:slug row)) down))))
