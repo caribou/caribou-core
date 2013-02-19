@@ -50,15 +50,15 @@
      :link-select link-select}))
 
 (defn remove-link
-  ([field from-id to-id operations]
-     (remove-link field from-id to-id {} operations))
-  ([field from-id to-id opts operations]
+  ([field from-id to-id]
+     (remove-link field from-id to-id {}))
+  ([field from-id to-id opts]
      (let [{from-key :from to-key :to join-key :join} (link-keys field)
            locale (if (:locale opts) (str (name (:locale opts)) "_") "")
            params [join-key from-key to-id to-key from-id locale]
            preexisting (first (apply (partial util/query "select * from %1 where %6%2 = %3 and %6%4 = %5") params))]
        (if preexisting
-         ((get @operations :destroy) join-key (preexisting :id))))))
+         ((resolve 'caribou.model/destroy) join-key (preexisting :id))))))
 
 (defn- link-join-conditions
   [field prefix opts]
@@ -127,7 +127,7 @@
     content))
 
 (defn link-rename-field
-  [field old-slug new-slug operations]
+  [field old-slug new-slug]
   (let [model (get @field/models (:model_id (:row field)))
         target (get @field/models (:target_id (:row field)))
         reciprocal (-> field :env :link)
@@ -140,11 +140,11 @@
         join-collection (-> model :fields old-join-key)
         old-key (keyword old-slug)
         join-target (-> join-model :fields old-key)]
-    ((get @operations :update) :field (-> join-collection :row :id)
+    ((resolve 'caribou.model/update) :field (-> join-collection :row :id)
      {:name (util/titleize new-join-key) :slug (name new-join-key)})
-    ((get @operations :update) :field (-> join-target :row :id)
+    ((resolve 'caribou.model/update) :field (-> join-target :row :id)
      {:name (util/titleize new-slug) :slug (name new-slug)})
-    ((get @operations :update) :model (:id join-model)
+    ((resolve 'caribou.model/update) :model (:id join-model)
      {:name (util/titleize new-join-name) :slug new-join-name})))
 
 (defn link-models-involved
@@ -164,9 +164,9 @@
 (defn link
   "Link two rows by the given LinkField.  This function accepts its arguments
    in order, so that 'a' is a row from the model containing the given field."
-  ([field a b operations]
-     (link field a b {} operations))
-  ([field a b opts operations]
+  ([field a b]
+     (link field a b {}))
+  ([field a b opts]
      (let [{from-key :from to-key :to join-key :join} (link-keys field)
            target-id (-> field :row :target_id)
            target (or (get @field/models target-id)
@@ -176,14 +176,14 @@
                            (:locale opts))
                     (str (name (:locale opts)) "_")
                     "")
-           linkage ((get @operations :create) (:slug target) b opts)
+           linkage ((resolve 'caribou.model/create) (:slug target) b opts)
            params [join-key from-key (:id linkage) to-key (:id a) locale]
            query "select * from %1 where %6%2 = %3 and %6%4 = %5"
            preexisting (apply (partial util/query query) params)]
        (if preexisting
          preexisting
-         ((get @operations :create) join-key {from-key (:id linkage)
-                                              to-key (:id a)} opts)))))
+         ((resolve 'caribou.model/create) join-key {from-key (:id linkage)
+                                                    to-key (:id a)} opts)))))
 
 (defn retrieve-links
   "Given a link field and a row, find all target rows linked to the given row
@@ -202,7 +202,7 @@
            params [field-select target-slug join-key from-key to-key (content :id) locale]]
        (apply (partial util/query join-query) params))))
 
-(defrecord LinkField [row env operations]
+(defrecord LinkField [row env]
   field/Field
 
   (table-additions [this field] [])
@@ -217,7 +217,7 @@
             join-name (join-table-name (:name spec) reciprocal-name)
 
             link
-            ((get @operations :create)
+            ((resolve 'caribou.model/create)
              :field
              {:name reciprocal-name
               :type "link"
@@ -227,7 +227,7 @@
               :dependent (:dependent row)})
 
             join-model
-            ((get @operations :create)
+            ((resolve 'caribou.model/create)
              :model
              {:name (util/titleize join-name)
               :join_model true
@@ -249,13 +249,14 @@
 
   (rename-field
     [this old-slug new-slug]
-    (link-rename-field this old-slug new-slug operations))
+    (link-rename-field this old-slug new-slug))
 
   (cleanup-field [this]
     (try
       (let [join-name (link-join-name this)]
-        ((get @operations :destroy) :model (-> @field/models join-name :id))
-        ((get @operations :destroy) :field (row :link_id)))
+        ((resolve 'caribou.model/destroy) :model
+         (-> @field/models join-name :id))
+        ((resolve 'caribou.model/destroy) :field (row :link_id)))
       (catch Exception e (str e))))
 
   (target-for [this] (@field/models (row :target_id)))
@@ -264,12 +265,12 @@
     (let [removed (content (keyword (str "removed_" (:slug row))))]
       (if (assoc/present? removed)
         (let [ex (map util/convert-int (string/split removed #","))]
-          (doall (map #(remove-link this (content :id) % operations) ex)))))
+          (doall (map #(remove-link this (content :id) %) ex)))))
     values)
 
   (post-update [this content opts]
     (if-let [collection (content (keyword (:slug row)))]
-      (let [linked (doall (map #(link this content % opts operations)
+      (let [linked (doall (map #(link this content % opts)
                                collection))
             with-links (assoc content (keyword (str (:slug row) "_join")) linked)]
         (assoc content (:slug row) (retrieve-links this content opts))))
@@ -322,7 +323,8 @@
 
   (validate [this opts] (validation/for-assoc this opts)))
 
-(field/add-constructor :link (fn [row operations]
-                               (let [link (db/choose :field (row :link_id))]
-                                 (LinkField. row {:link link} operations))))
+(defn constructor
+  [row]
+  (let [link (db/choose :field (row :link_id))]
+    (LinkField. row {:link link})))
 

@@ -27,7 +27,7 @@
               params [part-select field-select (:slug target) table-alias subconditions]]
           (util/clause "%1 in (select %2 from %3 %4 where %5)" params))))))
 
-(defrecord PartField [row env operations]
+(defrecord PartField [row env]
   field/Field
 
   (table-additions [this field] [])
@@ -40,7 +40,7 @@
           reciprocal-name (or (:reciprocal_name spec) (:name model))
           id-slug (str (:slug row) "_id")]
       (if (or (nil? (:link_id row)) (zero? (:link_id row)))
-        (let [collection ((get @operations :create) :field
+        (let [collection ((resolve 'caribou.model/create) :field
                            {:name reciprocal-name
                             :type "collection"
                             :model_id (:target_id row)
@@ -48,7 +48,7 @@
                             :link_id (:id row)})]
           (db/update :field ["id = ?" (util/convert-int (:id row))] {:link_id (:id collection)})))
 
-      ((get @operations :update) :model model-id
+      ((resolve 'caribou.model/update) :model model-id
        {:fields
         [{:name (util/titleize id-slug)
           :type "integer"
@@ -66,10 +66,10 @@
     (let [fields ((@field/models (row :model_id)) :fields)
           id (keyword (str (:slug row) "_id"))
           position (keyword (str (:slug row) "_position"))]
-      ((get @operations :destroy) :field (-> fields id :row :id))
-      ((get @operations :destroy) :field (-> fields position :row :id))
+      ((resolve 'caribou.model/destroy) :field (-> fields id :row :id))
+      ((resolve 'caribou.model/destroy) :field (-> fields position :row :id))
       (try
-        (do ((get @operations :destroy) :field (-> env :link :id)))
+        (do ((resolve 'caribou.model/destroy) :field (-> env :link :id)))
         (catch Exception e (str e)))))
 
   (target-for [this] (@field/models (-> this :row :target_id)))
@@ -135,7 +135,8 @@
 
   (validate [this opts] (validation/for-assoc this opts)))
 
-(field/add-constructor :part (fn [row operations]
-                              (let [link (db/choose :field (row :link_id))]
-                                (PartField. row {:link link} operations))))
+(defn constructor
+  [row]
+  (let [link (db/choose :field (row :link_id))]
+    (PartField. row {:link link})))
                       

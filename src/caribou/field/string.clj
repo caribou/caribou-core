@@ -43,4 +43,6 @@
                                (string? s)))
                          "string")))
 
-(field/add-constructor :string (fn [row operations] (StringField. row {})))
+(defn constructor
+  [row]
+  (StringField. row {}))

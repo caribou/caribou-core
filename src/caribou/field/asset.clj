@@ -14,14 +14,14 @@
      (if master
        (assoc master :path (asset/asset-path master))))))
 
-(defrecord AssetField [row operations env]
+(defrecord AssetField [row env]
   field/Field
   (table-additions [this field] [])
   (subfield-names [this field] [(str field "_id")])
   (setup-field [this spec]
     (let [id-slug (str (:slug row) "_id")
           model (db/find-model (:model_id row) @field/models)]
-      ((get @operations :update) :model (:model_id row)
+      ((resolve 'caribou.model/update) :model (:model_id row)
        {:fields [{:name (util/titleize id-slug)
                   :type "integer"
                   :editable false
@@ -33,7 +33,7 @@
   (cleanup-field [this]
     (let [fields ((@field/models (row :model_id)) :fields)
           id (keyword (str (:slug row) "_id"))]
-      ((get @operations :destroy) :field (-> fields id :row :id))))
+      ((resolve 'caribou.model/destroy) :field (-> fields id :row :id))))
 
   (target-for [this] nil)
   (update-values [this content values] values)
@@ -87,5 +87,6 @@
     (assoc/join-render this (:asset @field/models) content opts))
   (validate [this opts] (validation/for-asset this opts)))
 
-(field/add-constructor :asset (fn [row operations] (AssetField. row operations
-                                                                {})))
+(defn constructor
+  [row]
+  (AssetField. row {}))

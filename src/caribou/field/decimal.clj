@@ -44,4 +44,6 @@
     (update-in content [(keyword (:slug row))] str))
   (validate [this opts] (validation/for-type this opts number? "decimal")))
   
-(field/add-constructor :decimal (fn [row operations] (DecimalField. row {})))
+(defn constructor
+  [row]
+  (DecimalField. row {}))

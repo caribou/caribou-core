@@ -46,7 +46,8 @@
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content))
 
-(field/add-constructor :urlslug (fn [row operations]
-                                  (let [link (db/choose :field (row :link_id))]
-                                    (UrlSlugField. row {:link link}))))
+(defn constructor
+  [row]
+  (let [link (db/choose :field (row :link_id))]
+    (UrlSlugField. row {:link link})))
                       

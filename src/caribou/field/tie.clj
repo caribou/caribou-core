@@ -1,11 +1,11 @@
-(ns caribou.field.link
+(ns caribou.field.tie
   (:require [caribou.field-protocol :as field]
             [caribou.util :as util]
             [caribou.db :as db]
             [caribou.validation :as validation]
             [caribou.model-association :as assoc]))
 
-(defrecord TieField [row env operations]
+(defrecord TieField [row env]
   field/Field
 
   (table-additions [this field] [])
@@ -15,7 +15,7 @@
     (let [model_id (:model_id row)
           model (@field/models model_id)
           id-slug (str (:slug row) "_id")]
-      ((get @operations :update) :model model_id
+      ((resolve 'caribou.model/update) :model model_id
         {:fields
          [{:name (util/titleize id-slug)
            :type "integer"
@@ -28,7 +28,7 @@
   (cleanup-field [this]
     (let [fields ((@field/models (row :model_id)) :fields)
           id (keyword (str (:slug row) "_id"))]
-      ((get @operations :destroy) :field (-> fields id :row :id))))
+      ((resolve 'caribou.model/destroy) :field (-> fields id :row :id))))
 
   (target-for [this] this)
 
@@ -104,6 +104,8 @@
 
   (validate [this opts] (validation/for-assoc this opts)))
 
-(field/add-constructor :tie (fn [row operations] (TieField. row {} operations)))
+(defn constructor
+  [row]
+  (TieField. row {}))
   
 
