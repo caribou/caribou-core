@@ -10,11 +10,6 @@
       (let [down (assoc opts sign inner)]
         (includer down)))))
 
-(defn join-table-name
-  "construct a join table name out of two link names"
-  [a b]
-  (string/join "_" (sort (map util/slugify [a b]))))
-
 (defn table-columns
   "Return a list of all columns for the table corresponding to this model."
   [slug]
@@ -27,34 +22,6 @@
          #(name (first %))
          (field/table-additions field (-> field :row :slug))))
       (vals (model :fields))))))
-
-(defn link-keys
-  "Find all related keys given by this link field."
-  [field]
-  (let [reciprocal (-> field :env :link)
-        from-name (-> field :row :slug)
-        from-key (keyword (str from-name "_id"))
-        to-name (reciprocal :slug)
-        to-key (keyword (str to-name "_id"))
-        join-key (keyword (join-table-name from-name to-name))]
-    {:from from-key :to to-key :join join-key}))
-
-(defn retrieve-links
-  "Given a link field and a row, find all target rows linked to the given row
-   by this field."
-  ([field content]
-     (retrieve-links field content {}))
-  ([field content opts]
-     (let [{from-key :from to-key :to join-key :join} (link-keys field)
-           target (@field/models (-> field :row :target_id))
-           target-slug (target :slug)
-           locale (if (:locale opts) (str (name (:locale opts)) "_") "")
-           field-names (map #(str target-slug "." %)
-                            (table-columns target-slug))
-           field-select (string/join "," field-names)
-           join-query "select %1 from %2 inner join %3 on (%2.id = %3.%7%4) where %3.%7%5 = %6"
-           params [field-select target-slug join-key from-key to-key (content :id) locale]]
-       (apply (partial util/query join-query) params))))
 
 (defn present?
   [x]

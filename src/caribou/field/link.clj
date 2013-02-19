@@ -6,17 +6,33 @@
             [caribou.validation :as validation]
             [caribou.model-association :as assoc]))
 
+(defn join-table-name
+  "construct a join table name out of two link names"
+  [a b]
+  (string/join "_" (sort (map util/slugify [a b]))))
+
 (defn link-join-name
   "Given a link field, return the join table name used by that link."
   [field]
   (let [reciprocal (-> field :env :link)
         from-name (-> field :row :name)
         to-name (:slug reciprocal)]
-    (keyword (assoc/join-table-name from-name to-name))))
+    (keyword (join-table-name from-name to-name))))
+
+(defn link-keys
+  "Find all related keys given by this link field."
+  [field]
+  (let [reciprocal (-> field :env :link)
+        from-name (-> field :row :slug)
+        from-key (keyword (str from-name "_id"))
+        to-name (reciprocal :slug)
+        to-key (keyword (str to-name "_id"))
+        join-key (keyword (join-table-name from-name to-name))]
+    {:from from-key :to to-key :join join-key}))
 
 (defn link-join-keys
   [this prefix opts]
-  (let [{from-key :from to-key :to join-key :join} (assoc/link-keys this)
+  (let [{from-key :from to-key :to join-key :join} (link-keys this)
         from-name (-> this :row :slug)
         join-model (get @field/models join-key)
         join-alias (str prefix "$" from-name "_join")
@@ -37,7 +53,7 @@
   ([field from-id to-id operations]
      (remove-link field from-id to-id {} operations))
   ([field from-id to-id opts operations]
-     (let [{from-key :from to-key :to join-key :join} (assoc/link-keys field)
+     (let [{from-key :from to-key :to join-key :join} (link-keys field)
            locale (if (:locale opts) (str (name (:locale opts)) "_") "")
            params [join-key from-key to-id to-key from-id locale]
            preexisting (first (apply (partial util/query "select * from %1 where %6%2 = %3 and %6%4 = %5") params))]
@@ -84,7 +100,7 @@
         to-name (reciprocal :slug)
         from-key (keyword (str slug "_position"))
         join-alias (str prefix "$" slug "_join")
-        join-key (keyword (assoc/join-table-name slug to-name))
+        join-key (keyword (join-table-name slug to-name))
         join-model (@field/models join-key)
         join-field (-> join-model :fields from-key)
         join-select (field/coalesce-locale model join-field join-alias
@@ -117,9 +133,9 @@
         reciprocal (-> field :env :link)
         reciprocal-slug (:slug reciprocal)
         old-join-key (keyword (str (name old-slug) "_join"))
-        old-join-name (assoc/join-table-name (name old-slug) reciprocal-slug)
+        old-join-name (join-table-name (name old-slug) reciprocal-slug)
         new-join-key (keyword (str (name new-slug) "_join"))
-        new-join-name (assoc/join-table-name (name new-slug) reciprocal-slug)
+        new-join-name (join-table-name (name new-slug) reciprocal-slug)
         join-model (get @field/models (keyword old-join-name))
         join-collection (-> model :fields old-join-key)
         old-key (keyword old-slug)
@@ -138,8 +154,7 @@
                     (let [slug (-> field :row :slug)
                           reciprocal (-> field :env :link)
                           to-name (reciprocal :slug)
-                          join-key (keyword (assoc/join-table-name slug
-                                                                   to-name))
+                          join-key (keyword (join-table-name slug to-name))
                           join-id (-> @field/models join-key :id)
                           target (@field/models (-> field :row :target_id))]
                       (assoc/model-models-involved target down (conj all join-id)))))]
@@ -152,7 +167,7 @@
   ([field a b operations]
      (link field a b {} operations))
   ([field a b opts operations]
-     (let [{from-key :from to-key :to join-key :join} (assoc/link-keys field)
+     (let [{from-key :from to-key :to join-key :join} (link-keys field)
            target-id (-> field :row :target_id)
            target (or (get @field/models target-id)
                       (first (util/query "select * from model where id = %1"
@@ -170,6 +185,23 @@
          ((get @operations :create) join-key {from-key (:id linkage)
                                               to-key (:id a)} opts)))))
 
+(defn retrieve-links
+  "Given a link field and a row, find all target rows linked to the given row
+   by this field."
+  ([field content]
+     (retrieve-links field content {}))
+  ([field content opts]
+     (let [{from-key :from to-key :to join-key :join} (link-keys field)
+           target (@field/models (-> field :row :target_id))
+           target-slug (target :slug)
+           locale (if (:locale opts) (str (name (:locale opts)) "_") "")
+           field-names (map #(str target-slug "." %)
+                            (assoc/table-columns target-slug))
+           field-select (string/join "," field-names)
+           join-query "select %1 from %2 inner join %3 on (%2.id = %3.%7%4) where %3.%7%5 = %6"
+           params [field-select target-slug join-key from-key to-key (content :id) locale]]
+       (apply (partial util/query join-query) params))))
+
 (defrecord LinkField [row env operations]
   field/Field
 
@@ -182,7 +214,7 @@
       (let [model (db/find-model (:model_id row) @field/models)
             target (db/find-model (:target_id row) @field/models)
             reciprocal-name (or (:reciprocal_name spec) (:name model))
-            join-name (assoc/join-table-name (:name spec) reciprocal-name)
+            join-name (join-table-name (:name spec) reciprocal-name)
 
             link
             ((get @operations :create)
@@ -240,7 +272,7 @@
       (let [linked (doall (map #(link this content % opts operations)
                                collection))
             with-links (assoc content (keyword (str (:slug row) "_join")) linked)]
-        (assoc content (:slug row) (assoc/retrieve-links this content opts))))
+        (assoc content (:slug row) (retrieve-links this content opts))))
     content)
 
   (pre-destroy [this content]
@@ -283,7 +315,7 @@
         (let [target (field/target-for this)]
           (map
            #(assoc/from target % down)
-           (assoc/retrieve-links this content opts))))))
+           (retrieve-links this content opts))))))
 
   (render [this content opts]
     (link-render this content opts))
@@ -293,3 +325,4 @@
 (field/add-constructor :link (fn [row operations]
                                (let [link (db/choose :field (row :link_id))]
                                  (LinkField. row {:link link} operations))))
+
