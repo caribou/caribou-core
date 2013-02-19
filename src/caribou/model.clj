@@ -24,8 +24,8 @@
             caribou.field.address
             caribou.field.collection
             caribou.field.part
-            caribou.field.link
             caribou.field.tie
+            [caribou.field.link :as link-field]
             [caribou.field.time-stamp :as time-stamp-field]))
 
 (defn db
@@ -38,7 +38,6 @@
 (def retrieve-links assoc/retrieve-links)
 (def present? assoc/present?)
 (def from assoc/from)
-
 (defn rally
   "Pull a set of content up through the model system with the given
   options.
@@ -66,6 +65,10 @@
 (def models field/models)
 
 (def operations (atom {})) ; holds things fields want to do to models
+
+(defn link
+  ([field a b] (link-field/link field a b {} operations))
+  ([field a b opts] (link-field/link field a b opts operations)))
 
 (defn define-ops
   [create update destroy]
