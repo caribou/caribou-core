@@ -11,20 +11,20 @@
             [caribou.validation :as validation]
             [caribou.model-association :as assoc]
             ;; namespaces for fields
-            caribou.field.id
-            caribou.field.integer
-            caribou.field.decimal
-            caribou.field.string
-            caribou.field.password
-            caribou.field.text
-            caribou.field.slug
-            caribou.field.url-slug
-            caribou.field.boolean
-            caribou.field.asset
-            caribou.field.address
-            caribou.field.collection
-            caribou.field.part
-            caribou.field.tie
+            [caribou.field.id :as id-field]
+            [caribou.field.integer :as integer-field]
+            [caribou.field.decimal :as decimal-field]
+            [caribou.field.string :as string-field]
+            [caribou.field.password :as password-field]
+            [caribou.field.text :as text-field]
+            [caribou.field.slug :as slug-field]
+            [caribou.field.url-slug :as url-slug-field]
+            [caribou.field.boolean :as boolean-field]
+            [caribou.field.asset :as asset-field]
+            [caribou.field.address :as address-field]
+            [caribou.field.collection :as collection-field]
+            [caribou.field.part :as part-field]
+            [caribou.field.tie :as tie-field]
             [caribou.field.link :as link-field]
             [caribou.field.time-stamp :as time-stamp-field]))
 
@@ -35,9 +35,11 @@
 
 ;; COMPATIBILITY ----------------
 ;; stuff that is here because it is proably still being used by somebody
+(def current-timestamp time-stamp-field/current-timestamp)
 (def retrieve-links link-field/retrieve-links)
 (def present? assoc/present?)
 (def from assoc/from)
+(def link link-field/link)
 (defn rally
   "Pull a set of content up through the model system with the given
   options.
@@ -64,20 +66,6 @@
 
 (def models field/models)
 
-(def operations (atom {})) ; holds things fields want to do to models
-
-(defn link
-  ([field a b] (link-field/link field a b {} operations))
-  ([field a b opts] (link-field/link field a b opts operations)))
-
-(defn define-ops
-  [create update destroy]
-  (swap! operations (fn [m] (assoc m
-                              :create create
-                              :update update
-                              ;; :link link
-                              :destroy destroy))))
-
 (defn make-field
   "turn a row from the field table into a full fledged Field record"
   [row]
@@ -85,7 +73,7 @@
         constructor (@field/field-constructors type)]
     (when-not constructor
       (throw (new Exception (str "no such field type: " type))))
-    (constructor row operations)))
+    (constructor row)))
 
 (def base-fields
   [{:name "Id" :slug "id" :type "id" :locked true :immutable true
@@ -894,26 +882,47 @@
     (make-lifecycle-hooks (model :slug))
     (assoc model :fields field-map)))
 
+(defn invoke-fields
+  []
+  (doseq [[key construct] [[:id id-field/constructor]
+                           [:integer integer-field/constructor]
+                           [:decimal decimal-field/constructor]
+                           [:string string-field/constructor]
+                           [:password password-field/constructor]
+                           [:text text-field/constructor]
+                           [:slug slug-field/constructor]
+                           [:url_slug url-slug-field/constructor]
+                           [:boolean boolean-field/constructor]
+                           [:asset asset-field/constructor]
+                           [:address address-field/constructor]
+                           [:collection collection-field/constructor]
+                           [:part part-field/constructor]
+                           [:tie tie-field/constructor]
+                           [:link link-field/constructor]
+                           [:timestamp time-stamp-field/constructor]]]
+    (field/add-constructor key construct)))
+
 (defn invoke-models
   "call to populate the application model cache in model/models.
   (otherwise we hit the db all the time with model and field selects)
   this also means if a model or field is changed in any way that model
   will have to be reinvoked to reflect the current state."
   []
+  (invoke-fields)
   (let [rows (util/query "select * from model")
         invoked (doall (map invoke-model rows))]
-     (add-model-hooks)
-     (add-field-hooks)
-     (dosync
-      (alter models 
-        (fn [in-ref new-models] new-models)
-        (merge (util/seq-to-map #(keyword (% :slug)) invoked)
-               (util/seq-to-map #(% :id) invoked)))))
+    (add-model-hooks)
+    (add-field-hooks)
+    (dosync
+     (alter models 
+            (fn [in-ref new-models] new-models)
+            (merge (util/seq-to-map #(keyword (% :slug)) invoked)
+                   (util/seq-to-map #(% :id) invoked)))))
 
-     ;; get all of our model slugs
-     (dosync
-      (ref-set model-slugs (filter keyword? (keys @models))))
-     (add-app-model-hooks))
+  ;; get all of our model slugs
+  (dosync
+   (ref-set model-slugs (filter keyword? (keys @models))))
+  (add-app-model-hooks))
 
 (defn update-values-reduction
   [spec]
@@ -1083,9 +1092,6 @@
 
   (sql/with-connection @config/db
     (invoke-models)))
-
-;; define the operations used by association fields
-(define-ops create update destroy)
 
 ;; MODEL GENERATION -------------------
 ;; this could go in its own namespace

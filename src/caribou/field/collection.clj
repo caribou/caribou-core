@@ -45,7 +45,7 @@
     content))
 
 (defn collection-post-update
-  [field content opts operations]
+  [field content opts]
   (if-let [collection (get content (-> field :row :slug keyword))]
     (let [part-field (-> field :env :link)
           part-key (-> part-field :slug (str "_id") keyword)
@@ -53,11 +53,11 @@
           model-key (-> model :slug keyword)
           updated (doseq [part collection]
                     (let [part-opts (assoc part part-key (:id content))]
-                      ((get @operations :create) model-key part-opts)))]
+                      ((resolve 'caribou.model/create) model-key part-opts)))]
       (assoc content (keyword (-> field :row :slug)) updated))
     content))
 
-(defrecord CollectionField [row env operations]
+(defrecord CollectionField [row env]
   field/Field
   (table-additions [this field] [])
   (subfield-names [this field] [])
@@ -68,7 +68,7 @@
       (let [model (db/find-model (:model_id row) @field/models)
             target (db/find-model (:target_id row) @field/models)
             reciprocal-name (or (:reciprocal_name spec) (:name model))
-            part ((get @operations :create) :field
+            part ((resolve 'caribou.model/create) :field
                    {:name reciprocal-name
                     :type "part"
                     :model_id (:target_id row)
@@ -83,7 +83,7 @@
   (cleanup-field
     [this]
     (try
-      ((get @operations :destroy) :field (-> env :link :id))
+      ((resolve 'caribou.model/destroy) :field (-> env :link :id))
       (catch Exception e (str e))))
 
   (target-for
@@ -100,13 +100,13 @@
               target ((@field/models (row :target_id)) :slug)]
           (doseq [gone ex]
             (if (:dependent row)
-              ((get @operations :destroy) target gone)
-              ((get @operations :update) target gone {part-key nil}))))))
+              ((resolve 'caribou.model/destroy) target gone)
+              ((resolve 'caribou.model/update) target gone {part-key nil}))))))
     values)
 
   (post-update
     [this content opts]
-    (collection-post-update this content opts operations))
+    (collection-post-update this content opts))
 
   (pre-destroy
     [this content]
@@ -115,7 +115,7 @@
                                     {:include {(keyword (:slug row)) {}}})
             target (keyword (get (field/target-for this) :slug))]
         (doseq [part parts]
-          ((get @operations :destroy) target (:id part)))))
+          ((resolve 'caribou.model/destroy) target (:id part)))))
     content)
 
   (join-fields
@@ -181,11 +181,10 @@
     (assoc/with-propagation :include opts (:slug row)
       (fn [down]
         (let [link (-> this :env :link :slug)
-              parts (db/fetch
-                     (-> (field/target-for this) :slug)
-                     (str link "_id = %1 order by %2 asc")
-                     (content :id)
-                     (str link "_position"))]
+              parts (db/fetch (-> (field/target-for this) :slug)
+                              (str link "_id = %1 order by %2 asc")
+                              (content :id)
+                              (str link "_position"))]
           (map #(assoc/from (field/target-for this) % down) parts)))))
 
   (render
@@ -194,8 +193,8 @@
 
   (validate [this opts] (validation/for-assoc this opts)))
 
-(field/add-constructor :collection
-                       (fn [row operations]
-                         (let [link (if (row :link_id)
-                                      (db/choose :field (row :link_id)))]
-                           (CollectionField. row {:link link} operations))))
+(defn constructor
+  [row]
+  (let [link (if (row :link_id)
+               (db/choose :field (row :link_id)))]
+    (CollectionField. row {:link link})))

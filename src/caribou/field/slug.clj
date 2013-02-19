@@ -50,7 +50,8 @@
                                                    (string? s)))
                                              "slug")))
 
-(field/add-constructor :slug (fn [row operations] 
-                               (let [link (db/choose :field (row :link_id))]
-                                 (SlugField. row {:link link}))))
+(defn constructor
+  [row] 
+  (let [link (db/choose :field (row :link_id))]
+    (SlugField. row {:link link})))
                       

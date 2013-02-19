@@ -56,5 +56,7 @@
                                                       x))))
                                              "boolean")))
 
-(field/add-constructor :boolean (fn [row operations] (BooleanField. row {})))
+(defn constructor
+  [row]
+  (BooleanField. row {}))
                       

@@ -39,5 +39,7 @@
   (render [this content opts] content)
   (validate [this opts] (validation/for-type this opts string? "password")))
 
-(field/add-constructor :password (fn [row operations] (PasswordField. row {})))
+(defn constructor
+  [row]
+  (PasswordField. row {}))
 
