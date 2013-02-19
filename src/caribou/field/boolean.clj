@@ -1,6 +1,16 @@
 (ns caribou.field.boolean
   (:require [caribou.field-protocol :as field]
+            [caribou.util :as util]
             [caribou.validation :as validation]))
+
+(defn boolean-fusion
+  [this prefix archetype skein opts]
+  (let [slug (keyword (-> this :row :slug))
+        bit (util/prefix-key prefix slug)
+        containing (drop-while #(nil? (get % bit)) skein)
+        value (get (first containing) bit)
+        value (or (= 1 value) (= true value))]
+    (assoc archetype slug value)))
 
 (defrecord BooleanField [row env]
   field/Field
@@ -34,7 +44,7 @@
   (field-generator [this generators]
     (assoc generators (keyword (:slug row)) (fn [] (= 1 (rand-int 2)))))
   (fuse-field [this prefix archetype skein opts]
-    (field/boolean-fusion this prefix archetype skein opts))
+    (boolean-fusion this prefix archetype skein opts))
   (localized? [this] (not (:locked row)))
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))

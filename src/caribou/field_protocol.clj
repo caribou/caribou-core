@@ -120,17 +120,6 @@
         value (get (first containing) bit)]
     (assoc archetype slug value)))
 
-;; put this in the boolean field namespace
-
-(defn boolean-fusion
-  [this prefix archetype skein opts]
-  (let [slug (keyword (-> this :row :slug))
-        bit (util/prefix-key prefix slug)
-        containing (drop-while #(nil? (get % bit)) skein)
-        value (get (first containing) bit)
-        value (or (= 1 value) (= true value))]
-    (assoc archetype slug value)))
-
 ;; put this in assoc-field namespace?
 
 (defn id-models-involved
