@@ -333,11 +333,10 @@
              (throw (new Exception (str "invalid caribou model:" slug))))
            ;; beam-validator throws an exception if opts are bad
            (when (and (seq opts) (not (= (config/environment) :production)))
-             ;; (try
-             (validation/beams slug opts))
-             ;; (catch Exception e
-             ;; (println "not expected beams")
-             ;; (.printStackTrace e)))
+             (try
+               (validation/beams slug opts)
+               (catch Exception e
+                 (.printStackTrace e))))
            (let [beams (beam-splitter opts-with-defaults)
                  resurrected (mapcat (partial uberquery model) beams)
                  fused (assoc/fusion model (name slug) resurrected
