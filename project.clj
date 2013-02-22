@@ -1,18 +1,23 @@
 (defproject antler/caribou-core "0.9.0"
   :description "Caribou is a dynamic web application generator with antlers."
-  :dependencies [[org.clojure/clojure "1.3.0"]
-                 [org.clojure/java.jdbc "0.2.3"]
+  :dependencies [[org.clojure/clojure "1.4.0"]
+                 [org.clojure/java.jdbc "0.2.3"
+                  :exclusions [org.clojure/clojure]]
                  [postgresql/postgresql "8.4-702.jdbc4"]
                  [com.h2database/h2 "1.3.154"]
                  ;; [com.h2database/h2 "1.3.170"]
                  [mysql/mysql-connector-java "5.1.6"]
-                 [clj-time "0.4.4"]
+                 [clj-time "0.4.4"
+                  :exclusions [org.clojure/clojure]]
                  [clj-yaml "0.3.1"]
-                 [slingshot "0.10.3"]
+                 [slingshot "0.10.3"
+                  :exclusions [org.clojure/clojure]]
                  [geocoder-clj "0.0.8" :exclusions [org.apache.httpcomponents/httpclient org.apache.httpcomponents/httpcore org.clojure/clojure slingshot]]
                  [org.clojure/tools.logging "0.2.3" :exclusions [org.clojure/clojure]]
-                 [com.novemberain/pantomime "1.4.0"]
-                 [leiningen-core "2.0.0-preview3"]
+                 [com.novemberain/pantomime "1.4.0"
+                  :exclusions [org.clojure/clojure]]
+                 [leiningen-core "2.0.0-preview3"
+                  :exclusions [org.clojure/clojure]]
                  [clj-aws-s3 "0.3.2"]
                  [org.mindrot/jbcrypt "0.3m"]]
   :dev-dependencies [[lein-autodoc "0.9.0"]]
