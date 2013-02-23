@@ -1,5 +1,6 @@
 (ns caribou.callgraph
-  (:require [swank.commands.xref :as xref]))
+  (:require [swank.commands.xref :as xref]
+            [clojure.string :as string]))
 
 (def model-ops
   {:prefixes ["" "model" "caribou.model"]
@@ -82,3 +83,29 @@
              usages (mapcat (comp concat-callers second) usage)]
          (conj result
                (calls usages result (dec depth)))))))
+
+(defn clean
+  [str]
+  (let [reps [["." "❦"]
+              ["-" "→"]
+              [">" "⊿"]
+              ["<" "⧏"]
+              ["/" "✈"]]]
+    (reduce (fn [string [find sub]] (string/replace string find sub))
+            str
+            reps)))
+
+(defn dot
+  [depth & names]
+  (let [all (calls names depth)
+        get-calls (fn [[used users]] (mapcat (fn [user]
+                                            (map (fn [use] [use used])
+                                                    (:callers user)))
+                                          users))
+        pairs (mapcat get-calls all)]
+    (str "digraph Calls{\n"
+         (reduce (fn [result [caller called]]
+                   (str result "\t"
+                        (clean caller) " -> " (clean called) ";\n"))
+                 "" pairs)
+         "}")))
