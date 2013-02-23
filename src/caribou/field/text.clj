@@ -1,5 +1,5 @@
 (ns caribou.field.text
-  (:require [caribou.field-protocol :as field]
+  (:require [caribou.field :as field]
             [caribou.util :as util]
             [caribou.config :as config]
             [caribou.db.adapter.protocol :as adapter]

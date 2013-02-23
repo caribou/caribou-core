@@ -1,5 +1,5 @@
 (ns caribou.field.decimal
-  (:require [caribou.field-protocol :as field]
+  (:require [caribou.field :as field]
             [caribou.validation :as validation]))
 
 (defrecord DecimalField [row env]

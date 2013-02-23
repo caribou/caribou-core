@@ -1,5 +1,5 @@
 (ns caribou.field.boolean
-  (:require [caribou.field-protocol :as field]
+  (:require [caribou.field :as field]
             [caribou.util :as util]
             [caribou.validation :as validation]))
 

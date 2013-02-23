@@ -1,10 +1,10 @@
 (ns caribou.field.link
   (:require [clojure.string :as string]
-            [caribou.field-protocol :as field]
+            [caribou.field :as field]
             [caribou.util :as util]
             [caribou.db :as db]
             [caribou.validation :as validation]
-            [caribou.model-association :as assoc]))
+            [caribou.association :as assoc]))
 
 (defn join-table-name
   "construct a join table name out of two link names"

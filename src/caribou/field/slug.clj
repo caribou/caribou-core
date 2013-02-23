@@ -1,7 +1,7 @@
 (ns caribou.field.slug
   (:require [caribou.db :as db]
             [caribou.util :as util]
-            [caribou.field-protocol :as field]
+            [caribou.field :as field]
             [caribou.validation :as validation]))
 
 (defrecord SlugField [row env]
@@ -54,4 +54,3 @@
   [row] 
   (let [link (db/choose :field (row :link_id))]
     (SlugField. row {:link link})))
-                      

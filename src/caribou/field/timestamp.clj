@@ -1,10 +1,11 @@
-(ns caribou.field.time-stamp
+(ns caribou.field.timestamp
   (:require [clojure.string :as string]
+            [clojure.set :as set]
             [clj-time.core :as timecore]
             [clj-time.format :as format]
             [clj-time.coerce :as coerce]
             [caribou.util :as util]
-            [caribou.field-protocol :as field]
+            [caribou.field :as field]
             [caribou.validation :as validation]))
 
 (import java.util.Date)
@@ -99,15 +100,40 @@
     ""
     (str prefix ".")))
 
+(def time-keys #{:second :minute :hour :day :month :year})
+(def comparison-keys #{:> :>= := :< :<= :<>})
+
 (defn timestamp-where
   "To find something by a certain timestamp you must provide a map with keys into
    the date or time.  Example:
      (timestamp-where :created_at {:day 15 :month 7 :year 2020})
    would find all rows who were created on July 15th, 2020."
   [field prefix slug opts where]
-  (string/join " and " (map (partial build-extract field
-                                     (suffix-prefix prefix) slug opts)
-                            where)))
+  (let [model-id (-> field :row :model_id)
+        model (@field/models model-id)
+        field-select (field/coalesce-locale model field prefix slug opts)]
+    (if (map? where)
+      (let [where-keys (set (keys where))
+            extract-keys (set/intersection where-keys time-keys)
+            op-keys (set/intersection where-keys comparison-keys)]
+        (if (empty? op-keys)
+          (string/join
+           " and "
+           (map
+            (fn [[index value]]
+              (util/clause "extract(%1 from %2) = %3" [(name index) field-select value]))
+            (select-keys where extract-keys)))
+          (string/join
+           " and "
+           (map
+            (fn [[operator value]]
+              (util/clause "%1 %2 '%3'" [field-select operator value]))
+            (select-keys where op-keys)))))
+      (util/clause "%1 = '%2'" [field-select where]))))
+
+          ;; (partial
+          ;;  build-extract
+          ;;  field (suffix-prefix prefix) slug opts)
 
 (defrecord TimestampField [row env]
   field/Field

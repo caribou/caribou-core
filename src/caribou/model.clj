@@ -4,29 +4,16 @@
             [clojure.set :as set]
             [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
-            [caribou.db :as db]
             [caribou.util :as util]
-            [caribou.field-protocol :as field]
             [caribou.config :as config]
+            [caribou.db :as db]
+            [caribou.field :as field]
+            [caribou.field.constructors :as field-constructors]
+            [caribou.field.timestamp :as timestamp]
+            [caribou.field.link :as link]
+            [caribou.query :as query]
             [caribou.validation :as validation]
-            [caribou.model-association :as assoc]
-            ;; namespaces for fields
-            [caribou.field.id :as id-field]
-            [caribou.field.integer :as integer-field]
-            [caribou.field.decimal :as decimal-field]
-            [caribou.field.string :as string-field]
-            [caribou.field.password :as password-field]
-            [caribou.field.text :as text-field]
-            [caribou.field.slug :as slug-field]
-            [caribou.field.url-slug :as url-slug-field]
-            [caribou.field.boolean :as boolean-field]
-            [caribou.field.asset :as asset-field]
-            [caribou.field.address :as address-field]
-            [caribou.field.collection :as collection-field]
-            [caribou.field.part :as part-field]
-            [caribou.field.tie :as tie-field]
-            [caribou.field.link :as link-field]
-            [caribou.field.time-stamp :as time-stamp-field]))
+            [caribou.association :as association]))
 
 (defn db
   "Calls f in the connect of the current configured database connection."
@@ -35,11 +22,12 @@
 
 ;; COMPATIBILITY ----------------
 ;; stuff that is here because it is proably still being used by somebody
-(def current-timestamp time-stamp-field/current-timestamp)
-(def retrieve-links link-field/retrieve-links)
-(def present? assoc/present?)
-(def from assoc/from)
-(def link link-field/link)
+(def current-timestamp timestamp/current-timestamp)
+(def retrieve-links link/retrieve-links)
+(def present? association/present?)
+(def from association/from)
+(def link link/link)
+
 (defn rally
   "Pull a set of content up through the model system with the given
   options.
@@ -58,7 +46,7 @@
            query-str (string/join " "
                                   ["select * from %1 where %2 order by %3 %4"
                                    "limit %5 offset %6"])]
-       (doall (map #(assoc/from model % opts)
+       (doall (map #(association/from model % opts)
                    (util/query query-str slug
                                where order-by order limit offset))))))
 
@@ -97,80 +85,9 @@
      (merge
       field
       {:model_id (-> env :content :id)
-       :updated_at (time-stamp-field/current-timestamp)})))
+       :updated_at (current-timestamp)})))
   env)
 
-;; CACHING -------------------------------------
-
-(def queries (atom {}))
-(def reverse-cache (atom {}))
-
-(defn sort-map
-  [m]
-  (if (map? m)
-    (sort m)
-    m))
-
-(defn walk-sort-map
-  [m]
-  (walk/postwalk sort-map m))
-
-(defn hash-query
-  [model-key opts]
-  (str (name model-key) (walk-sort-map opts)))
-
-(defn reverse-cache-add
-  [id code]
-  (if (contains? @reverse-cache id)
-    (swap! reverse-cache #(update-in % [id] (fn [v] (conj v code))))
-    (swap! reverse-cache #(assoc % id (list code)))))
-
-(defn reverse-cache-get
-  [id]
-  (get @reverse-cache id))
-
-(defn reverse-cache-delete
-  [ids]
-  (swap! reverse-cache #(apply dissoc (cons % ids))))
-
-(defn clear-model-cache
-  [ids]
-  (swap! queries #(apply (partial dissoc %)
-                         (mapcat (fn [id] (reverse-cache-get id)) ids)))
-  (reverse-cache-delete ids))
-
-(defn clear-queries
-  []
-  (swap! queries (fn [_] {}))
-  (swap! reverse-cache (fn [_] {})))
-
-
-;; QUERY DEFAULTS ----------------------------------------
-;; this could live elsewhere
-(defn expand-query-defaults
-  [query-defaults clause]
-  (if (not (empty? clause))
-    (into query-defaults
-          (for [[k v] (filter #(-> % val map?) clause)]
-            [k (expand-query-defaults query-defaults v)]))
-    query-defaults))
-
-(defn expanded-query-defaults
-  [query query-defaults]
-  (let [expanded-include (expand-query-defaults query-defaults (:include query))
-        expanded-where   (expand-query-defaults query-defaults (:where query))
-        merged-defaults  (util/deep-merge-with (fn [& maps] (first maps))
-                                               expanded-where expanded-include)]
-    merged-defaults))
-
-(defn apply-query-defaults
-  [query query-defaults]
-  (if (not= query-defaults nil)
-    (util/deep-merge-with
-     (fn [& maps] (first maps)) query
-     {:where (expanded-query-defaults query
-                                      query-defaults)})
-    query))
 
 ;; UBERQUERY ---------------------------------------------
 
@@ -183,8 +100,8 @@
   "Build the select query for this model by the given prefix based on the
    particular nesting of the include map."
   [model prefix opts]
-  (let [selects (string/join ", " (assoc/model-select-fields model prefix opts))
-        joins (string/join " " (assoc/model-join-conditions model prefix opts))]
+  (let [selects (string/join ", " (association/model-select-fields model prefix opts))
+        joins (string/join " " (association/model-join-conditions model prefix opts))]
     (string/join " "
                  ["select" selects "from" (:slug model) (name prefix) joins])))
 
@@ -219,7 +136,7 @@
    uberquery."
   [model opts]
   (let [ordering (if (:order opts) opts (assoc opts :order {:position :asc}))
-        order (assoc/model-build-order model (:slug model) ordering)]
+        order (association/model-build-order model (:slug model) ordering)]
     (finalize-order-statement order)))
 
 (defn model-outer-condition
@@ -236,11 +153,11 @@
   uberquery (but don't call it!)"
   [model opts]
   (let [query (model-select-query model (:slug model) opts)
-        where (assoc/model-where-conditions model (:slug model) opts)
+        where (association/model-where-conditions model (:slug model) opts)
 
         order (model-order-statement model opts)
         
-        natural (assoc/model-natural-orderings model (:slug model) opts)
+        natural (association/model-natural-orderings model (:slug model) opts)
         immediate-order (immediate-vals (:order opts))
         base-opts (if (empty? immediate-order) {} {:order immediate-order})
         base-order (model-order-statement model base-opts)
@@ -322,11 +239,11 @@
   ([slug] (gather slug {}))
   ([slug opts]
      (let [query-defaults (:query-defaults @config/app)
-           opts-with-defaults (apply-query-defaults opts query-defaults)
-           query-hash (hash-query slug opts-with-defaults)
-           cache @queries]
+           defaulted (query/apply-query-defaults opts query-defaults)
+           query-hash (query/hash-query slug defaulted)
+           cache @query/queries]
        (if-let [cached (and (:enable-query-cache @config/app)
-                            (get @queries query-hash))]
+                            (get @query/queries query-hash))]
          cached
          (let [model ((keyword slug) @models)]
            (when-not model
@@ -337,15 +254,13 @@
                (validation/beams slug opts)
                (catch Exception e
                  (.printStackTrace e))))
-           (let [beams (beam-splitter opts-with-defaults)
+           (let [beams (beam-splitter defaulted)
                  resurrected (mapcat (partial uberquery model) beams)
-                 fused (assoc/fusion model (name slug) resurrected
-                                     opts-with-defaults)
-                 involved (assoc/model-models-involved model opts-with-defaults
-                                                       #{})]
-             (swap! queries #(assoc % query-hash fused))
+                 fused (association/fusion model (name slug) resurrected defaulted)
+                 involved (association/model-models-involved model defaulted #{})]
+             (query/cache-query query-hash fused)
              (doseq [m involved]
-               (reverse-cache-add m query-hash))
+               (query/reverse-cache-add m query-hash))
              fused))))))
 
 (defn pick
@@ -883,22 +798,7 @@
 
 (defn invoke-fields
   []
-  (doseq [[key construct] [[:id id-field/constructor]
-                           [:integer integer-field/constructor]
-                           [:decimal decimal-field/constructor]
-                           [:string string-field/constructor]
-                           [:password password-field/constructor]
-                           [:text text-field/constructor]
-                           [:slug slug-field/constructor]
-                           [:url_slug url-slug-field/constructor]
-                           [:boolean boolean-field/constructor]
-                           [:asset asset-field/constructor]
-                           [:address address-field/constructor]
-                           [:collection collection-field/constructor]
-                           [:part part-field/constructor]
-                           [:tie tie-field/constructor]
-                           [:link link-field/constructor]
-                           [:timestamp time-stamp-field/constructor]]]
+  (doseq [[key construct] (seq field-constructors/base-constructors)]
     (field/add-constructor key construct)))
 
 (defn invoke-models
@@ -951,7 +851,7 @@
              local-values (localize-values model (:values _create) opts)
              content (db/insert slug (assoc local-values
                                        :updated_at
-                                       (time-stamp-field/current-timestamp)))
+                                       (current-timestamp)))
              merged (merge (:spec _create) content)
              _after (run-hook slug :after_create
                               (merge _create {:content merged}))
@@ -959,7 +859,7 @@
                           (:content _after)
                           (vals (:fields model)))
              _final (run-hook slug :after_save (merge _after {:content post}))]
-         (clear-model-cache (list (:id model)))
+         (query/clear-model-cache (list (:id model)))
          (:content _final)))))
 
 (defn update
@@ -984,7 +884,7 @@
            success (db/update
                     slug ["id = ?" (util/convert-int id)]
                     (assoc local-values :updated_at
-                           (time-stamp-field/current-timestamp)))
+                           (current-timestamp)))
            content (db/choose slug id)
            merged (merge (_update :spec) content)
            _after (run-hook slug :after_update
@@ -992,7 +892,7 @@
            post (reduce #(field/post-update %2 %1 opts)
                         (_after :content) (vals (model :fields)))
            _final (run-hook slug :after_save (merge _after {:content post}))]
-       (clear-model-cache (list (:id model)))
+       (query/clear-model-cache (list (:id model)))
        (_final :content))))
 
 (defn destroy
@@ -1006,7 +906,7 @@
                     (_before :content) (-> model :fields vals))
         deleted (db/delete slug "id = %1" id)
         _after (run-hook slug :after_destroy (merge _before {:content pre}))]
-    (clear-model-cache (list (:id model)))
+    (query/clear-model-cache (list (:id model)))
     (_after :content)))
 
 (defn progenitors
@@ -1016,13 +916,13 @@
   ([slug id opts]
      (let [model (models (keyword slug))]
        (if (model :nested)
-         (let [field-names (assoc/table-columns slug)
+         (let [field-names (association/table-columns slug)
                base-where (util/clause "id = %1" [id])
                recur-where (util/clause "%1_tree.parent_id = %1.id" [slug])
                before (db/recursive-query slug field-names base-where
                                           recur-where)]
-           (doall (map #(assoc/from model % opts) before)))
-         [(assoc/from model (db/choose slug id) opts)]))))
+           (doall (map #(association/from model % opts) before)))
+         [(association/from model (db/choose slug id) opts)]))))
 
 (defn descendents
   "pull up all the descendents of the item given by id in the nested
@@ -1031,13 +931,13 @@
   ([slug id opts]
      (let [model (models (keyword slug))]
        (if (model :nested)
-         (let [field-names (assoc/table-columns slug)
+         (let [field-names (association/table-columns slug)
                base-where (util/clause "id = %1" [id])
                recur-where (util/clause "%1_tree.id = %1.parent_id" [slug])
                before (db/recursive-query slug field-names base-where
                                           recur-where)]
-           (doall (map #(assoc/from model % opts) before)))
-         [(assoc/from model (db/choose slug id) opts)]))))
+           (doall (map #(association/from model % opts) before)))
+         [(association/from model (db/choose slug id) opts)]))))
 
 (defn reconstruct
   "mapping is between parent_ids and collections which share a parent_id.

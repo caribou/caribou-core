@@ -1,4 +1,4 @@
-(ns caribou.field-protocol
+(ns caribou.field
   (:require [caribou.db :as db]
             [caribou.util :as util]))
 
@@ -37,7 +37,6 @@
   (render [this content opts] "renders out a single field from this content item")
   (validate [this opts] "given a set of options and the models, verifies the options are appropriate and well formed for gathering"))
 
-;; fields use the set of defined models extensively
 (def models (ref {}))
 
 ;; functions for localized fields

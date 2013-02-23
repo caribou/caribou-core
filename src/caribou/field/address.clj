@@ -1,11 +1,11 @@
 (ns caribou.field.address
   (:require [clojure.string :as string]
             [geocoder.core :as geo]
-            [caribou.field-protocol :as field]
+            [caribou.field :as field]
             [caribou.util :as util]
             [caribou.db :as db]
             [caribou.validation :as validation]
-            [caribou.model-association :as assoc]))
+            [caribou.association :as assoc]))
 
 (defn full-address [address]
   (string/join " " [(address :address)

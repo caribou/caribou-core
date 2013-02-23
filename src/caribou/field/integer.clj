@@ -1,6 +1,6 @@
 (ns caribou.field.integer
   (:require [caribou.util :as util]
-            [caribou.field-protocol :as field]
+            [caribou.field :as field]
             [caribou.validation :as validation]))
 
 (defn integer-update-values

@@ -1,9 +1,9 @@
 (ns caribou.field.tie
-  (:require [caribou.field-protocol :as field]
+  (:require [caribou.field :as field]
             [caribou.util :as util]
             [caribou.db :as db]
             [caribou.validation :as validation]
-            [caribou.model-association :as assoc]))
+            [caribou.association :as assoc]))
 
 (defrecord TieField [row env]
   field/Field

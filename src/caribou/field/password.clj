@@ -1,5 +1,5 @@
 (ns caribou.field.password
-  (:require [caribou.field-protocol :as field]
+  (:require [caribou.field :as field]
             [caribou.util :as util]
             [caribou.auth :as auth]
             [caribou.validation :as validation]))
