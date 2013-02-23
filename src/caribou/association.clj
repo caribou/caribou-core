@@ -1,7 +1,7 @@
-(ns caribou.model-association
+(ns caribou.association
   (:require [clojure.string :as string]
             [caribou.util :as util]
-            [caribou.field-protocol :as field]))
+            [caribou.field :as field]))
 
 (defn with-propagation
   [sign opts field includer]

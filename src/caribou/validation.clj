@@ -1,5 +1,5 @@
 (ns caribou.validation
-  (:require [caribou.field-protocol :as field]))
+  (:require [caribou.field :as field]))
 
 (defn recursive-merge
   [a b]

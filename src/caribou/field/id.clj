@@ -1,7 +1,7 @@
 (ns caribou.field.id
   (:require [caribou.db :as db]
             [caribou.validation :as validation]
-            [caribou.field-protocol :as field]))
+            [caribou.field :as field]))
 
 (defrecord IdField [row env]
   field/Field

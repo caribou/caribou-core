@@ -7,13 +7,14 @@
             [caribou.db :as db]
             [caribou.auth :as auth]
             [caribou.util :as util]
+            [caribou.query :as query]
             [caribou.validation :as validation]
             [caribou.config :as config]))
 
 (defn test-init
   []
   (invoke-models)
-  (clear-queries))
+  (query/clear-queries))
 
 (defn db-fixture
   [f]
@@ -462,14 +463,16 @@
         agent (create :model {:name "Agent"
                               :fields fields})
         passport (create :asset {:filename "passport.picture"})
+        dopple-passport (create :asset {:filename "passport.picture"})
         bond-height 69.55
         bond-values {:nchildren 32767
                      :height bond-height
-                     :name (str "James Bond" (util/rand-str 245))
+                     :name (str "James Bond" (util/rand-str 25))
                      :auth "Octopu55y"
                      :round ".38 Hollow Tip"
                      ;; mysql text type size issue
-                     :bio (str "He did stuff: ☃" (util/rand-str 65500))
+                     :bio (str "He did stuff: ☃" (util/rand-str 65))
+                     ;; :bio (str "He did stuff: ☃" (util/rand-str 65500))
                      :adequate true
                      ;; mysql date-time precision issue
                      :born_at "January 1 1970"
@@ -481,9 +484,14 @@
                      ;;             :country "USA"}
                      }
         bond (create :agent bond-values)
+        doppleganger (create :agent (assoc bond-values
+                                      :born_at "January 2 1970"))
+
         agent-id (:id agent)
         bond-id (:id bond)
+        doppleganger-id (:id doppleganger)
         bond (pick :agent {:where {:id bond-id}})
+        dopple (following :agent bond :born_at)
         ;; amount of floating point error that is allowable
         ;; mysql precision issue
         EPSILON 0.000001
@@ -492,20 +500,23 @@
           (testing "Valid properties of field types."
             (is (seq agent))
             (is (seq bond))
+            (is (seq dopple))
             ;; id fields are implicit
+            (is (= -1 (.compareTo (:born_at bond) (:born_at dopple))))
             (is (number? (:id agent)))
             (is (number? (:id bond)))
+            (is (number? (:id dopple)))
             (is (= (:nchildren bond) 32767))
             (is (< (java.lang.Math/abs (- bond-height (:height bond))) EPSILON))
             ;; case sensitivity
             (is (= "James Bond" (subs (:name bond) 0 10)))
-            (is (= (count (:name bond)) 255))
+            (is (= (count (:name bond)) 35))
             (is (not (= (:auth bond) "Octopu55y")))
             (is (auth/check-password "Octopu55y" (:auth bond)))
             ;; (is (= "_8_hollow_tip" (:round bond)))
             ;; unicode
             (is (= "He did stuff: ☃" (subs (:bio bond) 0 15)))
-            (is (= (count (:bio bond)) 65515))
+            (is (= (count (:bio bond)) 80))
             ;; if this breaks...
             (is (:adequate bond))
             ;; unix time of 1/1/1970 / 1/1/2037
@@ -534,6 +545,15 @@
                   (update :agent bond-id (into {} [update-spec]))))))
     (run-field-tests)))
 
+
+;; (deftest ^:field-types
+;;   field-types-test
+;;   (let [config (config/read-config (io/resource "config/test-mysql.clj"))]
+;;     (config/configure config)
+;;     (db-fixture fields-types-test))
+;;   (let [config (config/read-config (io/resource "config/test-postgres.clj"))]
+;;     (config/configure config)
+;;     (db-fixture fields-types-test)))
 
 (deftest ^:mysql
   mysql-tests

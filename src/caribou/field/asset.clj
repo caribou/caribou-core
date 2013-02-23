@@ -2,9 +2,9 @@
   (:require [caribou.util :as util]
             [caribou.validation :as validation]
             [caribou.asset :as asset]
-            [caribou.field-protocol :as field]
+            [caribou.field :as field]
             [caribou.db :as db]
-            [caribou.model-association :as assoc]))
+            [caribou.association :as assoc]))
 
 (defn asset-fusion
   [this prefix archetype skein opts]
