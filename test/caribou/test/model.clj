@@ -16,11 +16,13 @@
   (invoke-models)
   (query/clear-queries))
 
-(defn db-fixture
-  [f]
+(defn db-cleanup
+  "We had to separate this from db-fixture because sometimes we need to
+  persist state between consecutive tests (see field-types /
+  field-deletion / field-recreation)."
+  []
   (sql/with-connection @config/db
     (test-init)
-    (f)
     (doseq [slug [:yellow :purple :zap :chartreuse :fuchsia :base :level
                   :void :white :agent]]
       (when (db/table? slug) (destroy :model (-> @models slug :id)))
@@ -32,6 +34,13 @@
       (when-let [passport (pick :asset {:where
                                         {:filename "passport.picture"}})]
         (destroy :asset (:id passport))))))
+  
+
+(defn db-fixture
+  [f]
+  (sql/with-connection @config/db
+    (test-init)
+    (f)))
 
 (defn invoke-model-test
   []
@@ -446,26 +455,22 @@
 ;;   (sql/with-connection @config/db
 ;;     (init)))
 
-(defn fields-types-test
-  []
-  (let [fields (map (fn [[n t]] {:name n :type t})
-                    [["nchildren" "integer"]
-                     ["height" "decimal"]
-                     ["name" "string"]
-                     ["auth" "password"]
-                     ["round" "slug"]
-                     ["bio" "text"]
-                     ["adequate" "boolean"]
-                     ["born_at" "timestamp"]
-                     ["dies_at" "timestamp"]
-                     ["passport" "asset"]
-                     ["residence" "address"]])
-        agent (create :model {:name "Agent"
-                              :fields fields})
-        passport (create :asset {:filename "passport.picture"})
-        dopple-passport (create :asset {:filename "passport.picture"})
-        bond-height 69.55
-        bond-values {:nchildren 32767
+(let [fields (map (fn [[n t]] {:name n :type t})
+                  [["nchildren" "integer"]
+                   ["height" "decimal"]
+                   ["name" "string"]
+                   ["auth" "password"]
+                   ["round" "slug"]
+                   ["bio" "text"]
+                   ["adequate" "boolean"]
+                   ["born_at" "timestamp"]
+                   ["dies_at" "timestamp"]
+                   ["passport" "asset"]
+                   ["residence" "address"]])
+      passport (atom {})
+      bond-height 69.55
+      bond-values (fn []
+                    {:nchildren 32767
                      :height bond-height
                      :name (str "James Bond" (util/rand-str 25))
                      :auth "Octopu55y"
@@ -478,105 +483,136 @@
                      :born_at "January 1 1970"
                      ;; mysql date-time precision issue
                      :dies_at "January 1 2037"
-                     :passport_id (:id passport)
+                     :passport_id (:id @passport)
                      ;; connectivity issues prevent this from working
                      ;; :residence {:address "WHITE HOUSE"
                      ;;             :country "USA"}
-                     }
-        bond (create :agent bond-values)
-        doppleganger (create :agent (assoc bond-values
-                                      :born_at "January 2 1970"))
+                     })
+      agent (atom {})
+      bond (atom {})
+      dopple (atom {})
+      ;; amount of floating point error that is allowable
+      ;; mysql precision issue
+      EPSILON 0.000001
+      run-field-tests
+      (fn []
+        (testing "Valid properties of field types."
+          (is (seq @agent))
+          (is (seq @bond))
+          (is (seq @dopple))
+          ;; id fields are implicit
+          (is (= -1 (.compareTo (:born_at @bond) (:born_at @dopple))))
+          (is (number? (:id @agent)))
+          (is (number? (:id @bond)))
+          (is (number? (:id @dopple)))
+          (is (= (:nchildren @bond) 32767))
+          (is (< (java.lang.Math/abs (- bond-height (:height @bond)))
+                 EPSILON))
+          ;; case sensitivity
+          (is (= "James Bond" (subs (:name @bond) 0 10)))
+          (is (= (count (:name @bond)) 35))
+          (is (not (= (:auth @bond) "Octopu55y")))
+          (is (auth/check-password "Octopu55y" (:auth @bond)))
+          ;; (is (= "_8_hollow_tip" (:round bond)))
+          ;; unicode
+          (is (= "He did stuff: ☃" (subs (:bio @bond) 0 15)))
+          (is (= (count (:bio @bond)) 80))
+          ;; if this breaks...
+          (is (:adequate @bond))
+          ;; unix time of 1/1/1970 / 1/1/2037
+          (is (and (= 28800000 (.getTime (:born_at @bond)))
+                   (= 2114409600000 (.getTime (:dies_at @bond)))))
+          (is (= "passport.picture" (-> @bond :passport :filename)))
+          ;; (is (and (= 0.0 (-> bond :residence :lat))
+          ;;          (= 0.0 (-> bond :residence :long))))
+          ))]
+  
+  (defn fields-types-test
+    []
+    (let [_agent (create :model {:name "Agent"
+                                :fields fields})
+          _passport (create :asset {:filename "passport.picture"})
+          _ (swap! passport (constantly _passport))
+          dopple-passport (create :asset {:filename "passport.picture"})
+          _bond (create :agent (bond-values))
+          doppleganger (create :agent (assoc (bond-values)
+                                        :born_at "January 2 1970"))
+          _bond (pick :agent {:where {:id (:id _bond)}})
+          _dopple (following :agent _bond :born_at)]
+      (swap! agent (constantly _agent))
+      (swap! bond (constantly _bond))
+      (swap! dopple (constantly _dopple))
+      (run-field-tests)))
 
-        agent-id (:id agent)
-        bond-id (:id bond)
-        doppleganger-id (:id doppleganger)
-        bond (pick :agent {:where {:id bond-id}})
-        dopple (following :agent bond :born_at)
-        ;; amount of floating point error that is allowable
-        ;; mysql precision issue
-        EPSILON 0.000001
-        run-field-tests
-        (fn []
-          (testing "Valid properties of field types."
-            (is (seq agent))
-            (is (seq bond))
-            (is (seq dopple))
-            ;; id fields are implicit
-            (is (= -1 (.compareTo (:born_at bond) (:born_at dopple))))
-            (is (number? (:id agent)))
-            (is (number? (:id bond)))
-            (is (number? (:id dopple)))
-            (is (= (:nchildren bond) 32767))
-            (is (< (java.lang.Math/abs (- bond-height (:height bond))) EPSILON))
-            ;; case sensitivity
-            (is (= "James Bond" (subs (:name bond) 0 10)))
-            (is (= (count (:name bond)) 35))
-            (is (not (= (:auth bond) "Octopu55y")))
-            (is (auth/check-password "Octopu55y" (:auth bond)))
-            ;; (is (= "_8_hollow_tip" (:round bond)))
-            ;; unicode
-            (is (= "He did stuff: ☃" (subs (:bio bond) 0 15)))
-            (is (= (count (:bio bond)) 80))
-            ;; if this breaks...
-            (is (:adequate bond))
-            ;; unix time of 1/1/1970 / 1/1/2037
-            (is (and (= 28800000 (.getTime (:born_at bond)))
-                     (= 2114409600000 (.getTime (:dies_at bond)))))
-            (is (= "passport.picture" (-> bond :passport :filename)))
-            ;; (is (and (= 0.0 (-> bond :residence :lat))
-            ;;          (= 0.0 (-> bond :residence :long))))
-            ))]
-    (run-field-tests)
+  (defn field-deletion-test
+    []
     (testing "Deletion of fields."
       (is (nil?
            (let [field-slugs (map (comp keyword :name) fields)
-                 field-ids (map (fn [slug] (-> agent :fields slug :row :id))
+                 field-ids (map (fn [slug] (-> @agent :fields slug :row
+                                               :id))
                                 field-slugs)
                  field-ids (filter number? field-ids)]
              (println "field slugs" field-slugs)
              (println "field ids" field-ids)
              (doseq [id field-ids]
-               (destroy :field id))))))
+               (destroy :field id)))))))
+
+  (defn field-recreation-test
+    []
     (testing "Addition of fields to a model."
       (is (nil? (doseq [field-spec fields]
-                 (create :field (merge field-spec {:model_id agent-id}))))))
+                  (create :field (merge field-spec
+                                        {:model_id (:id @agent)}))))))
     (testing "Updating field values."
-      (is (nil? (doseq [update-spec bond-values]
-                  (update :agent bond-id (into {} [update-spec]))))))
+      (is (nil? (doseq [update-spec (bond-values)]
+                  (update :agent (:id @bond) (into {} [update-spec]))))))
     (run-field-tests)))
-
-
-;; (deftest ^:field-types
-;;   field-types-test
-;;   (let [config (config/read-config (io/resource "config/test-mysql.clj"))]
-;;     (config/configure config)
-;;     (db-fixture fields-types-test))
-;;   (let [config (config/read-config (io/resource "config/test-postgres.clj"))]
-;;     (config/configure config)
-;;     (db-fixture fields-types-test)))
 
 (deftest ^:mysql
   mysql-tests
+
   (let [config (config/read-config (io/resource "config/test-mysql.clj"))]
     (config/configure config)
     (db-fixture invoke-model-test)
+    (db-cleanup)
     (db-fixture model-lifecycle-test)
+    (db-cleanup)
     (db-fixture model-interaction-test)
+    (db-cleanup)
     (db-fixture model-link-test)
+    (db-cleanup)
     (db-fixture parallel-include-test)
+    (db-cleanup)
     (db-fixture localized-model-test)
+    (db-cleanup)
     (db-fixture nested-model-test)
-    (db-fixture fields-types-test)))
+    (db-cleanup)
+    (db-fixture fields-types-test)
+    (db-fixture field-deletion-test)
+    (db-fixture field-recreation-test)
+    (db-cleanup)))
 
 (deftest ^:postgres
   postgres-tests
+
   (let [config (config/read-config (io/resource "config/test-postgres.clj"))]
     (config/configure config)
     (db-fixture invoke-model-test)
+    (db-cleanup)
     (db-fixture model-lifecycle-test)
+    (db-cleanup)
     (db-fixture model-interaction-test)
+    (db-cleanup)
     (db-fixture model-link-test)
+    (db-cleanup)
     (db-fixture parallel-include-test)
+    (db-cleanup)
     (db-fixture localized-model-test)
+    (db-cleanup)
     (db-fixture nested-model-test)
-    (db-fixture fields-types-test)))
+    (db-cleanup)
+    (db-fixture fields-types-test)
+    (db-fixture field-deletion-test)
+    (db-fixture field-recreation-test)
+    (db-cleanup)))
