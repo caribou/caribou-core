@@ -38,7 +38,7 @@
 
 (defn run-migration
   [migration]
-  (log/notice " -> migration " migration " started.")
+  (log/notice (str " -> migration " migration " started."))
   (let [migrate-symbol (symbol-in-namespace "migrate" migration)
         rollback-symbol (symbol-in-namespace "rollback" migration)]
     (when (nil? migrate-symbol)
