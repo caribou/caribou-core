@@ -4,8 +4,6 @@
 
 (defn migrate
   []
-  (config/init)
-  (model/init)
   (model/update
    :model
    (-> @model/models :page :id)

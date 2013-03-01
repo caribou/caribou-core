@@ -8,7 +8,8 @@
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (rename-field [this old-slug new-slug])
-  (cleanup-field [this] nil)
+  (cleanup-field [this]
+    (field/field-cleanup this))
   (target-for [this] nil)
 
   (update-values [this content values]

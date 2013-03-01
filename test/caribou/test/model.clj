@@ -539,7 +539,7 @@
                (destroy :field id))))))
     (testing "Addition of fields to a model."
       (is (nil? (doseq [field-spec fields]
-                 (create :field (merge field-spec {:model_id agent-id}))))))
+                  (create :field (merge field-spec {:model_id agent-id}))))))
     (testing "Updating field values."
       (is (nil? (doseq [update-spec bond-values]
                   (update :agent bond-id (into {} [update-spec]))))))

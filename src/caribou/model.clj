@@ -572,23 +572,27 @@
 
 (defn create-model-table
   "create a table with the given name."
-  [name]
+  [model-name]
   (db/create-table
-   (keyword name)
+   (keyword model-name)
    [:id "SERIAL" "PRIMARY KEY"]
    [:position :integer "DEFAULT 0"]
    [:env_id :integer "DEFAULT 1"]
    [:locked :boolean "DEFAULT false"]
    [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
-   [:updated_at "timestamp" "NOT NULL"]))
+   [:updated_at "timestamp" "NOT NULL"])
+  (db/create-index model-name "id"))
 
 (defn- add-model-hooks []
-  (add-hook :model :before_create :build_table (fn [env]
-    (create-model-table (util/slugify (-> env :spec :name)))
-    env))
+  (add-hook
+   :model :before_create :build_table
+   (fn [env]
+     (create-model-table (util/slugify (-> env :spec :name)))
+     env))
   
-  (add-hook :model :after_create :add_base_fields
-            (fn [env] (add-base-fields env)))
+  (add-hook
+   :model :after_create :add_base_fields
+   (fn [env] (add-base-fields env)))
   ;; (assoc-in env [:spec :fields] (concat (-> env :spec :fields) base-fields))))
 
   ;; (add-hook :model :before_save :write_migrations (fn [env]
@@ -602,30 +606,33 @@
   ;;     (catch Exception e env))
   ;;   env))
 
-  (add-hook :model :after_update :rename (fn [env]
-    (let [original (-> env :original :slug)
-          slug (-> env :content :slug)]
-      (if (not (= original slug))
-        (db/rename-table original slug)))
-    env))
+  (add-hook
+   :model :after_update :rename
+   (fn [env]
+     (let [original (-> env :original :slug)
+           slug (-> env :content :slug)]
+       (if (not (= original slug))
+         (db/rename-table original slug)))
+     env))
 
-  (add-hook :model :after_save :invoke_all (fn [env]
-    (model-after-save env) ;; (invoke-models)
-    env))
+  (add-hook
+   :model :after_save :invoke_all
+   (fn [env]
+     (model-after-save env) ;; (invoke-models)
+     env))
 
-  ;; (add-hook :model :after_save :add_parent (fn [env] (add-parent-id env)))
-  ;; (add-hook :model :after_save :add_localization (fn [env] (add-localization env)))
-  
   ;; (add-hook :model :before_destroy :cleanup-fields (fn [env]
   ;;   (let [model (get @models (-> env :content :slug))]
   ;;     (doseq [field (-> model :fields vals)]
   ;;       (destroy :field (-> field :row :id))))
   ;;   env))
 
-  (add-hook :model :after_destroy :cleanup (fn [env]
-    (db/drop-table (-> env :content :slug))
-    (invoke-models)
-    env))
+  (add-hook
+   :model :after_destroy :cleanup
+   (fn [env]
+     (db/drop-table (-> env :content :slug))
+     (invoke-models)
+     env))
 
   (if (:locale @models)
     (do
@@ -640,8 +647,9 @@
          (rename-updated-locale env)))))
 
   (if (:status @models)
-    (add-hook :model :after_create :add_status_part
-              (fn [env] (add-status-part env)))))
+    (add-hook
+     :model :after_create :add_status_part
+     (fn [env] (add-status-part env)))))
 
 
 ;; MORE FIELD FUNCTIONALITY --------------------------
@@ -674,10 +682,12 @@
     (if (present? default)
       (db/set-default model-slug slug default))
     (if (present? reference)
-      (db/add-reference model-slug slug reference
-                        (if (-> env :content :dependent)
-                          :destroy
-                          :default)))
+      (do
+        (db/create-index model-slug slug)
+        (db/add-reference model-slug slug reference
+                          (if (-> env :content :dependent)
+                            :destroy
+                            :default))))
     (if (-> env :spec :required)
       (db/set-required model-slug slug true))
     (if (-> env :spec :disjoint)
@@ -753,26 +763,23 @@
       (:values env))))
 
 (defn- add-field-hooks []
-  (add-hook :field :before_save :check_link_slug
-            (fn [env] (field-check-link-slug env)))
-  ;; (assoc env :values 
-  ;;   (if (-> env :spec :link_slug)
-  ;;     (let [model_id (-> env :spec :model_id)
-  ;;           link_slug (-> env :spec :link_slug)
-  ;;           fetch (db/fetch :field "model_id = %1 and slug = '%2'" model_id link_slug)
-  ;;           linked (first fetch)]
-  ;;       (assoc (env :values) :link_id (linked :id)))
-  ;;     (env :values)))))
-  
-  (add-hook :field :after_create :add_columns
-            (fn [env] (field-add-columns env)))
-  (add-hook :field :after_update :reify_field
-            (fn [env] (field-reify-column env)))
-  (add-hook :field :after_destroy :drop_columns (fn [env]
+  (add-hook
+   :field :before_save :check_link_slug
+   (fn [env] (field-check-link-slug env)))
+  (add-hook
+   :field :after_create :add_columns
+   (fn [env] (field-add-columns env)))
+  (add-hook
+   :field :after_update :reify_field
+   (fn [env] (field-reify-column env)))
+  (add-hook
+   :field :after_destroy :drop_columns (fn [env]
     (try                                                  
       (if-let [content (:content env)]
         (let [field (make-field content)]
           (field/cleanup-field field)))
+          ;; (doseq [addition (field/table-additions field (-> env :content :slug))]
+          ;;   (db/drop-column (:slug model) (first addition)))))
       ;; (let [model (get @models (-> env :content :model_id))
       ;;       fields (get model :fields)
       ;;       field (fields (keyword (-> env :content :slug)))]
@@ -883,8 +890,8 @@
            local-values (localize-values model (:values _update) opts)
            success (db/update
                     slug ["id = ?" (util/convert-int id)]
-                    (assoc local-values :updated_at
-                           (current-timestamp)))
+                    (assoc local-values
+                      :updated_at (current-timestamp)))
            content (db/choose slug id)
            merged (merge (_update :spec) content)
            _after (run-hook slug :after_update

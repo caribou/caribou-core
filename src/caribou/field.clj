@@ -119,9 +119,17 @@
         field-select (coalesce-locale model field prefix slug opts)]
     (util/clause "%1 %2 '%3'" [field-select operator value])))
 
+(defn field-cleanup
+  [field]
+  (let [model-id (-> field :row :model_id)
+        model (get @models model-id)]
+    (doseq [addition (table-additions field (-> field :row :slug))]
+      (db/drop-column (:slug model) (first addition)))))
+
 (def field-constructors
   (atom {}))
 
 (defn add-constructor
   [key construct]
   (swap! field-constructors (fn [c] (assoc c key construct))))
+

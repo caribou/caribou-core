@@ -7,6 +7,12 @@
   [x]
   `(let [x# ~x] (log/debug (str '~x " -> " x#)) x#))
 
+(defn out
+  "just output the value without the clojure form"
+  [key x]
+  (log/debug x key)
+  x)
+
 (defmacro log
   "Same as debug but takes a key that illustrates what conceptual area this
    logged information belongs to."

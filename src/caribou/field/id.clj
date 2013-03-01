@@ -11,7 +11,9 @@
     (let [model (db/find-model (:model_id row) @field/models)]
       (db/create-index (:slug model) (:slug row))))
   (rename-field [this old-slug new-slug])
-  (cleanup-field [this] nil)
+  (cleanup-field [this]
+    (let [model (db/find-model (:model_id row) @field/models)]
+      (db/drop-index (:slug model) (:slug row))))
   (target-for [this] nil)
   (update-values [this content values] values)
   (post-update [this content opts] content)
