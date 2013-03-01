@@ -78,7 +78,9 @@
 
 (defn print-exception
   [e]
-  (.printStackTrace e))
+  (out :stacktrace (str ">>> " (.toString e)))
+  (doseq [trace (.getStackTrace e)]
+    (out :stacktrace (str "    |--" trace))))
 
 (defn print-sql-exception
   [e]
