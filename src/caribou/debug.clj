@@ -13,6 +13,10 @@
   (log/debug x key)
   x)
 
+(defn line
+  [& args]
+  (log/debug (apply str args)))
+
 (defmacro log
   "Same as debug but takes a key that illustrates what conceptual area this
    logged information belongs to."

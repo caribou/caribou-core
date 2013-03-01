@@ -38,7 +38,7 @@
 
 (defn run-migration
   [migration]
-  (log/notice (str " -> migration " migration " started."))
+  (log/info (str " -> migration " migration " started."))
   (let [migrate-symbol (symbol-in-namespace "migrate" migration)
         rollback-symbol (symbol-in-namespace "rollback" migration)]
     (when (nil? migrate-symbol)
@@ -72,7 +72,7 @@
             unused-migrations (set/difference (set all-migrations) (set (used-migrations)))]
         (doseq [m unused-migrations]
           (run-migration m))
-        (log/notice " <- run-migrations ended.")))
+        (log/info " <- run-migrations ended.")))
     ;; This is because the presence of an active h2 thread prevents
     ;; this function from returning to lein-caribou, which invoked
     ;; it using 'eval-in-project'
@@ -80,7 +80,7 @@
 
 (defn run-rollback
   [rollback]
-  (log/notice (str "Trying to run rollback " rollback))
+  (log/info (str "Trying to run rollback " rollback))
   (let [used-migrations (used-migrations)]
     (if-not (= (last used-migrations) rollback)
       (do
@@ -112,6 +112,6 @@
                                   rollbacks)]
         (doseq [r available-rollbacks]
           (run-rollback r))
-        (log/notice " <- run-rollbacks ended.")))
+        (log/info " <- run-rollbacks ended.")))
     ;; see comment in run-migrations, above
     (if exit? (lein/exit))))
