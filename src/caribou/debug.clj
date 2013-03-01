@@ -13,10 +13,6 @@
   (log/debug x key)
   x)
 
-(defn line
-  [& args]
-  (log/debug (apply str args)))
-
 (defmacro log
   "Same as debug but takes a key that illustrates what conceptual area this
    logged information belongs to."
@@ -32,8 +28,8 @@
 (declare ^:dynamic *locals*)
 
 (defn eval-with-locals
-  "Evals a form with given locals.  The locals should be a map of symbols to
-  values."
+  "Evals a form with given locals. The locals should be a map of
+  symbols to values."
   [locals form]
   (binding [*locals* locals]
     (eval

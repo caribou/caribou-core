@@ -1,8 +1,9 @@
 (ns caribou.db.adapter.postgres
-  (:use caribou.debug
-        caribou.util
+  (:use caribou.util
         [caribou.db.adapter.protocol :only (DatabaseAdapter)])
-  (:require [clojure.java.jdbc :as sql]))
+  (:require [caribou.debug :as debug]
+            [caribou.logger :as log]
+            [clojure.java.jdbc :as sql]))
 
 (import java.util.regex.Matcher)
 
@@ -17,17 +18,17 @@
 (defn postgres-set-required
   [table column value]
   (sql/do-commands
-   (out :db (clause
-             (if value
-               "alter table %1 alter column %2 set not null"
-               "alter table %1 alter column %2 drop not null")
-             [(zap table) (zap column)]))))
+   (debug/out :db (clause
+                   (if value
+                     "alter table %1 alter column %2 set not null"
+                     "alter table %1 alter column %2 drop not null")
+                   [(zap table) (zap column)]))))
 
 (defn postgres-rename-column
   [table column new-name]
   (try
     (let [alter-statement "alter table %1 rename column %2 to %3"
-          rename (out :db (clause alter-statement (map name [table column new-name])))]
+          rename (debug/out :db (clause alter-statement (map name [table column new-name])))]
       (sql/do-commands rename))
     (catch Exception e (render-exception e))))
 
@@ -35,7 +36,7 @@
   [table column]
   (try
     (sql/do-commands
-     (out :db (clause "drop index %1_%2_index" (map #(zap (name %)) [table column]))))
+     (debug/out :db (clause "drop index %1_%2_index" (map #(zap (name %)) [table column]))))
     (catch Exception e (render-exception e))))
 
 (defrecord PostgresAdapter [config]
