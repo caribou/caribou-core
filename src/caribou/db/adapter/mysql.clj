@@ -1,8 +1,8 @@
 (ns caribou.db.adapter.mysql
-  (:use caribou.debug
-        caribou.util
+  (:use caribou.util
         [caribou.db.adapter.protocol :only (DatabaseAdapter)])
   (:require [caribou.logger :as log]
+            [caribou.debug :as debug]
             [clojure.java.jdbc :as sql]))
 
 (import java.util.regex.Matcher)
@@ -22,18 +22,18 @@
   [table column value]
   (let [field-type (find-column-type table column)]
     (sql/do-commands
-     (out :db (clause
-               (if value
-                 "alter table %1 modify %2 %3 not null"
-                 "alter table %1 modify %2 %3")
-               [(zap table) (zap column) field-type])))))
+     (debug/out :db (clause
+                     (if value
+                       "alter table %1 modify %2 %3 not null"
+                       "alter table %1 modify %2 %3")
+                     [(zap table) (zap column) field-type])))))
 
 (defn mysql-rename-column
   [table column new-name]
   (try
     (let [field-type (find-column-type table column)
           alter-statement "alter table %1 change %2 %3 %4"
-          rename (out :db (clause alter-statement (map name [table column new-name field-type])))]
+          rename (debug/out :db (clause alter-statement (map name [table column new-name field-type])))]
       (sql/do-commands rename))
     (catch Exception e (render-exception e))))
 
@@ -48,7 +48,7 @@
   [table column]
   (try
     (sql/do-commands
-     (out :db (clause "alter table %1 drop index %1_%2_index" (map #(zap (name %)) [table column]))))
+     (debug/out :db (clause "alter table %1 drop index %1_%2_index" (map #(zap (name %)) [table column]))))
     (catch Exception e (render-exception e))))
 
 (defrecord MysqlAdapter [config]

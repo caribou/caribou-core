@@ -1,6 +1,5 @@
 (ns caribou.config
-  (:use [caribou.debug]
-        [clojure.walk :only (keywordize-keys)]
+  (:use [clojure.walk :only (keywordize-keys)]
         [caribou.util :only (map-vals pathify file-exists?)])
   (:require [clojure.java.io :as io]
             [clojure.string :as string]

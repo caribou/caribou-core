@@ -1,9 +1,9 @@
 (ns caribou.db.adapter.h2
-  (:use caribou.debug
-        caribou.util)
+  (:use caribou.util)
   (:require [clojure.java.jdbc :as sql]
             [clojure.string :as string]
-            [caribou.logger :as log])
+            [caribou.logger :as log]
+            [caribou.debug :as debug])
   (:use [caribou.db.adapter.protocol :only (DatabaseAdapter)]))
 
 (import org.h2.tools.Server)
@@ -38,11 +38,11 @@
 (defn h2-set-required
   [table column value]
   (sql/do-commands
-   (out :db (clause
-             (if value
-               "alter table %1 alter column %2 set not null"
-               "alter table %1 alter column %2 drop not null")
-             [(zap table) (zap column)]))))
+   (debug/out :db (clause
+                   (if value
+                     "alter table %1 alter column %2 set not null"
+                     "alter table %1 alter column %2 drop not null")
+                   [(zap table) (zap column)]))))
 
 (def h2-server (ref nil))
 
@@ -50,7 +50,7 @@
   [table column new-name]
   (try
     (let [alter-statement "alter table %1 alter column %2 rename to %3"
-          rename (out :db (clause alter-statement (map name [table column new-name])))]
+          rename (debug/out :db (clause alter-statement (map name [table column new-name])))]
       (sql/do-commands rename))
     (catch Exception e (render-exception e))))
 
@@ -73,7 +73,7 @@
   [table column]
   (try
     (sql/do-commands
-     (out :db (clause "drop index %1_%2_index" (map #(zap (name %)) [table column]))))
+     (debug/out :db (clause "drop index %1_%2_index" (map #(zap (name %)) [table column]))))
     (catch Exception e (render-exception e))))
 
 (defrecord H2Adapter [config]
