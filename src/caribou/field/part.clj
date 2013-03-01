@@ -57,16 +57,17 @@
           :dependent (:dependent spec)}
          {:name (util/titleize (str (:slug row) "_position"))
           :type "integer"
-          :editable false}]} {:op :migration})
-      (db/create-index (:slug model) id-slug)))
+          :editable false}]} {:op :migration})))
 
   (rename-field [this old-slug new-slug])
 
   (cleanup-field [this]
-    (let [fields ((@field/models (row :model_id)) :fields)
-          id (keyword (str (:slug row) "_id"))
+    (let [model (@field/models (row :model_id))
+          fields (:fields model)
+          id-slug (keyword (str (:slug row) "_id"))
           position (keyword (str (:slug row) "_position"))]
-      ((resolve 'caribou.model/destroy) :field (-> fields id :row :id))
+      (db/drop-index (:slug model) id-slug)
+      ((resolve 'caribou.model/destroy) :field (-> fields id-slug :row :id))
       ((resolve 'caribou.model/destroy) :field (-> fields position :row :id))
       (try
         (do ((resolve 'caribou.model/destroy) :field (-> env :link :id)))

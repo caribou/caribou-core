@@ -17,7 +17,7 @@
 (defn postgres-set-required
   [table column value]
   (sql/do-commands
-   (log :db (clause
+   (out :db (clause
              (if value
                "alter table %1 alter column %2 set not null"
                "alter table %1 alter column %2 drop not null")
@@ -27,8 +27,15 @@
   [table column new-name]
   (try
     (let [alter-statement "alter table %1 rename column %2 to %3"
-          rename (log :db (clause alter-statement (map name [table column new-name])))]
+          rename (out :db (clause alter-statement (map name [table column new-name])))]
       (sql/do-commands rename))
+    (catch Exception e (render-exception e))))
+
+(defn postgres-drop-index
+  [table column]
+  (try
+    (sql/do-commands
+     (out :db (clause "drop index %1_%2_index" (map #(zap (name %)) [table column]))))
     (catch Exception e (render-exception e))))
 
 (defrecord PostgresAdapter [config]
@@ -47,5 +54,7 @@
     (postgres-rename-column table column new-name))
   (set-required [this table column value]
     (postgres-set-required table column value))
+  (drop-index [this table column]
+    (postgres-drop-index table column))
   (text-value [this text]
     text))

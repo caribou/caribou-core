@@ -21,7 +21,7 @@
   [table column value]
   (let [field-type (find-column-type table column)]
     (sql/do-commands
-     (log :db (clause
+     (out :db (clause
                (if value
                  "alter table %1 modify %2 %3 not null"
                  "alter table %1 modify %2 %3")
@@ -32,8 +32,22 @@
   (try
     (let [field-type (find-column-type table column)
           alter-statement "alter table %1 change %2 %3 %4"
-          rename (log :db (clause alter-statement (map name [table column new-name field-type])))]
+          rename (out :db (clause alter-statement (map name [table column new-name field-type])))]
       (sql/do-commands rename))
+    (catch Exception e (render-exception e))))
+
+(defn mysql-insert-result
+  [this table result]
+  (sql/with-query-results res
+    [(str "select * from " (name table)
+          " where id = " (result (first (keys result))))]
+    (first (doall res))))
+
+(defn mysql-drop-index
+  [table column]
+  (try
+    (sql/do-commands
+     (out :db (clause "alter table %1 drop index %1_%2_index" (map #(zap (name %)) [table column]))))
     (catch Exception e (render-exception e))))
 
 (defrecord MysqlAdapter [config]
@@ -52,13 +66,12 @@
                                              "&characterEncoding=UTF-8"))]
       (assoc config :subname subname)))
   (insert-result [this table result]
-    (sql/with-query-results res
-      [(str "select * from " (name table)
-            " where id = " (result (first (keys result))))]
-      (first (doall res))))
+    (mysql-insert-result this table result))
   (rename-column [this table column new-name]
     (mysql-rename-column table column new-name))
   (set-required [this table column value]
     (mysql-set-required table column value))
+  (drop-index [this table column]
+    (mysql-drop-index table column))
   (text-value [this text]
     text))

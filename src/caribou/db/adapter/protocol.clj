@@ -8,4 +8,5 @@
   (insert-result [this table result])
   (rename-column [this table column new-name])
   (set-required [this table column value])
+  (drop-index [this table column])
   (text-value [this text]))

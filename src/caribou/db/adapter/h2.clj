@@ -37,7 +37,7 @@
 (defn h2-set-required
   [table column value]
   (sql/do-commands
-   (log :db (clause
+   (out :db (clause
              (if value
                "alter table %1 alter column %2 set not null"
                "alter table %1 alter column %2 drop not null")
@@ -49,7 +49,7 @@
   [table column new-name]
   (try
     (let [alter-statement "alter table %1 alter column %2 rename to %3"
-          rename (log :db (clause alter-statement (map name [table column new-name])))]
+          rename (out :db (clause alter-statement (map name [table column new-name])))]
       (sql/do-commands rename))
     (catch Exception e (render-exception e))))
 
@@ -67,6 +67,13 @@
     (println "init: " connection)
     (.start server)
     (dosync (ref-set h2-server server))))
+
+(defn h2-drop-index
+  [table column]
+  (try
+    (sql/do-commands
+     (out :db (clause "drop index %1_%2_index" (map #(zap (name %)) [table column]))))
+    (catch Exception e (render-exception e))))
 
 (defrecord H2Adapter [config]
   DatabaseAdapter
@@ -97,6 +104,9 @@
 
   (set-required [this table column value]
     (h2-set-required table column value))
+
+  (drop-index [this table column]
+    (h2-drop-index table column))
 
   (text-value [this text]
     (string/replace (string/replace (str text) #"^'" "") #"'$" "")))

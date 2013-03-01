@@ -90,19 +90,19 @@
 
 (defmacro debug
   [message & prefix]
-  `(log :debug (str (first '~prefix) " " ~message)))
+  `(log :debug (str ~(first prefix) " " ~message)))
 
 (defmacro info
   [message & prefix]
-  `(log :info (str (first '~prefix) " " ~message)))
+  `(log :info (str ~(first prefix) " " ~message)))
 
 (defmacro warn
   [message & prefix]
-  `(log :warn (str (first '~prefix) " " ~message)))
+  `(log :warn (str ~(first prefix) " " ~message)))
 
 (defmacro error
   [message & prefix]
-  `(log :error (str (first '~prefix) " " ~message)))
+  `(log :error (str ~(first prefix) " " ~message)))
 
 (defmacro spy-str
   "spy the value of an expression"
