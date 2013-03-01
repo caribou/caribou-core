@@ -2,7 +2,8 @@
   (:use caribou.debug
         caribou.util
         [caribou.db.adapter.protocol :only (DatabaseAdapter)])
-  (:require [clojure.java.jdbc :as sql]))
+  (:require [caribou.logger :as log]
+            [clojure.java.jdbc :as sql]))
 
 (import java.util.regex.Matcher)
 
@@ -55,7 +56,7 @@
   (init [this])
   (unicode-supported? [this]
     (let [result (query "show variables like 'character_set_database'")]
-      (println "DEBUG character_set_database" (str result))
+      (log/debug (str "character_set_database" result))
       (= "utf8" (:value (first result)))))
   (table? [this table]
     (mysql-table? table))

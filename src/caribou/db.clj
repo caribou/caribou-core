@@ -4,6 +4,7 @@
         [clojure.string :only (join split)])
   (:require [clojure.string :as string]
             [clojure.java.jdbc :as sql]
+            [caribou.logger :as log]
             [caribou.config :as config]
             [caribou.db.adapter.protocol :as adapter]))
 
@@ -50,8 +51,10 @@
       (sql/update-values table where values)
       (catch Exception e
         (try
-          (println (str "update " table " failed: " (.getNextException (debug e))))
-          (catch Exception e (println e)))))))
+          (log/error
+           (str "update " table " failed: " (.getNextException (debug e))))
+          (catch Exception e
+            (log/error (str "displaying: " e))))))))
 
   ;; (let [keys (join "," (map sqlize (keys mapping)))
   ;;       values (join "," (map sqlize (vals mapping)))
@@ -193,7 +196,8 @@
                  :default "alter table %1 add foreign key(%2) references %3 on delete set default"
                  "alter table %1 add foreign key(%2) references %3 on delete set null")
                [(zap table) (zap column) (zap reference)])))
-    (catch Exception e (println "UNABLE TO ADD REFERENCE FOR" table column reference deletion e))))
+    (catch Exception e
+      (log/error (str "UNABLE TO ADD REFERENCE FOR" table column reference deletion e)))))
 ;; (render-exception e))))
 
 (defn rename-column
@@ -225,7 +229,7 @@
   "drop a database of the given config"
   [config]
   (let [db-name (config :database)]
-    (println "dropping database: " db-name)
+    (log/debug (str "dropping database: " db-name))
     (try
       (sql/with-connection (change-db-keep-host config "template1")
         (with-open [s (.createStatement (sql/connection))]
@@ -237,7 +241,7 @@
   "create a database of the given name"
   [config]
   (let [db-name (config :database)]
-    (println "creating database: " db-name)
+    (log/debug (str (println "creating database: " db-name)))
     (try
       (sql/with-connection (change-db-keep-host config "template1") 
         (with-open [s (.createStatement (sql/connection))]
