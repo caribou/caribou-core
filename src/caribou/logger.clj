@@ -53,8 +53,8 @@
 
 (defn stdoutlog
   [level message]
-  (future (locking *out*
-            (println (string/upper-case (name level)) message))))
+  (locking *out*
+    (println (string/upper-case (name level)) message)))
 
 (def loggers (atom [[7 stdoutlog]]))
 
