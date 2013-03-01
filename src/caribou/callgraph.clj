@@ -1,6 +1,5 @@
 (ns caribou.callgraph
-  (:require [swank.commands.xref :as xref]
-            [clojure.string :as string]))
+  (:require [clojure.string :as string]))
 
 (def model-ops
   {:prefixes ["" "model" "caribou.model"]
@@ -20,10 +19,11 @@
 
 (defn callers
   [relevant]
-  (let [calls (map (fn [called] {:name called
+  (let [all-vars-who-call (resolve 'swank.commands.xref/all-vars-who-call)
+        calls (map (fn [called] {:name called
                                  :callers (filter identity
                                                   (map #(-> % str (subs 2))
-                                                       (xref/all-vars-who-call
+                                                       (all-vars-who-call
                                                         called)))})
                    relevant)
         calls (filter (comp seq :callers)

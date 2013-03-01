@@ -53,7 +53,8 @@
 
 (defn stdoutlog
   [level message]
-  (println (string/upper-case (name level)) message))
+  (future (locking *out*
+            (println (string/upper-case (name level)) message))))
 
 (def loggers (atom [[7 stdoutlog]]))
 
@@ -113,3 +114,9 @@
   [form]
   `(debug (spy-str ~form)))
 
+(defn print-stack-trace
+  [level thrown]
+  (log (keyword level)
+       (with-out-str (.printStackTrace thrown))))
+
+  
