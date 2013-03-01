@@ -21,7 +21,7 @@
                  [clj-aws-s3 "0.3.2"]
                  [org.mindrot/jbcrypt "0.3m"]]
   :dev-dependencies [[lein-autodoc "0.9.0"]]
-  :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n"]
+  :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n" "-Xmx4g"]
   :autodoc {:name "Caribou Core"
             :page-title "Caribou Core - Documentation"
             :description
