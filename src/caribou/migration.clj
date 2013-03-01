@@ -5,6 +5,7 @@
             [leiningen.core.main :as lein]
             [caribou.util :as util]
             [caribou.config :as config]
+            [caribou.logger :as log]
             [caribou.db :as db]))
 
 (defn used-migrations
@@ -12,7 +13,7 @@
   (try 
     (map #(% :name) (util/query "select * from migration"))
     (catch Exception e
-      (println (.getMessage e)))))
+      (log/error (.getMessage e)))))
 
 (defn symbol-in-namespace
   [sym n]
@@ -43,10 +44,10 @@
     (when (nil? migrate-symbol)
       (throw (Exception. (str migration " has no 'migrate' function"))))
     (when (nil? rollback-symbol)
-      (println (str "WARNING: No rollback available for migration " migration)))
+      (log/warn (str "No rollback available for migration " migration)))
     (migrate-symbol)
     (db/insert :migration {:name migration})
-    (println " <- migration " migration " ended.")))
+    (log/info (str " <- migration " migration " ended."))))
 
 (defn run-migrations
   [prj config-file exit? & migrations]
@@ -59,19 +60,19 @@
     (config/configure cfg)
 
     (sql/with-connection db-config
-      (println "Already used these: ")
+      (log/info "Already used these: ")
       (pprint/pprint (used-migrations))
       (let [core-migrations (load-migration-order "caribou.migrations")
             app-migrations  (if app-migration-namespace
                               (load-migration-order app-migration-namespace)
-                              (println "Warning: no application namespace provided."))
+                              (log/warn "no application namespace provided."))
             all-migrations  (if (empty? (remove nil? migrations))
                               (concat core-migrations app-migrations)
                               migrations)
             unused-migrations (set/difference (set all-migrations) (set (used-migrations)))]
         (doseq [m unused-migrations]
           (run-migration m))
-        (println " <- run-migrations ended.")))
+        (log/notice " <- run-migrations ended.")))
     ;; This is because the presence of an active h2 thread prevents
     ;; this function from returning to lein-caribou, which invoked
     ;; it using 'eval-in-project'
@@ -79,12 +80,13 @@
 
 (defn run-rollback
   [rollback]
-  (println "Trying to run rollback " rollback)
+  (log/notice (str "Trying to run rollback " rollback))
   (let [used-migrations (used-migrations)]
     (if-not (= (last used-migrations) rollback)
       (do
-        (println "You can only roll back the last-applied migration:")
-        (pprint/pprint used-migrations)
+        (log/error
+         (str "You can only roll back the last-applied migration:"
+              (with-out-str (pprint/pprint used-migrations))))
         false)
       (do
         (let [rollback-symbol (symbol-in-namespace "rollback" rollback)]
@@ -110,6 +112,6 @@
                                   rollbacks)]
         (doseq [r available-rollbacks]
           (run-rollback r))
-        (println " <- run-rollbacks ended.")))
+        (log/notice " <- run-rollbacks ended.")))
     ;; see comment in run-migrations, above
     (if exit? (lein/exit))))

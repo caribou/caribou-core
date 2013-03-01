@@ -2,7 +2,8 @@
   (:use caribou.debug
         caribou.util)
   (:require [clojure.java.jdbc :as sql]
-            [clojure.string :as string])
+            [clojure.string :as string]
+            [caribou.logger :as log])
   (:use [caribou.db.adapter.protocol :only (DatabaseAdapter)]))
 
 (import org.h2.tools.Server)
@@ -58,13 +59,13 @@
   ;; (let [connection (str "jdbc:h2:tcp://" (config :host) "/" (config :database))
   ;;       server (Server/createTcpServer
   ;;               (into-array [connection "-tcp" "-tcpAllowOthers"]))]
-  ;;   (println "init: " connection)
+  ;;   (log/info (str "init: " connection))
   ;;   (.start server)
   ;;   (dosync (ref-set h2-server server))))
   (let [connection (str "jdbc:h2:tcp://" (config :host) "/" (config :database))
         server (Server/createTcpServer
                 (into-array [connection "-tcpAllowOthers" "true"]))]
-    (println "init: " connection)
+    (log/info (str "init: " connection))
     (.start server)
     (dosync (ref-set h2-server server))))
 
@@ -90,7 +91,7 @@
           config (dissoc config :db-path)
           connection (str "tcp://" host pathos (config :database))
           subname (or (config :subname) connection)] ;; ";AUTO_SERVER=TRUE"))]
-      (println "build subname: " connection)
+      (log/info (str "build subname: " connection))
       (assoc config :subname subname)))
 
   (insert-result [this table result]

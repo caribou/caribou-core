@@ -97,6 +97,10 @@
   [message & prefix]
   `(log :info (str ~(first prefix) " " ~message)))
 
+(defmacro notice
+  [message & prefix]
+  `(log :notice (str ~(first prefix) " " ~message)))
+
 (defmacro warn
   [message & prefix]
   `(log :warn (str ~(first prefix) " " ~message)))

@@ -7,6 +7,7 @@
             [caribou.db :as db]
             [caribou.auth :as auth]
             [caribou.util :as util]
+            [caribou.logger :as log]
             [caribou.query :as query]
             [caribou.validation :as validation]
             [caribou.config :as config]))
@@ -411,13 +412,13 @@
       (is (= 2 (count bx-joins)))
       (is (= '("Hey" "What") (map #(-> % :everywhere :up) bx-joins)))
 
-      (println (form-uberquery
-                (@models :everywhere)
-                {:include {:nowhere {}}
-                 :where {:nowhere {:down "Ylel"}}
-                 :order {:nowhere {:down :desc}}
-                 :limit 3
-                 :locale "xo_ub"})))))
+      (log/debug (form-uberquery
+                  (@models :everywhere)
+                  {:include {:nowhere {}}
+                   :where {:nowhere {:down "Ylel"}}
+                   :order {:nowhere {:down :desc}}
+                   :limit 3
+                   :locale "xo_ub"})))))
 
 (defn nested-model-test
   []
@@ -438,7 +439,7 @@
     ;; (is (= 4 (count bbb_children))))
     (testing "Nested models."
       (doseq [branch tree]
-        (println (doall (str tree))))
+        (log/debug (doall (str tree))))
       (is (= 1 (count tree))))))
 
 ;; (defn migration-test
@@ -533,8 +534,8 @@
                  field-ids (map (fn [slug] (-> agent :fields slug :row :id))
                                 field-slugs)
                  field-ids (filter number? field-ids)]
-             (println "field slugs" field-slugs)
-             (println "field ids" field-ids)
+             (log/debug (str "field slugs" field-slugs))
+             (log/debug (str "field ids" field-ids))
              (doseq [id field-ids]
                (destroy :field id))))))
     (testing "Addition of fields to a model."
