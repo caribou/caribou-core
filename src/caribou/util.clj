@@ -2,7 +2,8 @@
   (:use caribou.debug)
   (:require [clojure.string :as string]
             [clojure.java.jdbc :as sql]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [caribou.logger :as log]))
 
 (import java.util.regex.Matcher)
 (import java.sql.SQLException)
@@ -102,7 +103,8 @@
           props (java.util.Properties.)]
       (.load props raw)
       (into {} (for [[k v] props] [(keyword k) (read-string v)])))
-    (catch Exception e (println "No properties file named" props-name))))
+    (catch Exception e (log/error (str "No properties file named "
+                                       props-name)))))
 
 (defn load-resource
   [resource-name]
@@ -179,7 +181,7 @@
     ;; (catch Exception e
     ;;   (do
     ;;     (render-exception e)
-    ;;     (println q args)))))
+    ;;     (log/error (str q args))))))
 
 ; by Chouser:
 (defn deep-merge-with

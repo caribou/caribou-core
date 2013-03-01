@@ -2,6 +2,7 @@
   caribou.migrations.bootstrap
   (:require [caribou.db :as db]
             [caribou.util :as util]
+            [caribou.logger :as log]
             [caribou.model :as model]))
 
 (defn create-migration-table []
@@ -547,7 +548,7 @@
 (defn spawn-models []
   (model/invoke-models)
   (doseq [spawn incubating]
-    (println spawn)
+    (log/debug (str "spawn models: " spawn))
     (model/create :model spawn)))
 
 (defn build-links []

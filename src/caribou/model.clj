@@ -6,6 +6,7 @@
             [clojure.java.jdbc :as sql]
             [caribou.util :as util]
             [caribou.config :as config]
+            [caribou.logger :as log]
             [caribou.db :as db]
             [caribou.field :as field]
             [caribou.field.constructors :as field-constructors]
@@ -78,7 +79,7 @@
 
 (defn add-base-fields
   [env]
-  (println "Adding base fields to model with id" (-> env :content :id))
+  (log/debug (str "Adding base fields to model with id" (-> env :content :id)))
   (doseq [field base-fields]
     (db/insert
      :field
