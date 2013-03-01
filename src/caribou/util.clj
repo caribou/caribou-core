@@ -2,7 +2,8 @@
   (:use caribou.debug)
   (:require [clojure.string :as string]
             [clojure.java.jdbc :as sql]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [caribou.logger :as logger]))
 
 (import java.util.regex.Matcher)
 (import java.sql.SQLException)
@@ -77,7 +78,9 @@
 
 (defn print-exception
   [e]
-  (.printStackTrace e))
+  (out :stacktrace (str ">>> " (.toString e)))
+  (doseq [trace (.getStackTrace e)]
+    (out :stacktrace (str "    |--" trace))))
 
 (defn print-sql-exception
   [e]
