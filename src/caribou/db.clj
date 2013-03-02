@@ -140,6 +140,17 @@
        (out :db (clause "alter table %1 add column %2 %3" (map #(zap (name %)) [table column type]))))
       (catch Exception e (render-exception e)))))
 
+(defn rename-column
+  "rename a column in the given table to new-name."
+  [table column new-name]
+  (adapter/rename-column @config/db-adapter table column new-name))
+
+(defn drop-column
+  "remove the given column from the table."
+  [table column]
+  (sql/do-commands
+   (out :db (clause "alter table %1 drop column %2" (map #(zap (name %)) [table column])))))
+
 (defn create-index
   [table column]
   (try
@@ -151,6 +162,10 @@
   [table column]
   (adapter/drop-index @config/db-adapter (name table) (name column)))
 
+(defn drop-model-index
+  [old-table new-table column]
+  (adapter/drop-model-index @config/db-adapter (name old-table) (name new-table) (name column)))
+
 (defn set-default
   "sets the default for a column"
   [table column default]
@@ -161,12 +176,6 @@
 (defn set-required
   [table column value]
   (adapter/set-required @config/db-adapter (name table) (name column) value))
-  ;; (sql/do-commands
-  ;;  (out :db (clause
-  ;;            (if value
-  ;;              "alter table %1 alter column %2 set not null"
-  ;;              "alter table %1 alter column %2 drop not null")
-  ;;            [(zap table) (zap column)]))))
 
 (defn set-unique
   [table column value]
@@ -198,18 +207,6 @@
                [(zap table) (zap column) (zap reference)])))
     (catch Exception e
       (log/error (str "UNABLE TO ADD REFERENCE FOR" table column reference deletion e)))))
-;; (render-exception e))))
-
-(defn rename-column
-  "rename a column in the given table to new-name."
-  [table column new-name]
-  (adapter/rename-column @config/db-adapter table column new-name))
-
-(defn drop-column
-  "remove the given column from the table."
-  [table column]
-  (sql/do-commands
-   (out :db (clause "alter table %1 drop column %2" (map #(zap (name %)) [table column])))))
 
 (defn do-sql
   "execute arbitrary sql.  direct proxy to sql/do-commands."
@@ -223,7 +220,6 @@
   [db-config new-db]
   (assoc db-config
     :subname (string/replace (db-config :subname) #"[^/]+$" new-db)))
-;; (str "//" (first (split (replace (db-config :subname) "//" "") #"/")) "/" new-db)))
 
 (defn drop-database
   "drop a database of the given config"

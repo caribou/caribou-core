@@ -531,11 +531,13 @@
     (testing "Deletion of fields."
       (is (nil?
            (let [field-slugs (map (comp keyword :name) fields)
-                 field-ids (map (fn [slug] (-> agent :fields slug :row :id))
-                                field-slugs)
+                 field-ids (map
+                            (fn [slug]
+                              (-> @models :agent :fields slug :row :id))
+                            field-slugs)
                  field-ids (filter number? field-ids)]
-             (log/debug (str "field slugs" field-slugs))
-             (log/debug (str "field ids" field-ids))
+             (log/debug (str "field slugs" (apply str field-slugs)))
+             (log/debug (str "field ids" (apply str field-ids)))
              (doseq [id field-ids]
                (destroy :field id))))))
     (testing "Addition of fields to a model."

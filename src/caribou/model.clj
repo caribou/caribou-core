@@ -611,9 +611,12 @@
    :model :after_update :rename
    (fn [env]
      (let [original (-> env :original :slug)
-           slug (-> env :content :slug)]
-       (if (not (= original slug))
-         (db/rename-table original slug)))
+           slug (-> env :content :slug)
+           model (get @models (keyword original))]
+       (when (not= original slug)
+         (db/rename-table original slug)
+         (doseq [field (-> model :fields vals)]
+           (field/rename-model field original slug))))
      env))
 
   (add-hook

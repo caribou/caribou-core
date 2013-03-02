@@ -11,7 +11,8 @@
     by this field given this name")
 
   (setup-field [this spec] "further processing on creation of field")
-  (rename-field [this old-slug new-slug] "further processing on creation of field")
+  (rename-model [this old-slug new-slug] "called when the model containing this field is renamed")
+  (rename-field [this old-slug new-slug] "called whenever a field is renamed")
   (cleanup-field [this] "further processing on removal of field")
   (target-for [this] "retrieves the model this field points to, if applicable")
   (update-values [this content values]
@@ -125,6 +126,17 @@
         model (get @models model-id)]
     (doseq [addition (table-additions field (-> field :row :slug))]
       (db/drop-column (:slug model) (first addition)))))
+
+(defn rename-model-index
+  [old-model new-model field-slug]
+  (db/drop-model-index old-model new-model field-slug)
+  (db/create-index new-model field-slug))
+
+(defn rename-index
+  [field old-slug new-slug]
+  (let [model (db/choose :model (-> field :row :model_id))]
+    (db/drop-index (:slug model) old-slug)
+    (db/create-index (:slug model) new-slug)))
 
 (def field-constructors
   (atom {}))

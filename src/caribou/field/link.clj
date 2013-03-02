@@ -247,6 +247,7 @@
         (db/update :field ["id = ?" (util/convert-int (:id row))]
                    {:link_id (:id link)}))))
 
+  (rename-model [this old-slug new-slug])
   (rename-field
     [this old-slug new-slug]
     (link-rename-field this old-slug new-slug))

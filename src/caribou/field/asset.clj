@@ -27,7 +27,11 @@
                   :editable false
                   :reference :asset}]} {:op :migration})))
 
-  (rename-field [this old-slug new-slug])
+  (rename-model [this old-slug new-slug]
+    (field/rename-model-index old-slug new-slug (str (-> this :row :slug) "_id")))
+
+  (rename-field [this old-slug new-slug]
+    (field/rename-index this (str old-slug "_id") (str new-slug "_id")))
 
   (cleanup-field [this]
     (let [model (get @field/models (:model_id row))

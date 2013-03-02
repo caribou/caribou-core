@@ -59,7 +59,12 @@
           :type "integer"
           :editable false}]} {:op :migration})))
 
-  (rename-field [this old-slug new-slug])
+  (rename-model [this old-slug new-slug]
+    (let [field (db/choose :field (-> this :row :id))]
+      (field/rename-model-index old-slug new-slug (str (:slug field) "_id"))))
+
+  (rename-field [this old-slug new-slug]
+    (field/rename-index this (str old-slug "_id") (str new-slug "_id")))
 
   (cleanup-field [this]
     (let [model (@field/models (row :model_id))

@@ -7,6 +7,7 @@
   (table-additions [this field] [[(keyword field) "decimal(20,10)"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
+  (rename-model [this old-slug new-slug])
   (rename-field [this old-slug new-slug])
   (cleanup-field [this]
     (field/field-cleanup this))
