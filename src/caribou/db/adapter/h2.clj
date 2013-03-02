@@ -109,5 +109,8 @@
   (drop-index [this table column]
     (h2-drop-index table column))
 
+  (drop-model-index [this old-table new-table column]
+    (h2-drop-index old-table column))
+
   (text-value [this text]
     (string/replace (string/replace (str text) #"^'" "") #"'$" "")))

@@ -9,6 +9,7 @@
   (table-additions [this field] [[(keyword field) "varchar(255)"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
+  (rename-model [this old-slug new-slug])
   (rename-field [this old-slug new-slug])
   (cleanup-field [this]
     (field/field-cleanup this))

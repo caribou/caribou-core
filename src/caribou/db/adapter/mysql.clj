@@ -33,7 +33,7 @@
   (try
     (let [field-type (find-column-type table column)
           alter-statement "alter table %1 change %2 %3 %4"
-          rename (out :db (clause alter-statement (map name [table column new-name field-type])))]
+          rename (out :db (clause alter-statement (map (comp zap name) [table column new-name field-type])))]
       (sql/do-commands rename))
     (catch Exception e (render-exception e))))
 
@@ -48,7 +48,14 @@
   [table column]
   (try
     (sql/do-commands
-     (out :db (clause "alter table %1 drop index %1_%2_index" (map #(zap (name %)) [table column]))))
+     (out :db (clause "alter table %1 drop index %1_%2_index" (map (comp zap name) [table column]))))
+    (catch Exception e (render-exception e))))
+
+(defn mysql-drop-model-index
+  [old-table new-table column]
+  (try
+    (sql/do-commands
+     (out :db (clause "alter table %2 drop index %1_%3_index" (map (comp zap name) [old-table new-table column]))))
     (catch Exception e (render-exception e))))
 
 (defrecord MysqlAdapter [config]
@@ -64,7 +71,8 @@
     (let [host (or (config :host) "localhost")
           subname (or (config :subname) (str "//" host "/" (config :database)
                                              "?useUnicode=true"
-                                             "&characterEncoding=UTF-8"))]
+                                             "&characterEncoding=UTF-8"
+                                             "&zeroDateTimeBehavior=convertToNull"))]
       (assoc config :subname subname)))
   (insert-result [this table result]
     (mysql-insert-result this table result))
@@ -74,5 +82,7 @@
     (mysql-set-required table column value))
   (drop-index [this table column]
     (mysql-drop-index table column))
+  (drop-model-index [this old-table new-table column]
+    (mysql-drop-model-index old-table new-table column))
   (text-value [this text]
     text))

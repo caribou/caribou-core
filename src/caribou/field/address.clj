@@ -30,16 +30,20 @@
     (let [id-slug (str (:slug row) "_id")
           model (db/find-model (:model_id row) @field/models)]
       ((resolve 'caribou.model/update) :model (:model_id row)
-              {:fields [{:name (util/titleize id-slug)
-                         :type "integer"
-                         :editable false
-                         :reference :location}]} {:op :migration})))
+       {:fields [{:name (util/titleize id-slug)
+                  :type "integer"
+                  :editable false
+                  :reference :location}]} {:op :migration})))
 
-  (rename-field [this old-slug new-slug])
+  (rename-model [this old-slug new-slug]
+    (field/rename-model-index old-slug new-slug (str (-> this :row :slug) "_id")))
+
+  (rename-field [this old-slug new-slug]
+    (field/rename-index this (str old-slug "_id") (str new-slug "_id")))
 
   (cleanup-field [this]
     (let [model (get @field/models (:model_id row))
-          id-slug (keyword (str (:slug row) "_id"))]
+          id-slug (-> row :slug (str "_id") keyword)]
       (db/drop-index (:slug model) id-slug)
       ((resolve 'caribou.model/destroy) :field (-> model :fields id-slug :row :id))))
 

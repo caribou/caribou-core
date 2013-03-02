@@ -10,7 +10,10 @@
   (setup-field [this spec]
     (let [model (db/find-model (:model_id row) @field/models)]
       (db/create-index (:slug model) (:slug row))))
-  (rename-field [this old-slug new-slug])
+  (rename-model [this old-slug new-slug]
+    (field/rename-model-index old-slug new-slug (-> this :row :slug)))
+  (rename-field [this old-slug new-slug]
+    (field/rename-index this old-slug new-slug))
   (cleanup-field [this]
     (let [model (db/find-model (:model_id row) @field/models)]
       (db/drop-index (:slug model) (:slug row))))

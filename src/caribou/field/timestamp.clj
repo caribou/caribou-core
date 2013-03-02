@@ -131,15 +131,12 @@
             (select-keys where op-keys)))))
       (util/clause "%1 = '%2'" [field-select where]))))
 
-          ;; (partial
-          ;;  build-extract
-          ;;  field (suffix-prefix prefix) slug opts)
-
 (defrecord TimestampField [row env]
   field/Field
-  (table-additions [this field] [[(keyword field) "timestamp" "NOT NULL"]])
+  (table-additions [this field] [[(keyword field) "timestamp"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
+  (rename-model [this old-slug new-slug])
   (rename-field [this old-slug new-slug])
   (cleanup-field [this]
     (field/field-cleanup this))
