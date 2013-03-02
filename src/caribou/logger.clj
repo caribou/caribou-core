@@ -123,4 +123,7 @@
   (log (keyword level)
        (with-out-str (.printStackTrace thrown))))
 
-  
+(defn line
+  [& args]
+  (debug (apply str args)))
+

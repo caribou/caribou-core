@@ -1,6 +1,6 @@
 (ns caribou.util
-  (:use caribou.debug)
-  (:require [clojure.string :as string]
+  (:require [caribou.debug :as debug]
+            [clojure.string :as string]
             [clojure.java.jdbc :as sql]
             [clojure.java.io :as io]
             [caribou.logger :as log]))
@@ -78,9 +78,9 @@
 
 (defn print-exception
   [e]
-  (out :stacktrace (str ">>> " (.toString e)))
+  (debug/out :stacktrace (str ">>> " (.toString e)))
   (doseq [trace (.getStackTrace e)]
-    (out :stacktrace (str "    |--" trace))))
+    (debug/out :stacktrace (str "    |--" trace))))
 
 (defn print-sql-exception
   [e]
