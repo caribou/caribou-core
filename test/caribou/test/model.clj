@@ -460,6 +460,7 @@
                      ["born_at" "timestamp"]
                      ["dies_at" "timestamp"]
                      ["passport" "asset"]
+                     ["license" "position"]
                      ["residence" "address"]])
         agent (create :model {:name "Agent"
                               :fields fields})
@@ -526,7 +527,8 @@
             (is (= "passport.picture" (-> bond :passport :filename)))
             ;; (is (and (= 0.0 (-> bond :residence :lat))
             ;;          (= 0.0 (-> bond :residence :long))))
-            ))]
+            (is (not= (:license bond) (:license dopple)))
+            (is (number? (:license bond)))))]
     (run-field-tests)
     (testing "Deletion of fields."
       (is (nil?

@@ -105,8 +105,9 @@
           props (java.util.Properties.)]
       (.load props raw)
       (into {} (for [[k v] props] [(keyword k) (read-string v)])))
-    (catch Exception e (log/error (str "No properties file named "
-                                       props-name)))))
+    ;; this is not actually an error
+    (catch Exception e (log/notice (str "No properties file named "
+                                        props-name)))))
 
 (defn load-resource
   [resource-name]
