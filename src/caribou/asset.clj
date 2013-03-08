@@ -4,7 +4,8 @@
             [aws.sdk.s3 :as s3]
             [pantomime.mime :as mime]
             [caribou.util :as util]
-            [caribou.config :as config]))
+            [caribou.config :as config])
+  (:import java.io.ByteArrayInputStream))
 
 (defn- pad-break-id [id]
   (let [root (str id)
@@ -31,14 +32,19 @@
        (:filename asset))])
     ""))
 
+(defn s3-prefix
+  []
+  (if-let [prefix (:asset-prefix @config/app)]
+    (str prefix "/")
+    ""))
+
 (defn asset-path
   "Construct the path this asset will live in, or look it up."
   [asset]
   (if (:asset-bucket @config/app)
-    (if (and asset (asset :filename))
-      (util/pathify
-       [(str "https://" (:asset-bucket @config/app) ".s3.amazonaws.com")
-        (asset-location asset)])
+    (if (and asset (:filename asset))
+      (str "https://" (:asset-bucket @config/app) ".s3.amazonaws.com/"
+           (s3-prefix) (asset-location asset))
       "")
     (asset-location asset)))
 
@@ -63,3 +69,14 @@
   (.mkdirs (io/file (util/pathify [(@config/app :asset-dir) dir])))
   (io/copy file (io/file (util/pathify [(@config/app :asset-dir) path]))))
 
+(defn migrate-dir-to-s3
+  [dir]
+  (let [prefix (s3-prefix)
+        dir-pattern (re-pattern (str dir "/"))]
+    (doseq [entry (file-seq (io/file dir))]
+      (if-not (.isDirectory entry)
+        (let [path (.getPath entry)
+              relative (string/replace-first path dir-pattern "")
+              prefixed (str prefix relative)]
+          (println "uploading" prefixed (.length entry))
+          (upload-to-s3 prefixed (io/file path)))))))
