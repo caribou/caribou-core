@@ -1,11 +1,29 @@
 (ns caribou.field.position
   (:require [caribou.field :as field]
             [caribou.validation :as validation]
+            [caribou.util :as util]
             [caribou.field.integer :as int]))
 
+(defn update
+  [field content values row]
+  (let [slug (-> field :row :slug)
+        key (keyword slug)
+        update (int/integer-update-values field content values)
+        val (get update key)
+        model-id (:model_id row)
+        model (-> model-id (@field/models) :slug)]
+    (if val
+      update
+      (assoc update key
+             (let [result (util/query
+                           (str "select max(" slug ")+1 as max from "
+                                model))]
+               (or (-> result first :max)
+                   0))))))
+                    
 (defrecord PositionField [row env]
   field/Field
-  (table-additions [this field] [[(keyword field) "SERIAL"]])
+  (table-additions [this field] [[(keyword field) "INTEGER"]])
   (subfield-names [this field] [])
   (setup-field [this spec] nil)
   (rename-model [this old-slug new-slug])
@@ -14,7 +32,7 @@
     (field/field-cleanup this))
   (target-for [this] nil)
   (update-values [this content values]
-    (int/integer-update-values this content values))
+    (update this content values row))
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
