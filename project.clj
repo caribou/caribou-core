@@ -18,7 +18,7 @@
                   :exclusions [org.clojure/clojure]]
                  [leiningen-core "2.0.0-preview3"
                   :exclusions [org.clojure/clojure]]
-                 [clj-aws-s3 "0.3.2"]
+                 [antler/clj-aws-s3 "0.3.4"]
                  [org.mindrot/jbcrypt "0.3m"]]
   :dev-dependencies [[lein-autodoc "0.9.0"]]
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n" "-Xmx2g"]
@@ -40,6 +40,9 @@
            <a href=\"http://antler.github.com/caribou-admin\">Caribou Admin</a>,
            each of which build in their own way upon this data model as a basis."}
   :aot [caribou.model]
+  :aws {:access-key "AKIAJI4RLS6XPSBVTX2Q"
+        :secret-key "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"
+        :region :us-west-2}
   :test-selectors {:default (constantly true)
                    :mysql :mysql
                    :postgres :postgres
