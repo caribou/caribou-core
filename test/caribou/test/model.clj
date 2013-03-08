@@ -4,6 +4,7 @@
         [clojure.test])
   (:require [clojure.java.jdbc :as sql]
             [clojure.java.io :as io]
+            [clojure.string :as string]
             [caribou.db :as db]
             [caribou.auth :as auth]
             [caribou.util :as util]
@@ -439,7 +440,7 @@
     ;; (is (= 4 (count bbb_children))))
     (testing "Nested models."
       (doseq [branch tree]
-        (log/debug (doall (str tree))))
+        (log/debug (doall (str tree)))) ; WTF why branch and not tree? J.S.
       (is (= 1 (count tree))))))
 
 ;; (defn migration-test
@@ -460,7 +461,6 @@
                      ["born_at" "timestamp"]
                      ["dies_at" "timestamp"]
                      ["passport" "asset"]
-                     ["license" "position"]
                      ["residence" "address"]])
         agent (create :model {:name "Agent"
                               :fields fields})
@@ -525,10 +525,9 @@
             (is (and (= 28800000 (.getTime (:born_at bond)))
                      (= 2114409600000 (.getTime (:dies_at bond)))))
             (is (= "passport.picture" (-> bond :passport :filename)))
-            ;; (is (and (= 0.0 (-> bond :residence :lat))
-            ;;          (= 0.0 (-> bond :residence :long))))
-            (is (not= (:license bond) (:license dopple)))
-            (is (number? (:license bond)))))]
+            ;; addresses not working because of network needs
+            #_(is (and (= 0.0 (-> bond :residence :lat))
+                       (= 0.0 (-> bond :residence :long))))))]
     (run-field-tests)
     (testing "Deletion of fields."
       (is (nil?
@@ -538,8 +537,8 @@
                               (-> @models :agent :fields slug :row :id))
                             field-slugs)
                  field-ids (filter number? field-ids)]
-             (log/debug (str "field slugs" (apply str field-slugs)))
-             (log/debug (str "field ids" (apply str field-ids)))
+             (log/debug (str "field slugs" (string/join " " field-slugs)))
+             (log/debug (str "field ids" (string/join " " field-ids)))
              (doseq [id field-ids]
                (destroy :field id))))))
     (testing "Addition of fields to a model."
