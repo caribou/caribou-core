@@ -34,6 +34,7 @@
   (fuse-field [this prefix archetype skein opts]
     (field/pure-fusion this prefix archetype skein opts))
   (localized? [this] false)
+  (propagate-order [this id orderings])
   (models-involved [this opts all]
     (field/id-models-involved this opts all))
   (field-from [this content opts] (content (keyword (:slug row))))

@@ -33,6 +33,7 @@
   (localized? [this])
   (models-involved [this opts all])
 
+  (propagate-order [this id orderings])
   (field-from [this content opts]
     "retrieves the value for this field from this content item")
   (render [this content opts] "renders out a single field from this content item")

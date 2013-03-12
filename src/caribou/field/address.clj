@@ -97,6 +97,7 @@
   (localized? [this] false)
   (models-involved [this opts all] all)
 
+  (propagate-order [this id orderings])
   (field-from [this content opts]
     (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
 

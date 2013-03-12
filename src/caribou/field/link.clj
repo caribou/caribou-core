@@ -147,6 +147,9 @@
     ((resolve 'caribou.model/update) :model (:id join-model)
      {:name (util/titleize new-join-name) :slug new-join-name})))
 
+(defn link-propagate-order
+  [this id orderings])
+
 (defn link-models-involved
   [field opts all]
   (if-let [down (assoc/with-propagation :include opts (-> field :row :slug)
@@ -307,6 +310,9 @@
     (assoc/collection-fusion this prefix archetype skein opts))
 
   (localized? [this] false)
+
+  (propagate-order [this id orderings]
+    (link-propagate-order this id orderings))
 
   (models-involved [this opts all]
     (link-models-involved this opts all))

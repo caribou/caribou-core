@@ -926,7 +926,7 @@
        (update slug (:id ordering) (dissoc ordering :id))))
   ([slug id field-slug orderings]
      (let [model (get @models (keyword slug))
-           field (-> model :fields (get (keyword slug)))]
+           field (-> model :fields (get (keyword field-slug)))]
        (field/propagate-order field id orderings))))
 
 (defn progenitors

@@ -126,6 +126,7 @@
 
   (localized? [this] false)
 
+  (propagate-order [this id orderings])
   (models-involved [this opts all]
     (assoc/span-models-involved this opts all))
 

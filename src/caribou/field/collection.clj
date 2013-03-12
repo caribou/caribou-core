@@ -44,6 +44,9 @@
         content))
     content))
 
+(defn collection-propagate-order
+  [this id orderings])
+
 (defn collection-post-update
   [field content opts]
   (if-let [collection (get content (-> field :row :slug keyword))]
@@ -187,6 +190,9 @@
                               (content :id)
                               (str link "_position"))]
           (map #(assoc/from (field/target-for this) % down) parts)))))
+
+  (propagate-order [this id orderings]
+    (collection-propagate-order this id orderings))
 
   (render
     [this content opts]
