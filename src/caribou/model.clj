@@ -67,7 +67,7 @@
 (def base-fields
   [{:name "Id" :slug "id" :type "id" :locked true :immutable true
     :editable false}
-   {:name "Position" :slug "position" :type "integer" :locked true}
+   {:name "Position" :slug "position" :type "position" :locked true}
    {:name "Env Id" :slug "env_id" :type "integer" :locked true :editable false}
    {:name "Locked" :slug "locked" :type "boolean" :locked true :immutable true
     :editable false :default_value false}
