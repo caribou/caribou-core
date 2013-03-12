@@ -57,12 +57,16 @@
 
 (defn upload-to-s3
   [key asset]
-  (let [cred (:aws-credentials @config/app)
-        bucket (:asset-bucket @config/app)
-        mime (mime/mime-type-of key)]
-    (ensure-s3-bucket cred bucket)
-    (s3/put-object cred bucket key asset {:content-type mime})
-    (s3/update-object-acl cred bucket key (s3/grant :all-users :read))))
+  (try
+    (let [cred (:aws-credentials @config/app)
+          bucket (:asset-bucket @config/app)
+          mime (mime/mime-type-of key)]
+      (ensure-s3-bucket cred bucket)
+      (s3/put-object cred bucket key asset {:content-type mime})
+      (s3/update-object-acl cred bucket key (s3/grant :all-users :read)))
+    (catch Exception e (do
+                         (.printStackTrace e)
+                         (println "KEY BAD" key)))))
 
 (defn persist-asset-on-disk
   [dir path file]
