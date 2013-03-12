@@ -920,6 +920,15 @@
     (query/clear-model-cache (list (:id model)))
     (_after :content)))
 
+(defn order
+  ([slug orderings]
+     (doseq [ordering orderings]
+       (update slug (:id ordering) (dissoc ordering :id))))
+  ([slug id field-slug orderings]
+     (let [model (get @models (keyword slug))
+           field (-> model :fields (get (keyword slug)))]
+       (field/propagate-order field id orderings))))
+
 (defn progenitors
   "if the model given by slug is nested, return a list of the item
   given by this id along with all of its ancestors."
