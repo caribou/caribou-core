@@ -56,7 +56,7 @@
           :reference (:slug target)
           :dependent (:dependent spec)}
          {:name (util/titleize (str (:slug row) "_position"))
-          :type "integer"
+          :type "position"
           :editable false}]} {:op :migration})))
 
   (rename-model [this old-slug new-slug]
