@@ -89,6 +89,7 @@
 
   (localized? [this] false)
 
+  (propagate-order [this id orderings])
   (models-involved [this opts all]
     (if-let [down (assoc/with-propagation :include opts (:slug row)
                     (fn [down]

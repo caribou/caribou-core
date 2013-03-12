@@ -87,6 +87,7 @@
           asset (or (db/choose :asset asset-id) {})]
       (assoc asset :path (asset/asset-path asset))))
 
+  (propagate-order [this id orderings])
   (render [this content opts]
     (assoc/join-render this (:asset @field/models) content opts))
   (validate [this opts] (validation/for-asset this opts)))

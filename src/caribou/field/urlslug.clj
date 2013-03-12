@@ -43,6 +43,7 @@
               "_abcdefghijklmnopqrstuvwxyz_"))))
   (fuse-field [this prefix archetype skein opts]
     (field/pure-fusion this prefix archetype skein opts))
+  (propagate-order [this id orderings])
   (localized? [this] true)
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))

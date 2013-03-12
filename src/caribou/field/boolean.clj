@@ -48,6 +48,7 @@
   (fuse-field [this prefix archetype skein opts]
     (boolean-fusion this prefix archetype skein opts))
   (localized? [this] (not (:locked row)))
+  (propagate-order [this id orderings])
   (models-involved [this opts all] all)
   (field-from [this content opts] (content (keyword (:slug row))))
   (render [this content opts] content)
