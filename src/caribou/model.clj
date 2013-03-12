@@ -378,7 +378,6 @@
 
 ;; HOOKS -------------------------------------------------------
 
-
 (defn add-app-model-hooks
   "finds and loads every namespace under the hooks-ns that matches the
   app's model names
@@ -388,15 +387,10 @@
   below"
   []
   (let [hooks-ns (@config/app :hooks-ns)
-        make-hook-ns (fn [slug] (symbol (str hooks-ns "." (name slug))))
-        sloppy-require (fn [ns]
-                         ;; this done for side effects, so we want to reload
-                         ;; whenever applicable
-                         (try (require ns :reload)
-                              (catch java.io.FileNotFoundException e nil)))]
+        make-hook-ns (fn [slug] (symbol (str hooks-ns "." (name slug))))]
     (when hooks-ns
       (doseq [model-slug @model-slugs]
-        (-> model-slug make-hook-ns sloppy-require)))))
+        (-> model-slug make-hook-ns util/sloppy-require)))))
 
 (def lifecycle-hooks (ref {}))
 
@@ -807,8 +801,14 @@
     (make-lifecycle-hooks (model :slug))
     (assoc model :fields field-map)))
 
+(defn add-app-fields
+  []
+  (when-let [fields-ns (@config/app :fields-ns)]
+    (util/sloppy-require (symbol fields-ns))))
+
 (defn invoke-fields
   []
+  (add-app-fields)
   (doseq [[key construct] (seq field-constructors/base-constructors)]
     (field/add-constructor key construct)))
 

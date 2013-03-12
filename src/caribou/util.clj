@@ -105,8 +105,9 @@
           props (java.util.Properties.)]
       (.load props raw)
       (into {} (for [[k v] props] [(keyword k) (read-string v)])))
-    (catch Exception e (log/error (str "No properties file named "
-                                       props-name)))))
+    ;; this is not actually an error
+    (catch Exception e (log/notice (str "No properties file named "
+                                        props-name)))))
 
 (defn load-resource
   [resource-name]
@@ -217,3 +218,12 @@
        (fn [_]
          (rand-nth pool))
        (repeat n nil)))))
+
+(defn sloppy-require
+  "require the given ns, ignore file not found errors, but let others
+  do their thing"
+  [ns]
+  ;; this done for side effects, so we want to reload
+  ;; whenever applicable
+  (try (require ns :reload)
+       (catch java.io.FileNotFoundException e nil)))

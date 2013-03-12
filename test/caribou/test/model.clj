@@ -460,6 +460,7 @@
                      ["born_at" "timestamp"]
                      ["dies_at" "timestamp"]
                      ["passport" "asset"]
+                     ["license" "position"]
                      ["residence" "address"]])
         agent (create :model {:name "Agent"
                               :fields fields})
@@ -487,7 +488,6 @@
         bond (create :agent bond-values)
         doppleganger (create :agent (assoc bond-values
                                       :born_at "January 2 1970"))
-
         agent-id (:id agent)
         bond-id (:id bond)
         doppleganger-id (:id doppleganger)
@@ -498,35 +498,47 @@
         EPSILON 0.000001
         run-field-tests
         (fn []
-          (testing "Valid properties of field types."
-            (is (seq agent))
-            (is (seq bond))
-            (is (seq dopple))
-            ;; id fields are implicit
-            (is (= -1 (.compareTo (:born_at bond) (:born_at dopple))))
-            (is (number? (:id agent)))
-            (is (number? (:id bond)))
-            (is (number? (:id dopple)))
-            (is (= (:nchildren bond) 32767))
-            (is (< (java.lang.Math/abs (- bond-height (:height bond))) EPSILON))
-            ;; case sensitivity
-            (is (= "James Bond" (subs (:name bond) 0 10)))
-            (is (= (count (:name bond)) 35))
-            (is (not (= (:auth bond) "Octopu55y")))
-            (is (auth/check-password "Octopu55y" (:auth bond)))
-            ;; (is (= "_8_hollow_tip" (:round bond)))
-            ;; unicode
-            (is (= "He did stuff: ☃" (subs (:bio bond) 0 15)))
-            (is (= (count (:bio bond)) 80))
-            ;; if this breaks...
-            (is (:adequate bond))
-            ;; unix time of 1/1/1970 / 1/1/2037
-            (is (and (= 28800000 (.getTime (:born_at bond)))
-                     (= 2114409600000 (.getTime (:dies_at bond)))))
-            (is (= "passport.picture" (-> bond :passport :filename)))
-            ;; (is (and (= 0.0 (-> bond :residence :lat))
-            ;;          (= 0.0 (-> bond :residence :long))))
-            ))]
+          (let [brosnan (create :agent {:license 8})
+                connory (create :agent {:license 7})
+                moore (create :agent {})]
+            (testing "Valid properties of field types."
+              (is (seq agent))
+              (is (seq bond))
+              (is (seq dopple))
+              ;; id fields are implicit
+              (is (= -1 (.compareTo (:born_at bond) (:born_at dopple))))
+              (is (number? (:id agent)))
+              (is (number? (:id bond)))
+              (is (number? (:id dopple)))
+              (is (= (:nchildren bond) 32767))
+              (is (< (java.lang.Math/abs (- bond-height (:height bond))) EPSILON))
+              ;; case sensitivity
+              (is (= "James Bond" (subs (:name bond) 0 10)))
+              (is (= (count (:name bond)) 35))
+              (is (not (= (:auth bond) "Octopu55y")))
+              (is (auth/check-password "Octopu55y" (:auth bond)))
+              ;; (is (= "_8_hollow_tip" (:round bond)))
+              ;; unicode
+              (is (= "He did stuff: ☃" (subs (:bio bond) 0 15)))
+              (is (= (count (:bio bond)) 80))
+              ;; if this breaks...
+              (is (:adequate bond))
+              ;; unix time of 1/1/1970 / 1/1/2037
+              (is (and (= 28800000 (.getTime (:born_at bond)))
+                       (= 2114409600000 (.getTime (:dies_at bond)))))
+              (is (= "passport.picture" (-> bond :passport :filename)))
+              ;; (is (and (= 0.0 (-> bond :residence :lat))
+              ;;          (= 0.0 (-> bond :residence :long))))
+              (is (not= (:license bond) (:license dopple)))
+              (is (number? (:license bond)))
+              (is (#{0 1} (:license bond)))
+              (is (#{0 1} (:license dopple)))
+              (is (= 7 (:license connory)))
+              (is (= 8 (:license brosnan)))
+              (is (#{9 10} (:license moore)))
+              (destroy :agent (:id brosnan))
+              (destroy :agent (:id connory))
+              (destroy :agent (:id moore)))))]
     (run-field-tests)
     (testing "Deletion of fields."
       (is (nil?
