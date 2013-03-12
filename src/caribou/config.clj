@@ -104,7 +104,7 @@
 (defn read-config
   [config-file]
   (with-open [fd (java.io.PushbackReader.
-                  (io/reader (io/file config-file)))]
+                  (io/reader config-file))]
     (read fd)))
 
 (defn read-database-config
