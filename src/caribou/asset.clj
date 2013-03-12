@@ -33,10 +33,12 @@
     ""))
 
 (defn s3-prefix
-  []
-  (if-let [prefix (:asset-prefix @config/app)]
-    (str prefix "/")
-    ""))
+  ([]
+     (s3-prefix (:asset-prefix @config/app)))
+  ([prefix]
+     (if prefix
+       (str prefix "/")
+       "")))
 
 (defn asset-path
   "Construct the path this asset will live in, or look it up."
@@ -56,17 +58,18 @@
       (s3/update-bucket-acl cred bucket (s3/grant :all-users :read)))))
 
 (defn upload-to-s3
-  [key asset]
-  (try
-    (let [cred (:aws-credentials @config/app)
-          bucket (:asset-bucket @config/app)
-          mime (mime/mime-type-of key)]
-      (ensure-s3-bucket cred bucket)
-      (s3/put-object cred bucket key asset {:content-type mime})
-      (s3/update-object-acl cred bucket key (s3/grant :all-users :read)))
-    (catch Exception e (do
-                         (.printStackTrace e)
-                         (println "KEY BAD" key)))))
+  ([key asset]
+     (upload-to-s3 (:asset-bucket @config/app) key asset))
+  ([bucket key asset]
+     (try
+       (let [cred (:aws-credentials @config/app)
+             mime (mime/mime-type-of key)]
+         (ensure-s3-bucket cred bucket)
+         (s3/put-object cred bucket key asset {:content-type mime})
+         (s3/update-object-acl cred bucket key (s3/grant :all-users :read)))
+       (catch Exception e (do
+                            (.printStackTrace e)
+                            (println "KEY BAD" key))))))
 
 (defn persist-asset-on-disk
   [dir path file]
@@ -74,13 +77,14 @@
   (io/copy file (io/file (util/pathify [(@config/app :asset-dir) path]))))
 
 (defn migrate-dir-to-s3
-  [dir]
-  (let [prefix (s3-prefix)
-        dir-pattern (re-pattern (str dir "/"))]
-    (doseq [entry (file-seq (io/file dir))]
-      (if-not (.isDirectory entry)
-        (let [path (.getPath entry)
-              relative (string/replace-first path dir-pattern "")
-              prefixed (str prefix relative)]
-          (println "uploading" prefixed (.length entry))
-          (upload-to-s3 prefixed (io/file path)))))))
+  ([dir] (migrate-dir-to-s3 dir (:asset-bucket @config/app)))
+  ([dir bucket] (migrate-dir-to-s3 dir bucket (:asset-prefix @config/app)))
+  ([dir bucket prefix]
+     (let [dir-pattern (re-pattern (str dir "/"))]
+       (doseq [entry (file-seq (io/file dir))]
+         (if-not (.isDirectory entry)
+           (let [path (.getPath entry)
+                 relative (string/replace-first path dir-pattern "")
+                 prefixed (str (s3-prefix prefix) relative)]
+             (println "uploading" prefixed (.length entry))
+             (upload-to-s3 bucket prefixed (io/file path))))))))
