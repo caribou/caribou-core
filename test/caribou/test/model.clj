@@ -121,6 +121,24 @@
           (is (= (zappo :okokok) "OOOOOO mmmmm   ZZZZZZZZZZ"))
           (is (= (purple :green_id) (zappo :id))))
 
+        ;; testing the order function for collections
+        (let [zap-query {:where {:id (:id zzzap)} :include {:yellows {}}}
+              zappix (pick :zap zap-query)
+              yellows (:yellows zappix)
+              positions (reverse (range 1 (-> yellows count inc)))
+              orderings (map
+                         (fn [yellows pos]
+                           {:id (:id yellows) :position pos})
+                         (:yellows zappix) positions)]
+          (order :zap (:id zzzap) :yellows orderings)
+          (let [zapx (pick :zap zap-query)
+                orders (map
+                        (fn [yellows]
+                          {:id (:id yellows) :position (:green_position yellows)})
+                        (:yellows zapx))]
+            (is (= (reverse positions) (map :green_position (:yellows zapx))))
+            (is (= (sort-by :id orders) (sort-by :id orderings)))))
+
         (destroy :zap (:id zap-reload))
         (let [purples (util/query "select * from purple")]
           (is (empty? purples))))
@@ -181,7 +199,7 @@
 
     (testing "Model links."
       (let [fff-X (from (models :fuchsia) fff
-                              {:include {:chartreusii {}}})
+                        {:include {:chartreusii {}}})
             cec (pick :chartreuse {:where {:ondondon "ikikik"}
                                    :include {:fuchsia {}}})]
         (is (= 2 (count (retrieve-links cf-link ccc))))
@@ -191,6 +209,24 @@
         (update :model (:id chartreuse)
                 {:fields [{:id (-> cf-link :row :id) :name "Nightpurple"
                            :slug "nightpurple"}]})
+
+        (let [charquery {:include {:nightpurple {}} :where {:id (:id ccc)}}
+              ccoc (pick :chartreuse charquery)
+              nightpurples (:nightpurple ccoc)
+              positions (reverse (range 5 (-> nightpurples count (+ 5))))
+              orderings (map
+                         (fn [nightpurple pos]
+                           (println "NIGHTPURPLE" nightpurple)
+                           {:id (:id nightpurple) :position pos})
+                         nightpurples positions)]
+          (order :chartreuse (:id ccoc) :nightpurple orderings)
+          (let [ccmc (pick :chartreuse {:include {:nightpurple_join {}} :where {:id (:id ccc)}})
+                orders (map
+                        (fn [nightpurple]
+                          {:id (:nightpurple_id nightpurple) :position (:nightpurple_position nightpurple)})
+                        (:nightpurple_join ccmc))]
+            (is (= (sort-by :id orders) (sort-by :id orderings)))))
+
 
         (let [chartreuse (models :chartreuse)
               coc (gather
@@ -203,6 +239,7 @@
           (is (= 1 (count coc)))
           (is (= 2 (count (:nightpurple (first coc)))))
           (is (present? (models :chartreusii_nightpurple)))
+
           (let [falses (gather :chartreuse {:where {:kokok false}})]
             (is (= 3 (count falses)))))))))
 
