@@ -148,7 +148,24 @@
      {:name (util/titleize new-join-name) :slug new-join-name})))
 
 (defn link-propagate-order
-  [this id orderings])
+  [field id orderings]
+  (let [model (get @field/models (:model_id (:row field)))
+        slug (-> field :row :slug)
+        id-slug (keyword (str slug "_id"))
+        position-slug (keyword (str slug "_position"))
+        reciprocal (-> field :env :link)
+        reciprocal-slug (:slug reciprocal)
+        join-name (join-table-name (name slug) reciprocal-slug)]
+    (loop [joins (db/fetch join-name (str reciprocal-slug "_id = " id " order by id"))
+           orders (sort-by :id orderings)]
+      (if (and (seq orders) (seq joins))
+        (let [next-join (first joins)
+              next-order (first orders)]
+          (if (= (:id next-order) (get next-join id-slug))
+            (do
+              ((resolve 'caribou.model/update) join-name (:id next-join) {position-slug (:position next-order)})
+              (recur (rest joins) (rest orders)))
+            (recur (rest joins) orders)))))))
 
 (defn link-models-involved
   [field opts all]

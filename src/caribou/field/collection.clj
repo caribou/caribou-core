@@ -45,7 +45,15 @@
     content))
 
 (defn collection-propagate-order
-  [this id orderings])
+  [this id orderings]
+  (let [part (-> this :env :link)
+        part-position (keyword (str (:slug part) "_position"))
+        target-id (-> this :row :target_id)
+        target (get @field/models target-id)
+        target-slug (-> target :slug keyword)]
+    (doseq [ordering orderings]
+      ((resolve 'caribou.model/update)
+       target-slug (:id ordering) {part-position (:position ordering)}))))
 
 (defn collection-post-update
   [field content opts]
