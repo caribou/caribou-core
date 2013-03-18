@@ -67,7 +67,7 @@
   DatabaseAdapter
   (init [this])
   (table? [this table] (h2-table? table))
-  (build-subname [this config] (str "file/" (config :database)))
+  (build-subname [this config] config)
   (insert-result [this table result]
     (sql/with-query-results res
       [(str "select * from " (name table)

@@ -4,7 +4,8 @@
                      ]}
  :database {:classname		"org.h2.Driver"
             :subprotocol	"h2"
-            :subname		"file/test_h2"
+            :subname		"file:test_h2"
+            ;; :database		"h2_development"
             :user		"h2"
             :password		""}}
 
