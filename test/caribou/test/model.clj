@@ -597,16 +597,6 @@
                   (update :agent bond-id (into {} [update-spec]))))))
     (run-field-tests)))
 
-
-;; (deftest ^:field-types
-;;   field-types-test
-;;   (let [config (config/read-config (io/resource "config/test-mysql.clj"))]
-;;     (config/configure config)
-;;     (db-fixture fields-types-test))
-;;   (let [config (config/read-config (io/resource "config/test-postgres.clj"))]
-;;     (config/configure config)
-;;     (db-fixture fields-types-test)))
-
 (deftest ^:mysql
   mysql-tests
   (let [config (config/read-config (io/resource "config/test-mysql.clj"))]
