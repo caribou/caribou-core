@@ -632,3 +632,16 @@
     (db-fixture localized-model-test)
     (db-fixture nested-model-test)
     (db-fixture fields-types-test)))
+
+(deftest ^:h2
+  h2-tests
+  (let [config (config/read-config (io/resource "config/test-h2.clj"))]
+    (config/configure config)
+    (db-fixture invoke-model-test)
+    (db-fixture model-lifecycle-test)
+    (db-fixture model-interaction-test)
+    (db-fixture model-link-test)
+    (db-fixture parallel-include-test)
+    (db-fixture localized-model-test)
+    (db-fixture nested-model-test)
+    (db-fixture fields-types-test)))
