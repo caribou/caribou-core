@@ -45,6 +45,7 @@
   (table? [this table]
     (postgres-table? table))
   (unicode-supported? [this] true)
+  (supports-constraints? [this] true)
   (build-subname [this config]
     (let [host (or (config :host) "localhost")
           subname (or (config :subname) (str "//" host "/" (config :database)))]

@@ -63,11 +63,21 @@
                             (map #(zap (name %)) [table column]))))
     (catch Exception e (render-exception e))))
 
+(defn h2-text-value
+  [text]
+  (if text
+    (let [len (.length text)]
+      (.getSubString text 1 len))
+    ""))
+  ;; (string/replace (string/replace (str text) #"^'" "") #"'$" "")))
+
 (defrecord H2Adapter [config]
   DatabaseAdapter
   (init [this])
   (table? [this table] (h2-table? table))
   (build-subname [this config] config)
+  (unicode-supported? [this] true)
+  (supports-constraints? [this] false)
   (insert-result [this table result]
     (sql/with-query-results res
       [(str "select * from " (name table)
@@ -82,4 +92,5 @@
   (drop-model-index [this old-table new-table column]
     (h2-drop-index old-table column))
   (text-value [this text]
-    (string/replace (string/replace (str text) #"^'" "") #"'$" "")))
+    (h2-text-value text)))
+

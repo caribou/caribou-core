@@ -1,6 +1,8 @@
 (ns caribou.field
   (:require [caribou.db :as db]
-            [caribou.util :as util]))
+            [caribou.util :as util]
+            [caribou.config :as config]
+            [caribou.db.adapter.protocol :as adapter]))
 
 (defprotocol Field
   "a protocol for expected behavior of all model fields"
@@ -91,6 +93,12 @@
         containing (drop-while #(nil? (get % bit)) skein)
         value (get (first containing) bit)]
     (assoc archetype slug value)))
+
+(defn text-fusion
+  [this prefix archetype skein opts]
+  (let [pure (pure-fusion this prefix archetype skein opts)
+        slug (keyword (-> this :row :slug))]
+    (update-in pure [slug] (partial adapter/text-value @config/db-adapter))))
 
 (defn id-models-involved
   [field opts all]

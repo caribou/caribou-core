@@ -153,60 +153,68 @@
 
 (defn create-index
   [table column]
-  (try
-    (sql/do-commands
-     (debug/out :db (clause "create index %1_%2_index on %1 (%2)" (map #(zap (name %)) [table column]))))
-    (catch Exception e (render-exception e))))
+  (if (adapter/supports-constraints? @config/db-adapter)
+    (try
+      (sql/do-commands
+       (debug/out :db (clause "create index %1_%2_index on %1 (%2)" (map #(zap (name %)) [table column]))))
+      (catch Exception e (render-exception e)))))
 
 (defn drop-index
   [table column]
-  (adapter/drop-index @config/db-adapter (name table) (name column)))
+  (if (adapter/supports-constraints? @config/db-adapter)
+    (adapter/drop-index @config/db-adapter (name table) (name column))))
 
 (defn drop-model-index
   [old-table new-table column]
-  (adapter/drop-model-index @config/db-adapter (name old-table) (name new-table) (name column)))
+  (if (adapter/supports-constraints? @config/db-adapter)
+    (adapter/drop-model-index @config/db-adapter (name old-table) (name new-table) (name column))))
 
 (defn set-default
   "sets the default for a column"
   [table column default]
-  (let [value (sqlize default)]
-    (sql/do-commands
-     (debug/out :db (clause "alter table %1 alter column %2 set default %3" [(zap table) (zap column) value])))))
+  (if (adapter/supports-constraints? @config/db-adapter)
+    (let [value (sqlize default)]
+      (sql/do-commands
+       (debug/out :db (clause "alter table %1 alter column %2 set default %3" [(zap table) (zap column) value]))))))
 
 (defn set-required
   [table column value]
-  (adapter/set-required @config/db-adapter (name table) (name column) value))
+  (if (adapter/supports-constraints? @config/db-adapter)
+    (adapter/set-required @config/db-adapter (name table) (name column) value)))
 
 (defn set-unique
   [table column value]
-  (sql/do-commands
-   (debug/out :db (clause
-                   (if value
-                     "alter table %1 add constraint %2_unique unique (%2)"
-                     "alter table %1 drop constraint %2_unique")
-                   [(zap table) (zap column)]))))
+  (if (adapter/supports-constraints? @config/db-adapter)
+    (sql/do-commands
+     (debug/out :db (clause
+                     (if value
+                       "alter table %1 add constraint %2_unique unique (%2)"
+                       "alter table %1 drop constraint %2_unique")
+                     [(zap table) (zap column)])))))
 
 (defn add-primary-key
   [table column]
-  (try
-    (sql/do-commands
-     (debug/out
-      :db
-      (clause "alter table %1 add primary key (%2)" [(zap table) (zap column)])))
-    (catch Exception e (render-exception e))))
+  (if (adapter/supports-constraints? @config/db-adapter)
+    (try
+      (sql/do-commands
+       (debug/out
+        :db
+        (clause "alter table %1 add primary key (%2)" [(zap table) (zap column)])))
+      (catch Exception e (render-exception e)))))
 
 (defn add-reference
   [table column reference deletion]
-  (try
-    (sql/do-commands
-     (debug/out :db (clause
-                     (condp = deletion
-                       :destroy "alter table %1 add foreign key(%2) references %3 on delete cascade"
-                       :default "alter table %1 add foreign key(%2) references %3 on delete set default"
-                       "alter table %1 add foreign key(%2) references %3 on delete set null")
-                     [(zap table) (zap column) (zap reference)])))
-    (catch Exception e
-      (log/error (str "UNABLE TO ADD REFERENCE FOR" table column reference deletion e)))))
+  (if (adapter/supports-constraints? @config/db-adapter)
+    (try
+      (sql/do-commands
+       (debug/out :db (clause
+                       (condp = deletion
+                         :destroy "alter table %1 add foreign key(%2) references %3 on delete cascade"
+                         :default "alter table %1 add foreign key(%2) references %3 on delete set default"
+                         "alter table %1 add foreign key(%2) references %3 on delete set null")
+                       [(zap table) (zap column) (zap reference)])))
+      (catch Exception e
+        (log/error (str "UNABLE TO ADD REFERENCE FOR" table column reference deletion e))))))
 
 (defn do-sql
   "execute arbitrary sql.  direct proxy to sql/do-commands."
