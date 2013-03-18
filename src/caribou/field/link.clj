@@ -84,8 +84,8 @@
       (fn [down]
         (let [{:keys [join-key join-alias join-select table-alias link-select]}
               (link-join-keys field prefix opts)
-              model (@field/models (-> field :row :model_id))
-              target (@field/models (-> field :row :target_id))
+              model (get @field/models (-> field :row :model_id))
+              target (get @field/models (-> field :row :target_id))
               subconditions (assoc/model-where-conditions target table-alias down)
               params [prefix join-select join-key join-alias
                       (:slug target) link-select subconditions table-alias]] 
@@ -148,7 +148,24 @@
      {:name (util/titleize new-join-name) :slug new-join-name})))
 
 (defn link-propagate-order
-  [this id orderings])
+  [field id orderings]
+  (let [model (get @field/models (:model_id (:row field)))
+        slug (-> field :row :slug)
+        id-slug (keyword (str slug "_id"))
+        position-slug (keyword (str slug "_position"))
+        reciprocal (-> field :env :link)
+        reciprocal-slug (:slug reciprocal)
+        join-name (join-table-name (name slug) reciprocal-slug)]
+    (loop [joins (db/fetch join-name (str reciprocal-slug "_id = " id " order by id"))
+           orders (sort-by :id orderings)]
+      (if (and (seq orders) (seq joins))
+        (let [next-join (first joins)
+              next-order (first orders)]
+          (if (= (:id next-order) (get next-join id-slug))
+            (do
+              ((resolve 'caribou.model/update) join-name (:id next-join) {position-slug (:position next-order)})
+              (recur (rest joins) (rest orders)))
+            (recur (rest joins) orders)))))))
 
 (defn link-models-involved
   [field opts all]
@@ -163,6 +180,23 @@
                       (assoc/model-models-involved target down (conj all join-id)))))]
     down
     all))
+
+(defn link-join-fields
+  [field prefix opts]
+  (let [slug (-> field :row :slug)]
+    (assoc/with-propagation :include opts slug
+      (fn [down]
+        (let [{:keys [join-key join-alias join-select table-alias link-select]}
+              (link-join-keys field prefix opts)
+              join-model (get @field/models join-key)
+              join-position-key (keyword (str slug "_position"))
+              join-position-field (-> join-model :fields join-position-key)
+              subprefix (str prefix "$" slug)
+              position-select (field/coalesce-locale join-model join-position-field join-alias join-position-key down)
+              position-query (str position-select " as " subprefix "$" (name join-position-key))
+              target (get @field/models (-> field :row :target_id))
+              target-fields (assoc/model-select-fields target subprefix down)]
+          (conj target-fields position-query))))))
 
 (defn link
   "Link two rows by the given LinkField.  This function accepts its arguments
@@ -284,11 +318,7 @@
     content)
 
   (join-fields [this prefix opts]
-    (assoc/with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [target (@field/models (:target_id row))]
-          (assoc/model-select-fields target (str prefix "$" (:slug row))
-                                     down)))))
+    (link-join-fields this prefix opts))
 
   (join-conditions [this prefix opts]
     (link-join-conditions this prefix opts))
