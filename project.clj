@@ -40,9 +40,6 @@
            <a href=\"http://antler.github.com/caribou-admin\">Caribou Admin</a>,
            each of which build in their own way upon this data model as a basis."}
   :aot [caribou.model]
-  :aws {:access-key "AKIAJI4RLS6XPSBVTX2Q"
-        :secret-key "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"
-        :region :us-west-2}
   :test-selectors {:default (constantly true)
                    :mysql :mysql
                    :postgres :postgres
