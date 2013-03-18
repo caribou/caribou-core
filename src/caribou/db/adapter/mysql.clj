@@ -1,4 +1,4 @@
-(ns caribou.db.adapter.mysql
+ (ns caribou.db.adapter.mysql
   (:use caribou.util
         [caribou.db.adapter.protocol :only (DatabaseAdapter)])
   (:require [caribou.logger :as log]
@@ -65,6 +65,7 @@
     (let [result (query "show variables like 'character_set_database'")]
       (log/debug (str "character_set_database" result))
       (= "utf8" (:value (first result)))))
+  (supports-constraints? [this] true)
   (table? [this table]
     (mysql-table? table))
   (build-subname [this config]

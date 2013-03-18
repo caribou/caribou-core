@@ -3,6 +3,7 @@
 (defprotocol DatabaseAdapter
   (init [this])
   (unicode-supported? [this])
+  (supports-constraints? [this])
   (table? [this table])
   (build-subname [this config])
   (insert-result [this table result])

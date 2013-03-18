@@ -34,7 +34,7 @@
     (assoc generators (keyword (:slug row))
            (fn [] (util/rand-str (+ 141 (rand-int 5555))))))
   (fuse-field [this prefix archetype skein opts]
-    (field/pure-fusion this prefix archetype skein opts))
+    (field/text-fusion this prefix archetype skein opts))
   (localized? [this] true)
   (propagate-order [this id orderings])
   (models-involved [this opts all] all)
