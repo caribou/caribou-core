@@ -3,6 +3,7 @@
   (:require [caribou.db :as db]
             [caribou.util :as util]
             [caribou.logger :as log]
+            [caribou.auth :as auth]
             [caribou.model :as model]))
 
 (defn create-migration-table []
@@ -118,7 +119,7 @@
      :field
      {:name "Position"
       :slug "position"
-      :type "integer"
+      :type "position"
       :locked true
       :updated_at (model/current-timestamp)
       :model_id model-id})
@@ -291,7 +292,7 @@
      :field
      {:name "Position"
       :slug "position"
-      :type "integer"
+      :type "position"
       :locked true
       :updated_at (model/current-timestamp)
       :model_id model-id})
@@ -317,7 +318,7 @@
      :field
      {:name "Model Position"
       :slug "model_position"
-      :type "integer"
+      :type "position"
       :locked true
       :editable false
       :updated_at (model/current-timestamp)
@@ -542,6 +543,12 @@
                       :updated_at (model/current-timestamp)
                      }))
 
+(defn create-default-user []
+  (model/create :account {:email "caribou"
+                          :first_name "Caribou"
+                          :last_name "User"
+                          :crypted_password (auth/hash-password "caribou")}))
+
 (def incubating
   [page account view locale asset site domain location i18n status])
 
@@ -587,6 +594,7 @@
   (forge-link)
   (spawn-models)
   (create-default-status)
+  (create-default-user)
   (build-links))
 
 (defn rollback
