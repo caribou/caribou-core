@@ -210,6 +210,7 @@
                 {:fields [{:id (-> cf-link :row :id) :name "Nightpurple"
                            :slug "nightpurple"}]})
 
+        ;; test ordering for links
         (let [charquery {:include {:nightpurple {}} :where {:id (:id ccc)}}
               ccoc (pick :chartreuse charquery)
               nightpurples (:nightpurple ccoc)

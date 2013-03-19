@@ -3,6 +3,7 @@
             [caribou.field :as field]
             [caribou.util :as util]
             [caribou.db :as db]
+            [caribou.logger :as log]
             [caribou.validation :as validation]
             [caribou.association :as assoc]))
 
@@ -156,12 +157,17 @@
         reciprocal (-> field :env :link)
         reciprocal-slug (:slug reciprocal)
         join-name (join-table-name (name slug) reciprocal-slug)]
-    (loop [joins (db/fetch join-name (str reciprocal-slug "_id = " id " order by id"))
+    (loop [joins (db/fetch join-name (str reciprocal-slug "_id = " id " order by " slug "_id"))
            orders (sort-by :id orderings)]
+      (log/debug (str "LINK ORDER " orders))
+      (log/debug (str "LINK JOINS " joins))
+      (log/debug (str "POSITION SLUG " position-slug))
+      (log/debug (str "RECIPROCAL SLUG " reciprocal-slug))
+      (log/debug (str "ID SLUG " id-slug))
       (if (and (seq orders) (seq joins))
         (let [next-join (first joins)
               next-order (first orders)]
-          (if (= (:id next-order) (get next-join id-slug))
+          (if (= (get next-join id-slug) (:id next-order))
             (do
               ((resolve 'caribou.model/update) join-name (:id next-join) {position-slug (:position next-order)})
               (recur (rest joins) (rest orders)))
