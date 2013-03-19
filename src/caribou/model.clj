@@ -860,9 +860,10 @@
              _save (run-hook slug :before_save env)
              _create (run-hook slug :before_create _save)
              local-values (localize-values model (:values _create) opts)
-             content (db/insert slug (assoc local-values
-                                       :updated_at
-                                       (current-timestamp)))
+             fresh (db/insert slug (assoc local-values
+                                     :updated_at
+                                     (current-timestamp)))
+             content (pick slug {:where {:id (:id fresh)}})
              merged (merge (:spec _create) content)
              _after (run-hook slug :after_create
                               (merge _create {:content merged}))
