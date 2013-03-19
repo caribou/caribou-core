@@ -536,9 +536,14 @@
         EPSILON 0.000001
         run-field-tests
         (fn []
-          (let [brosnan (create :agent {:license 8})
+          (let [brosnan (create :agent {:license 8
+                                        :bio "A great man"
+                                        :name "Pierce Brosnan"})
                 connory (create :agent {:license 7})
                 moore (create :agent {})]
+            (testing "valid return in model/create"
+              (is (= (:bio brosnan) "A great man"))
+              (is (= (:name brosnan) "Pierce Brosnan")))
             (testing "Valid properties of field types."
               (is (seq agent))
               (is (seq bond))
