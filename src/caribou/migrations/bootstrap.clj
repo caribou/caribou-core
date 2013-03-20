@@ -523,7 +523,7 @@
              :description "all of the possible states a model can be in"
              :position 12
              :locked true
-             :fields (lock [{:name "Name" :type "string"}
+             :fields (lock [{:name "Name" :type "string" :model_position -1 :position -1} ; position hack
                             {:name "Slug" :type "slug" :link_slug "name"}
                             {:name "Description" :type "text"}])})
 
