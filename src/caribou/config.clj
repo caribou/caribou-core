@@ -18,8 +18,13 @@
 (defn set-properties
   [props]
   (doseq [prop-key (keys props)]
-    (when (nil? (System/getProperty (name prop-key)))
-      (System/setProperty (name prop-key) (str (get props prop-key))))))
+    (let [system-property (System/getProperty (name prop-key))
+          file-property (str (get props prop-key))]
+      (if (nil? system-property)
+        (System/setProperty (name prop-key) file-property)
+        (logger/warn (str "not setting " prop-key " to " file-property
+                          ", overridden by explicit user environment setting "
+                          system-property))))))
 
 (defn load-caribou-properties
   []
