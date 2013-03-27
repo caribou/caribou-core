@@ -51,7 +51,6 @@
 
 (defn run-migrations
   [prj config-file exit? & migrations]
-  ;(pprint/pprint migrations)
 
   (let [cfg (config/read-config config-file)
         _   (config/configure cfg)
@@ -69,9 +68,11 @@
             all-migrations  (if (empty? (remove nil? migrations))
                               (concat core-migrations app-migrations)
                               migrations)
+            _ (log/info all-migrations)
             unused-migrations (set/difference (set all-migrations) (set (used-migrations)))]
-        (doseq [m unused-migrations]
-          (run-migration m))
+        (doseq [m all-migrations]
+          (when (unused-migrations m)
+            (run-migration m)))
         (log/info " <- run-migrations ended.")))
     ;; This is because the presence of an active h2 thread prevents
     ;; this function from returning to lein-caribou, which invoked
@@ -99,7 +100,6 @@
 
 (defn run-rollbacks
   [prj config-file exit? & rollbacks]
-  ;(pprint/pprint rollbacks)
   (let [cfg (config/read-config config-file)
         _   (config/configure cfg)
         db-config (config/assoc-subname (munge-for-migrate (cfg :database)))
