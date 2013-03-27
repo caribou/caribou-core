@@ -68,7 +68,6 @@
             all-migrations  (if (empty? (remove nil? migrations))
                               (concat core-migrations app-migrations)
                               migrations)
-            _ (log/info all-migrations)
             unused-migrations (set/difference (set all-migrations) (set (used-migrations)))]
         (doseq [m all-migrations]
           (when (unused-migrations m)
