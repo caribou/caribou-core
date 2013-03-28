@@ -4,5 +4,6 @@
   ["bootstrap"
    "page-protection"
    "add-text-format"
-   "field-map"])
+   "field-map"
+   "page-siphon"])
 

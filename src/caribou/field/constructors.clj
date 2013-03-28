@@ -15,7 +15,8 @@
             [caribou.field.tie :as tie-field]
             [caribou.field.link :as link-field]
             [caribou.field.timestamp :as timestamp-field]
-            [caribou.field.position :as position-field]))
+            [caribou.field.position :as position-field]
+            [caribou.field.structure :as structure-field]))
 
 
 (def base-constructors
@@ -35,4 +36,5 @@
    :tie tie-field/constructor
    :link link-field/constructor
    :timestamp timestamp-field/constructor
-   :position position-field/constructor})
+   :position position-field/constructor
+   :structure structure-field/constructor})

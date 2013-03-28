@@ -100,6 +100,12 @@
         slug (keyword (-> this :row :slug))]
     (update-in pure [slug] (partial adapter/text-value @config/db-adapter))))
 
+(defn structure-fusion
+  [this prefix archetype skein opts]
+  (let [pure (pure-fusion this prefix archetype skein opts)
+        slug (keyword (-> this :row :slug))]
+    (update-in pure [slug] read-string)))
+
 (defn id-models-involved
   [field opts all]
   (conj all (-> field :row :model_id)))
