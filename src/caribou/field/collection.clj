@@ -59,11 +59,16 @@
   [field content opts]
   (if-let [collection (get content (-> field :row :slug keyword))]
     (let [part-field (-> field :env :link)
-          part-key (-> part-field :slug (str "_id") keyword)
+          part-id-key (-> part-field :slug (str "_id") keyword)
+          part-key-key (-> part-field :slug (str "_key") keyword)
           model (get @field/models (:model_id part-field))
           model-key (-> model :slug keyword)
           updated (doseq [part collection]
-                    (let [part-opts (assoc part part-key (:id content))]
+                    (let [part (if (map? part)
+                                 part
+                                 (assoc (last part)
+                                   part-key-key (name (first part))))
+                          part-opts (assoc part part-id-key (:id content))]
                       ((resolve 'caribou.model/create) model-key part-opts)))]
       (assoc content (keyword (-> field :row :slug)) updated))
     content))
@@ -78,10 +83,12 @@
     (if (or (nil? (:link_id row)) (zero? (:link_id row)))
       (let [model (db/find-model (:model_id row) @field/models)
             target (db/find-model (:target_id row) @field/models)
+            map? (or (:map spec) (:map row))
             reciprocal-name (or (:reciprocal_name spec) (:name model))
             part ((resolve 'caribou.model/create) :field
                    {:name reciprocal-name
                     :type "part"
+                    :map map?
                     :model_id (:target_id row)
                     :target_id (:model_id row)
                     :link_id (:id row)
@@ -182,7 +189,10 @@
 
   (fuse-field
     [this prefix archetype skein opts]
-    (assoc/collection-fusion this prefix archetype skein opts))
+    (if (-> this :row :map)
+      (let [key-slug (-> this :row :slug (str "_key") keyword)]
+        (assoc/collection-fusion this prefix archetype skein opts #(assoc/seq->map % key-slug)))
+      (assoc/collection-fusion this prefix archetype skein opts)))
 
   (localized? [this] false)
 

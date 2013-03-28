@@ -31,14 +31,34 @@
   field/Field
 
   (table-additions [this field] [])
-  (subfield-names [this field] [(str field "_id") (str field "_position")])
+  (subfield-names
+    [this field]
+    (if (-> this :row :map)
+      [(str field "_id") (str field "_position") (str field "_key")]
+      [(str field "_id") (str field "_position")]))
 
   (setup-field [this spec]
     (let [model-id (:model_id row)
           model (db/find-model model-id @field/models)
+          id-slug (str (:slug row) "_id")
           target (db/find-model (:target_id row) @field/models)
           reciprocal-name (or (:reciprocal_name spec) (:name model))
-          id-slug (str (:slug row) "_id")]
+          base-fields [{:name (util/titleize id-slug)
+                        :type "integer"
+                        :editable false
+                        :reference (:slug target)
+                        :dependent (:dependent spec)}
+                       {:name (util/titleize (str (:slug row) "_position"))
+                        :type "position"
+                        :editable false}]
+
+          part-fields (if (or (:map spec) (:map row))
+                        (conj
+                         base-fields
+                         {:name (util/titleize (str (:slug row) "_key"))
+                          :type "string"
+                          :editable false})
+                        base-fields)]
       (if (or (nil? (:link_id row)) (zero? (:link_id row)))
         (let [collection ((resolve 'caribou.model/create) :field
                            {:name reciprocal-name
@@ -48,16 +68,7 @@
                             :link_id (:id row)})]
           (db/update :field ["id = ?" (util/convert-int (:id row))] {:link_id (:id collection)})))
 
-      ((resolve 'caribou.model/update) :model model-id
-       {:fields
-        [{:name (util/titleize id-slug)
-          :type "integer"
-          :editable false
-          :reference (:slug target)
-          :dependent (:dependent spec)}
-         {:name (util/titleize (str (:slug row) "_position"))
-          :type "position"
-          :editable false}]} {:op :migration})))
+      ((resolve 'caribou.model/update) :model model-id {:fields part-fields})))
 
   (rename-model [this old-slug new-slug]
     (let [field (db/choose :field (-> this :row :id))]
@@ -67,13 +78,17 @@
     (field/rename-index this (str old-slug "_id") (str new-slug "_id")))
 
   (cleanup-field [this]
-    (let [model (@field/models (row :model_id))
+    (let [model (get @field/models (:model_id row))
           fields (:fields model)
-          id-slug (keyword (str (:slug row) "_id"))
-          position (keyword (str (:slug row) "_position"))]
+          base-slugs ["id" "position"]
+          additional (if (:map row)
+                       (conj base-slugs "key")
+                       base-slugs)
+          slugs (map #(keyword (str (:slug row) "_" %)) additional)
+          id-slug (keyword (str (:slug row) "_id"))]
       (db/drop-index (:slug model) id-slug)
-      ((resolve 'caribou.model/destroy) :field (-> fields id-slug :row :id))
-      ((resolve 'caribou.model/destroy) :field (-> fields position :row :id))
+      (doseq [slug slugs]
+        ((resolve 'caribou.model/destroy) :field (-> fields slug :row :id)))
       (try
         (do ((resolve 'caribou.model/destroy) :field (-> env :link :id)))
         (catch Exception e (str e)))))

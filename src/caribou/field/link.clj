@@ -26,7 +26,7 @@
   (let [reciprocal (-> field :env :link)
         from-name (-> field :row :slug)
         from-key (keyword (str from-name "_id"))
-        to-name (reciprocal :slug)
+        to-name (:slug reciprocal)
         to-key (keyword (str to-name "_id"))
         join-key (keyword (join-table-name from-name to-name))]
     {:from from-key :to to-key :join join-key}))
@@ -182,22 +182,33 @@
     down
     all))
 
+(defn lift-join-values
+  [field prefix join-value opts]
+  (let [slug (-> field :row :slug)
+        {:keys [join-key join-alias join-select table-alias link-select]}
+        (link-join-keys field prefix opts)
+        join-model (get @field/models (keyword join-key))
+        join-value-key (keyword (str slug "_" join-value))
+        join-value-field (-> join-model :fields join-value-key)
+        subprefix (str prefix "$" slug)
+        value-select (field/coalesce-locale join-model join-value-field join-alias join-value-key opts)
+        value-query (str value-select " as " subprefix "$" (name join-value-key))]
+    value-query))
+
 (defn link-join-fields
   [field prefix opts]
   (let [slug (-> field :row :slug)]
     (assoc/with-propagation :include opts slug
       (fn [down]
-        (let [{:keys [join-key join-alias join-select table-alias link-select]}
-              (link-join-keys field prefix opts)
-              join-model (get @field/models join-key)
-              join-position-key (keyword (str slug "_position"))
-              join-position-field (-> join-model :fields join-position-key)
-              subprefix (str prefix "$" slug)
-              position-select (field/coalesce-locale join-model join-position-field join-alias join-position-key down)
-              position-query (str position-select " as " subprefix "$" (name join-position-key))
+        (let [subprefix (str prefix "$" slug)
+              position-query (lift-join-values field prefix "position" down)
+              key-query (if (-> field :row :map) (lift-join-values field prefix "key" down))
               target (get @field/models (-> field :row :target_id))
-              target-fields (assoc/model-select-fields target subprefix down)]
-          (conj target-fields position-query))))))
+              target-fields (assoc/model-select-fields target subprefix down)
+              above (conj target-fields position-query)]
+          (if (-> field :row :map)
+            (conj above key-query)
+            above))))))
 
 (defn link
   "Link two rows by the given LinkField.  This function accepts its arguments
@@ -208,20 +219,23 @@
      (let [{from-key :from to-key :to join-key :join} (link-keys field)
            target-id (-> field :row :target_id)
            target (or (get @field/models target-id)
-                      (first (util/query "select * from model where id = %1"
-                                         target-id)))
-           locale (if (and (:localized target)
-                           (:locale opts))
+                      (first (util/query "select * from model where id = %1" target-id)))
+           locale (if (and (:localized target) (:locale opts))
                     (str (name (:locale opts)) "_")
                     "")
+           key-slug (keyword (str (-> field :row :slug) "_key"))
+           key-value (get b key-slug)
            linkage ((resolve 'caribou.model/create) (:slug target) b opts)
            params [join-key from-key (:id linkage) to-key (:id a) locale]
            query "select * from %1 where %6%2 = %3 and %6%4 = %5"
-           preexisting (apply (partial util/query query) params)]
+           preexisting (apply (partial util/query query) params)
+           key-miasma {from-key (:id linkage) to-key (:id a)}
+           key-miasma (if (and key-value (-> field :row :map))
+                        (assoc key-miasma key-slug (name key-value))
+                        key-miasma)]
        (if preexisting
          preexisting
-         ((resolve 'caribou.model/create) join-key {from-key (:id linkage)
-                                                    to-key (:id a)} opts)))))
+         ((resolve 'caribou.model/create) join-key key-miasma opts)))))
 
 (defn retrieve-links
   "Given a link field and a row, find all target rows linked to the given row
@@ -233,12 +247,17 @@
            target (@field/models (-> field :row :target_id))
            target-slug (target :slug)
            locale (if (:locale opts) (str (name (:locale opts)) "_") "")
-           field-names (map #(str target-slug "." %)
-                            (assoc/table-columns target-slug))
+           field-names (map
+                        #(str target-slug "." %)
+                        (assoc/table-columns target-slug))
            field-select (string/join "," field-names)
            join-query "select %1 from %2 inner join %3 on (%2.id = %3.%7%4) where %3.%7%5 = %6"
-           params [field-select target-slug join-key from-key to-key (content :id) locale]]
-       (apply (partial util/query join-query) params))))
+           params [field-select target-slug join-key from-key to-key (content :id) locale]
+           key-slug (-> field :row :slug (str "_key") keyword)
+           results (apply (partial util/query join-query) params)]
+       (if (-> field :row :map)
+         (assoc/seq->map results key-slug)
+         results))))
 
 (defrecord LinkField [row env]
   field/Field
@@ -251,6 +270,7 @@
     (if (or (nil? (:link_id row)) (zero? (:link_id row)))
       (let [model (db/find-model (:model_id row) @field/models)
             target (db/find-model (:target_id row) @field/models)
+            map? (or (:map spec) (:map row))
             reciprocal-name (or (:reciprocal_name spec) (:name model))
             join-name (join-table-name (:name spec) reciprocal-name)
 
@@ -262,6 +282,7 @@
               :model_id (:target_id row)
               :target_id (:model_id row)
               :link_id (:id row)
+              :map false
               :dependent (:dependent row)})
 
             join-model
@@ -273,11 +294,13 @@
               :fields
               [{:name (:name spec)
                 :type "part"
+                :map map?
                 :dependent true
                 :reciprocal_name (str reciprocal-name " Join")
                 :target_id (:target_id row)}
                {:name reciprocal-name
                 :type "part"
+                :map false
                 :dependent true
                 :reciprocal_name (str (:name spec) " Join")
                 :target_id (:model_id row)}]} {:op :migration})]
@@ -301,16 +324,23 @@
   (target-for [this] (@field/models (row :target_id)))
 
   (update-values [this content values]
-    (let [removed (content (keyword (str "removed_" (:slug row))))]
+    (let [removed (get content (keyword (str "removed_" (:slug row))))]
       (if (assoc/present? removed)
         (let [ex (map util/convert-int (string/split removed #","))]
           (doall (map #(remove-link this (content :id) %) ex)))))
     values)
 
   (post-update [this content opts]
-    (if-let [collection (content (keyword (:slug row)))]
-      (let [linked (doall (map #(link this content % opts)
-                               collection))
+    (if-let [collection (get content (keyword (:slug row)))]
+      (let [key-slug (keyword (str (:slug row) "_key"))
+            keyed (if (:map row)
+                    (map
+                     (fn [[key item]]
+                       (assoc item key-slug (name key)))
+                     collection)
+                    collection)
+            linked (doseq [item keyed]
+                     (link this content item opts))
             with-links (assoc content (keyword (str (:slug row) "_join")) linked)]
         (assoc content (:slug row) (retrieve-links this content opts))))
     content)
@@ -338,7 +368,7 @@
     generators)
 
   (fuse-field [this prefix archetype skein opts]
-    (assoc/collection-fusion this prefix archetype skein opts))
+    (assoc/map-fusion this prefix archetype skein opts))
 
   (localized? [this] false)
 
