@@ -3,4 +3,6 @@
 (def order
   ["bootstrap"
    "page-protection"
+   "add-text-format"
    "field-map"])
+
