@@ -1,5 +1,6 @@
 (ns caribou.association
   (:require [clojure.string :as string]
+            [caribou.logger :as log]
             [caribou.util :as util]
             [caribou.field :as field]))
 
@@ -27,6 +28,16 @@
   [x]
   (and (not (nil? x))
        (or (number? x) (keyword? x) (= (type x) Boolean) (not (empty? x)))))
+
+(defn seq->map
+  [s key]
+  (let [result (reduce
+                (fn [result item]
+                  (if-let [subkey (get item key)]
+                    (assoc result (keyword subkey) item)
+                    result))
+                {} s)]
+    result))
 
 (defn model-join-conditions
   "Find all necessary table joins for this query based on the arbitrary
@@ -160,26 +171,18 @@
 
 (defn subfusion
   [model prefix skein opts]
-  (let [fields (vals (:fields model))
+  (let [fields (-> model :fields vals)
+        extra-fields (:extra-fields opts)
+        opts (dissoc opts :extra-fields)
         archetype
         (reduce
          (fn [archetype field]
            (field/fuse-field field prefix archetype skein opts))
          {} fields)]
-    archetype))
-
-(defn part-fusion
-  [this target prefix archetype skein opts]
-  (let [slug (keyword (-> this :row :slug))
-        fused
-        (with-propagation :include opts slug
-          (fn [down]
-            (let [value (subfusion target (str prefix "$" (name slug))
-                                   skein down)]
-              (if (:id value)
-                (assoc archetype slug value)
-                archetype))))]
-    (or fused archetype)))
+    (reduce
+     #(field/pure-fusion %2 prefix %1 skein opts)
+     archetype
+     extra-fields)))
 
 (defn fusion
   "Takes the results of the uberquery, which could have a map for each
@@ -192,24 +195,48 @@
         fused (util/map-vals #(subfusion model prefix % opts) world)]
     (map #(fused %) order)))
 
-(defn collection-fusion
-  [this prefix archetype skein opts]
+(defn part-fusion
+  [this target prefix archetype skein opts]
   (let [slug (keyword (-> this :row :slug))
-        nesting 
+        fused
         (with-propagation :include opts slug
           (fn [down]
-            (let [target (@field/models (-> this :row :target_id))
-                  value (fusion target (str prefix "$" (name slug)) skein down)
-                  protected (filter :id value)]
-              (assoc archetype slug protected))))]
-    (or nesting archetype)))
+            (let [value (subfusion
+                         target
+                         (str prefix "$" (name slug))
+                         skein down)]
+              (if (:id value)
+                (assoc archetype slug value)
+                archetype))))]
+    (or fused archetype)))
 
-(defn join-order
-  [field target prefix opts]
-  (let [slug (keyword (-> field :row :slug))]
-    (with-propagation :order opts slug
-      (fn [down]
-        (model-build-order target (str prefix "$" (name slug)) down)))))
+(defn collection-fusion
+  ([this prefix archetype skein opts]
+     (collection-fusion this prefix archetype skein opts identity))
+  ([this prefix archetype skein opts process]
+     (let [slug (keyword (-> this :row :slug))
+           nesting 
+           (with-propagation :include opts slug
+             (fn [down]
+               (let [target (@field/models (-> this :row :target_id))
+                     value (fusion target (str prefix "$" (name slug)) skein down)
+                     protected (filter :id value)]
+                 (assoc archetype slug (process protected)))))]
+       (or nesting archetype))))
+
+(defn map-fusion
+  ([this prefix archetype skein opts]
+     (let [slug (-> this :row :slug)
+           key-slug (keyword (str slug "_key"))
+           position-slug (keyword (str slug "_position"))
+           fusion-op (if (-> this :row :map)
+                       #(seq->map % key-slug)
+                       identity)
+           extra-fields [{:row {:slug key-slug}} {:row {:slug position-slug}}]
+           opts (assoc opts :extra-fields extra-fields)]
+       (collection-fusion this prefix archetype skein opts fusion-op)))
+  ([this prefix archetype skein opts process]
+     (collection-fusion this prefix archetype skein opts process)))
 
 (defn join-fusion
   ([this target prefix archetype skein opts]
@@ -220,6 +247,13 @@
        (if (:id value)
          (assoc archetype slug (process value))
          archetype))))
+
+(defn join-order
+  [field target prefix opts]
+  (let [slug (keyword (-> field :row :slug))]
+    (with-propagation :order opts slug
+      (fn [down]
+        (model-build-order target (str prefix "$" (name slug)) down)))))
 
 (defn join-render
   [this target content opts]

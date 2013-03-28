@@ -854,22 +854,32 @@
      (if (present? (:id spec))
        (update slug (:id spec) spec opts)
        (let [model (models (keyword slug))
-             values (reduce (update-values-reduction spec)
-                            {} (vals (dissoc (:fields model) :updated_at)))
+             values (reduce
+                     (update-values-reduction spec)
+                     {} (vals (dissoc (:fields model) :updated_at)))
              env {:model model :values values :spec spec :op :create :opts opts}
+
              _save (run-hook slug :before_save env)
              _create (run-hook slug :before_create _save)
+
              local-values (localize-values model (:values _create) opts)
-             fresh (db/insert slug (assoc local-values
-                                     :updated_at
-                                     (current-timestamp)))
+             fresh (db/insert
+                    slug
+                    (assoc local-values
+                      :updated_at
+                      (current-timestamp)))
              content (pick slug {:where {:id (:id fresh)}})
              merged (merge (:spec _create) content)
-             _after (run-hook slug :after_create
-                              (merge _create {:content merged}))
-             post (reduce #(field/post-update %2 %1 opts)
-                          (:content _after)
-                          (vals (:fields model)))
+
+             _after (run-hook
+                     slug :after_create
+                     (merge _create {:content merged}))
+
+             post (reduce
+                   #(field/post-update %2 %1 opts)
+                   (:content _after)
+                   (vals (:fields model)))
+
              _final (run-hook slug :after_save (merge _after {:content post}))]
          (query/clear-model-cache (list (:id model)))
          (:content _final)))))

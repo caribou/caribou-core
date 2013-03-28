@@ -153,6 +153,79 @@
                (not (db/table? :yellow))
                (not (db/table? :zap)))))))
 
+(defn collection-map-test
+  []
+  (let [yellow-row (create :model
+                           {:name "Yellow"
+                            :description "yellowness yellow yellow"
+                            :position 3
+                            :fields [{:name "Gogon" :type "string"}
+                                     {:name "Wibib" :type "boolean"}]})
+
+        zap-row (create :model
+                        {:name "Zap"
+                         :description "zap zappity zapzap"
+                         :position 3
+                         :fields [{:name "Ibibib" :type "string"}
+                                  {:name "Yobob" :type "slug"
+                                   :link_slug "ibibib"}
+                                  {:name "Yellows" :type "collection"
+                                   :map true
+                                   :dependent true
+                                   :target_id (yellow-row :id)}]})
+
+        yellow (models :yellow)
+        zap (models :zap)
+
+        zzzap (create :zap {:ibibib "kkkkkkk"})
+        yyy   (create :yellow {:gogon "obobo" :wibib true :zap_id (zzzap :id) :zap_key "grey"})
+        yyyz  (create :yellow {:gogon "igigi" :wibib false :zap_id (zzzap :id) :zap_key "ochre"})
+        yy    (create :yellow {:gogon "lalal" :wibib true :zap_id (zzzap :id) :zap_key "amarillo"})]
+    (update :yellow (yyy :id) {:gogon "binbin"})
+    (update :zap (zzzap :id)
+            {:ibibib "OOOOOO mmmmm   ZZZZZZZZZZ"
+             :yellows {:light {:id (yyyz :id) :gogon "IIbbiiIIIbbibib"}
+                       :dark {:gogon "nonononononon"}}})
+
+    (testing "Model interactions."
+      (let [zap-reload (db/choose :zap (zzzap :id))]
+        (is (= ((db/choose :yellow (yyyz :id)) :gogon) "IIbbiiIIIbbibib"))
+        (is (= ((db/choose :yellow (yyy :id)) :gogon) "binbin"))
+        (is (= (zap-reload :yobob) "oooooo_mmmmm_zzzzzzzzzz"))
+        (is (= "OOOOOO mmmmm   ZZZZZZZZZZ"
+               ((from zap zap-reload {:include {}})
+                :ibibib)))
+        (is (= 4 (count ((from zap zap-reload {:include {:yellows {}}})
+                         :yellows))))
+
+        (update :model (zap :id)
+                {:fields [{:id (-> zap :fields :ibibib :row :id)
+                           :name "Okokok"}]})
+
+        (update :model (yellow :id) {:name "Purple"
+                                     :fields [{:id
+                                               (-> yellow :fields :zap :row :id)
+                                               :name "Green"}]})
+
+        (let [zappo (db/choose :zap (zzzap :id))
+              purple (db/choose :purple (yyy :id))]
+          (is (= (zappo :okokok) "OOOOOO mmmmm   ZZZZZZZZZZ"))
+          (is (= (purple :green_id) (zappo :id))))
+
+        (destroy :zap (:id zap-reload))
+        (let [purples (util/query "select * from purple")]
+          (is (empty? purples))))
+
+      (destroy :model (zap :id))
+
+      (is (empty? (-> @models :purple :fields :green_id)))
+
+      (destroy :model (-> @models :purple :id))
+
+      (is (and (not (db/table? :purple))
+               (not (db/table? :yellow))
+               (not (db/table? :zap)))))))
+
 (defn model-link-test
   []
   (let [chartreuse-row
@@ -458,6 +531,157 @@
                    :limit 3
                    :locale "xo_ub"})))))
 
+(defn localized-map-field-test
+  []
+  (let [place (create :locale {:language "Ibeo" :region "Glass" :code "ib_or"})
+        everywhere (create
+                    :model
+                    {:name "Everywhere" :localized true
+                     :fields [{:name "Up" :type "string"}
+                              {:name "Grass" :type "text"}
+                              {:name "Through" :type "boolean"}
+                              {:name "Form Structure" :type "asset"}
+                              {:name "Colocate" :type "address"}
+                              ;; {:name "Whentime" :type "timestamp"}
+                              {:name "Under" :type "decimal"}]})
+        other (create :locale {:language "Gornon" :region "Ipipip"
+                               :code "go_xb"})
+        nowhere (create
+                 :model
+                 {:name "Nowhere" :localized true
+                  :fields [{:name "Down" :type "string"}
+                           {:name "Everywhere" :type "link" :dependent true
+                            :map true :target_id (everywhere :id)}]})
+        a (create :everywhere {:up "Hey" :grass "On" :through true :under 10.1})
+        b (create :everywhere {:up "What" :grass "Bead" :through true
+                               :under 33.333})
+        c (create :everywhere {:up "Is" :grass "Growth" :through false
+                               :under 22222})
+        xxx (create :nowhere {:down "Ylel" :everywhere {:yellow {:id (:id a)}}})
+        outer (create :locale {:language "Obooe" :region "Xorxox"
+                               :code "xo_ub"})
+        other-other (update :locale (:id other) {:code "bx_pa"})
+
+        _ (update
+           :model (:id everywhere)
+           {:fields [{:id (-> @models :everywhere :fields :grass :row :id)
+                      :name "Blade" :slug "blade"}]})
+
+        xxx-other (update
+                   :nowhere (:id xxx)
+                   {:down "IiiiiiIIIIIII"}
+                   {:locale "xo_ub"})
+
+        xxx-other (update
+                   :nowhere (:id xxx)
+                   {:down "Prortrobr"
+                    :everywhere
+                    {:green {:id (:id b)}
+                     :purple {:id (:id c)}}}
+                   {:locale "bx_pa"})
+
+        xxx-other (update
+                   :nowhere (:id xxx)
+                   {:down "Grungruublor"
+                    :everywhere {:black {:id (:id b)}}}
+                   {:locale "ib_or"})
+
+        xo-ub-eees
+        (gather
+         :everywhere
+         {:include {:nowhere {}}
+          :where {:nowhere {:down "IiiiiiIIIIIII"}}
+          :order {:nowhere {:down :desc}}
+          :limit 3
+          :locale "xo_ub"})
+
+        bx-pa-eees
+        (gather
+         :everywhere
+         {:include {:nowhere {}}
+          :where {:nowhere {:down "Prortrobr"}}
+          :order {:nowhere {:down :desc}}
+          :limit 3
+          :locale "bx_pa"})
+
+        ib-or-eees
+        (gather
+         :everywhere
+         {:include {:nowhere {}}
+          :where {:nowhere {:down "Grungruublor"}}
+          :order {:nowhere {:down :desc}}
+          :limit 1
+          :locale "ib_or"})
+
+        ordered-everywhere
+        (gather
+         :everywhere
+         {:order {:blade :desc}
+          :limit 2
+          :offset 1})
+
+        joins
+        (gather
+         :everywhere_nowhere
+         {:include {:everywhere {}}
+          :where {:everywhere {:through true}}
+          :order {:everywhere {:under :asc}}})
+
+        bx-joins
+        (gather
+         :everywhere_nowhere
+         {:include {:everywhere {}}
+          :where {:everywhere {:through true}}
+          :order {:everywhere {:under :asc}}
+          :locale "bx_pa"})
+
+        nowhat-query
+        (form-uberquery
+         (:nowhere @models)
+         {:where {:id (:id xxx)}
+          :include {:everywhere {}}
+          :locale "bx_pa"})
+
+        nowhat
+        (pick
+         :nowhere
+         {:where {:id (:id xxx)}
+          :include {:everywhere {}}
+          :locale "bx_pa"})
+
+        everywhat
+        (pick
+         :everywhere
+         {:where {:id (:id c)}
+          :locale "xo_ub"})]
+
+    (testing "Mapped field names"
+      (is (= 1 (count xo-ub-eees)))
+      (is (= 3 (count bx-pa-eees)))
+      (is (= 1 (count ib-or-eees)))
+      (is (= '("Growth" "Bead") (map :blade ordered-everywhere)))
+      (is (= 1 (count joins)))
+      (is (= "Hey" (-> joins first :everywhere :up)))
+      (is (= "Prortrobr" (:down nowhat)))
+      (is (= 3 (count (-> nowhat :everywhere))))
+      (log/debug nowhat-query :NOWHATQUERY)
+      (log/debug (-> nowhat :everywhere keys) :WHAT)
+      (log/debug (-> nowhat :everywhere type) :WHAT)
+      (doseq [non (-> nowhat :everywhere vals)]
+        (log/debug (:up non) :MAP))
+      (is (= "Is" (-> nowhat :everywhere :purple :up)))
+      (is (= "Is" (:up everywhat)))
+      (is (= 2 (count bx-joins)))
+      (is (= '("Hey" "What") (map #(-> % :everywhere :up) bx-joins)))
+
+      (log/debug (form-uberquery
+                  (@models :everywhere)
+                  {:include {:nowhere {}}
+                   :where {:nowhere {:down "Ylel"}}
+                   :order {:nowhere {:down :desc}}
+                   :limit 3
+                   :locale "xo_ub"})))))
+
 (defn nested-model-test
   []
   ;; this is also implicitly verifying :tie fields
@@ -613,6 +837,7 @@
     (db-fixture model-link-test)
     (db-fixture parallel-include-test)
     (db-fixture localized-model-test)
+    (db-fixture localized-map-field-test)
     (db-fixture nested-model-test)
     (db-fixture fields-types-test)))
 
@@ -626,8 +851,10 @@
     (db-fixture model-link-test)
     (db-fixture parallel-include-test)
     (db-fixture localized-model-test)
+    (db-fixture localized-map-field-test)
     (db-fixture nested-model-test)
-    (db-fixture fields-types-test)))
+    (db-fixture fields-types-test)
+    (db-fixture collection-map-test)))
 
 (deftest ^:h2
   h2-tests
@@ -639,5 +866,6 @@
     (db-fixture model-link-test)
     (db-fixture parallel-include-test)
     (db-fixture localized-model-test)
+    (db-fixture localized-map-field-test)
     (db-fixture nested-model-test)
     (db-fixture fields-types-test)))
