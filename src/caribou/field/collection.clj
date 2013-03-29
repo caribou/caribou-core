@@ -189,10 +189,7 @@
 
   (fuse-field
     [this prefix archetype skein opts]
-    (if (-> this :row :map)
-      (let [key-slug (-> this :row :slug (str "_key") keyword)]
-        (assoc/collection-fusion this prefix archetype skein opts #(assoc/seq->map % key-slug)))
-      (assoc/collection-fusion this prefix archetype skein opts)))
+    (assoc/collection-fusion this prefix archetype skein opts))
 
   (localized? [this] false)
 

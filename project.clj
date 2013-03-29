@@ -1,4 +1,4 @@
-(defproject antler/caribou-core "0.9.9"
+(defproject antler/caribou-core "0.9.10"
   :description "Caribou is a dynamic web application generator with antlers."
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [org.clojure/java.jdbc "0.2.3"
