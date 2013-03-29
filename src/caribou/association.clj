@@ -212,7 +212,11 @@
 
 (defn collection-fusion
   ([this prefix archetype skein opts]
-     (collection-fusion this prefix archetype skein opts identity))
+     (let [key-slug (-> this :env :link :slug (str "_key") keyword)
+           fusion-op (if (-> this :row :map)
+                       #(seq->map % key-slug)
+                       identity)]
+       (collection-fusion this prefix archetype skein opts fusion-op)))
   ([this prefix archetype skein opts process]
      (let [slug (keyword (-> this :row :slug))
            nesting 

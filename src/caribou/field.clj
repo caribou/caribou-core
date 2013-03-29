@@ -104,7 +104,7 @@
   [this prefix archetype skein opts]
   (let [pure (pure-fusion this prefix archetype skein opts)
         slug (keyword (-> this :row :slug))]
-    (update-in pure [slug] read-string)))
+    (update-in pure [slug] #(read-string (adapter/text-value @config/db-adapter %)))))
 
 (defn id-models-involved
   [field opts all]
