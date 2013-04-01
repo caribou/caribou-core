@@ -897,7 +897,7 @@
                     slug ["id = ?" (util/convert-int id)]
                     (assoc local-values
                       :updated_at (current-timestamp)))
-           content (db/choose slug id)
+           content (pick slug {:where {:id id}})
            merged (merge (_update :spec) content)
            _after (run-hook slug :after_update
                             (merge _update {:content merged}))
