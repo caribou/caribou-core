@@ -30,7 +30,8 @@
 (defn query2-exception-test
   []
   (let [unknown-regexes ["relation .* does not exist"
-                         "Table .* doesn't exist"]
+                         "Table .* doesn't exist"
+                         "Table .* not found"]
         unknown-re (string/join "|" unknown-regexes)]
     (is (thrown-with-msg? Exception (re-pattern unknown-re)
           (query "select * from modelz")))))
