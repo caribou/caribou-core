@@ -35,7 +35,7 @@
     (test-init)
     (make-models)
     (f)
-    (remove-models)))    
+    (remove-models)))
 
 (defn smoke-test []
   (testing "Smoke?"
@@ -139,6 +139,7 @@
     (testing "Single localized record"
       (is (= (count found-kaese) 1))
       (is (= (count found-fromage) 1))
+      (is (= (:id found-kaese) (:id found-fromage)))
       (is (= (count not-found-kaese) 0))
       (is (= (count not-found-fromage) 0))
       (is (= (count neither-found) 0))
