@@ -6,6 +6,7 @@
 /config
 /resources/config
 /autodoc/**
+/clucy-index
 pom.xml
 *.jar
 *.class

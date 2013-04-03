@@ -18,7 +18,8 @@
 (defn set-properties
   [props]
   (doseq [prop-key (keys props)]
-    (System/setProperty (name prop-key) (str (get props prop-key)))))
+    (when (nil? (System/getProperty (name prop-key)))
+      (System/setProperty (name prop-key) (str (get props prop-key))))))
 
 (defn load-caribou-properties
   []

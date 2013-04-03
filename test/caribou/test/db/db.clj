@@ -30,7 +30,8 @@
 (defn query2-exception-test
   []
   (let [unknown-regexes ["relation .* does not exist"
-                         "Table .* doesn't exist"]
+                         "Table .* doesn't exist"
+                         "Table .* not found"]
         unknown-re (string/join "|" unknown-regexes)]
     (is (thrown-with-msg? Exception (re-pattern unknown-re)
           (query "select * from modelz")))))
@@ -75,6 +76,18 @@
 (deftest ^:postgres
   postgres-tests
   (let [config (config/read-config (io/resource "config/test-postgres.clj"))]
+    (config/configure config)
+    (db-fixture unicode-support-test)
+    (db-fixture query-test)
+    (db-fixture query2-exception-test)
+    (db-fixture choose-test)
+    (db-fixture table-test)
+    (db-fixture create-new-table-drop-table-test)
+    (db-fixture add-column-test)))
+
+(deftest ^:h2
+  h2-tests
+  (let [config (config/read-config (io/resource "config/test-h2.clj"))]
     (config/configure config)
     (db-fixture unicode-support-test)
     (db-fixture query-test)
