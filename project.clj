@@ -1,4 +1,4 @@
-(defproject antler/caribou-core "0.9.10"
+(defproject antler/caribou-core "0.9.11"
   :description "Caribou is a dynamic web application generator with antlers."
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [org.clojure/java.jdbc "0.2.3"
@@ -22,6 +22,8 @@
                  [leiningen-core "2.0.0-preview3"
                   :exclusions [org.clojure/clojure]]
                  [antler/clj-aws-s3 "0.3.4"]
+                 [clucy "0.3.1"]
+                 [fs "1.3.3"]
                  [org.mindrot/jbcrypt "0.3m"]]
   :dev-dependencies [[lein-autodoc "0.9.0"]]
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n" "-Xmx2g"]

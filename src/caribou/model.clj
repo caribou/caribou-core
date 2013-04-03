@@ -14,6 +14,7 @@
             [caribou.field.link :as link]
             [caribou.query :as query]
             [caribou.validation :as validation]
+            [caribou.index :as index]
             [caribou.association :as association]))
 
 (defn db
@@ -632,6 +633,17 @@
      (invoke-models)
      env))
 
+  ;; enable indexing for all non-system models
+  ;; TODO make locale-aware
+  ;(map (fn [m]
+        ;(when-not (:locked m)
+          ;(add-hook (:slug m) :after_save :index
+                    ;(fn [env]
+                      ;(log/info (str "Indexing " (:slug m) " " (-> env :content :slug)))
+                      ;(index/update (get models (:slug m)) (-> env :content))
+                      ;env))))
+                        ;(gather :model))
+
   (if (:locale @models)
     (do
       (add-hook
@@ -863,12 +875,14 @@
              _create (run-hook slug :before_create _save)
 
              local-values (localize-values model (:values _create) opts)
-             fresh (db/insert
-                    slug
-                    (assoc local-values
-                      :updated_at
-                      (current-timestamp)))
-             content (pick slug {:where {:id (:id fresh)}})
+
+             fresh (db/insert slug (assoc local-values
+                                     :updated_at
+                                     (current-timestamp)))
+             content (pick slug (merge {:where {:id (:id fresh)}}
+                                       (if (contains? opts :locale) {:locale (:locale opts)} {})))
+             indexed (index/add model content {:locale (:locale opts)})
+
              merged (merge (:spec _create) content)
 
              _after (run-hook
@@ -907,7 +921,10 @@
                     slug ["id = ?" (util/convert-int id)]
                     (assoc local-values
                       :updated_at (current-timestamp)))
-           content (pick slug {:where {:id id}})
+           ;content (pick slug {:where {:id id}})
+           content (pick slug (merge {:where {:id id}}
+                                     (if (contains? opts :locale) {:locale (:locale opts)} {})))
+           indexed (index/update model content {:locale (:locale opts)})
            merged (merge (_update :spec) content)
            _after (run-hook slug :after_update
                             (merge _update {:content merged}))
@@ -927,6 +944,7 @@
         pre (reduce #(field/pre-destroy %2 %1)
                     (_before :content) (-> model :fields vals))
         deleted (db/delete slug "id = %1" id)
+        _ (index/delete model content)
         _after (run-hook slug :after_destroy (merge _before {:content pre}))]
     (query/clear-model-cache (list (:id model)))
     (_after :content)))
