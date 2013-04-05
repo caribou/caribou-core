@@ -53,10 +53,12 @@
   (str prefix "." (name slug)))
 
 (defn build-coalesce
-  [prefix slug locale]
+  [prefix slug locale results]
   (let [global (build-select-field prefix slug)
         local (build-locale-field prefix slug locale)]
-    (str "coalesce(" local ", " global ")")))
+    (if (and results (= :clean (keyword results)))
+      local
+      (str "coalesce(" local ", " global ")"))))
 
 (defn select-locale
   [model field prefix slug opts]
@@ -68,8 +70,11 @@
 (defn coalesce-locale
   [model field prefix slug opts]
   (let [locale (:locale opts)]
-    (if (and locale (:localized model) (localized? field))
-      (build-coalesce prefix slug locale)
+    (if (and
+         locale
+         (:localized model)
+         (localized? field))
+      (build-coalesce prefix slug locale (:results opts))
       (build-select-field prefix slug))))
 
 ;; functions used throughout field definitions
