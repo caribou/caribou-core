@@ -18,10 +18,11 @@
               link-id-slug (keyword (str link "_id"))
               id-field (-> target :fields link-id-slug)
               table-alias (str prefix "$" slug)
-              field-select (field/coalesce-locale model id-field table-alias
-                                                   (name link-id-slug) opts)
-              subconditions (assoc/model-where-conditions target table-alias
-                                                          down)
+              field-select (field/coalesce-locale
+                            target id-field table-alias
+                            (name link-id-slug) opts)
+              subconditions (assoc/model-where-conditions
+                             target table-alias down)
               params [prefix field-select (:slug target) table-alias
                       subconditions]]
           (util/clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
@@ -156,8 +157,9 @@
               link-id-slug (keyword (str link "_id"))
               id-field (-> target :fields link-id-slug)
               table-alias (str prefix "$" (:slug row))
-              field-select (field/coalesce-locale model id-field table-alias
-                                                   (name link-id-slug) opts)
+              field-select (field/coalesce-locale
+                            target id-field table-alias
+                            (name link-id-slug) opts)
               downstream (assoc/model-join-conditions target table-alias down)
               params [(:slug target) table-alias prefix field-select]]
           (concat
@@ -176,8 +178,9 @@
           link-position-slug (keyword (str link "_position"))
           position-field (-> target :fields link-position-slug)
           table-alias (str prefix "$" (:slug row))
-          field-select (field/coalesce-locale model position-field table-alias
-                                               (name link-position-slug) opts)
+          field-select (field/coalesce-locale
+                        target position-field table-alias
+                        (name link-position-slug) opts)
           downstream (assoc/model-natural-orderings target table-alias opts)]
       [(str field-select " asc") downstream]))
 
