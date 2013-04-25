@@ -6,7 +6,7 @@
   []
   (model/update
    :model
-   (-> @model/models :page :id)
+   (model/models :page :id)
    {:fields [{:name "Protected" :type "boolean"}
              {:name "Username" :type "string"}
              {:name "Password" :type "password"}]}))

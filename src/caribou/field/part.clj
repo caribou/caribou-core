@@ -39,9 +39,9 @@
 
   (setup-field [this spec]
     (let [model-id (:model_id row)
-          model (db/find-model model-id @field/models)
+          model (db/find-model model-id (field/models))
           id-slug (str (:slug row) "_id")
-          target (db/find-model (:target_id row) @field/models)
+          target (db/find-model (:target_id row) (field/models))
           reciprocal-name (or (:reciprocal_name spec) (:name model))
           base-fields [{:name (util/titleize id-slug)
                         :type "integer"
@@ -78,7 +78,7 @@
     (field/rename-index this (str old-slug "_id") (str new-slug "_id")))
 
   (cleanup-field [this]
-    (let [model (get @field/models (:model_id row))
+    (let [model (field/models (:model_id row))
           fields (:fields model)
           base-slugs ["id" "position"]
           additional (if (:map row)
@@ -93,7 +93,7 @@
         (do ((resolve 'caribou.model/destroy) :field (-> env :link :id)))
         (catch Exception e (str e)))))
 
-  (target-for [this] (@field/models (-> this :row :target_id)))
+  (target-for [this] (field/models (-> this :row :target_id)))
 
   (update-values [this content values] values)
 
@@ -104,15 +104,15 @@
   (join-fields [this prefix opts]
     (assoc/with-propagation :include opts (:slug row)
       (fn [down]
-        (let [target (@field/models (:target_id row))]
+        (let [target (field/models (:target_id row))]
           (assoc/model-select-fields target (str prefix "$" (:slug row))
                                      down)))))
 
   (join-conditions [this prefix opts]
     (assoc/with-propagation :include opts (:slug row)
       (fn [down]
-        (let [model (@field/models (:model_id row))
-              target (@field/models (:target_id row))
+        (let [model (field/models (:model_id row))
+              target (field/models (:target_id row))
               id-slug (keyword (str (:slug row) "_id"))
               id-field (-> model :fields id-slug)
               table-alias (str prefix "$" (:slug row))
@@ -129,15 +129,15 @@
     (part-where this prefix opts))
 
   (natural-orderings [this prefix opts]
-    (let [target (@field/models (:target_id row))
+    (let [target (field/models (:target_id row))
           downstream (assoc/model-natural-orderings target (str prefix "$" (:slug row)) opts)]
       downstream))
 
   (build-order [this prefix opts]
-    (assoc/join-order this (@field/models (:target_id row)) prefix opts))
+    (assoc/join-order this (field/models (:target_id row)) prefix opts))
 
   (fuse-field [this prefix archetype skein opts]
-    (assoc/part-fusion this (@field/models (-> this :row :target_id)) prefix archetype skein opts))
+    (assoc/part-fusion this (field/models (-> this :row :target_id)) prefix archetype skein opts))
 
   (localized? [this] false)
 
@@ -153,7 +153,7 @@
             (assoc/from (field/target-for this) collector down))))))
 
   (render [this content opts]
-    (assoc/part-render this (@field/models (:target_id row)) content opts))
+    (assoc/part-render this (field/models (:target_id row)) content opts))
 
   (validate [this opts] (validation/for-assoc this opts)))
 

@@ -12,7 +12,7 @@
 (defn remove-models
   []
   (doseq [slug [:cheese]]
-    (when (db/table? slug) (model/destroy :model (-> @model/models slug :id)))))
+    (when (db/table? slug) (model/destroy :model (model/models slug :id)))))
 
 (defn test-init
   []
@@ -31,7 +31,7 @@
 
 (defn db-fixture
   [f]
-  (sql/with-connection @config/db
+  (sql/with-connection (config :db :database)
     (test-init)
     (make-models)
     (f)
@@ -46,9 +46,9 @@
                   {:name "Cheddar"
                    :description "Yellow or orange, sharp or not, always good."
                    :secret "Bing!"})
-        found (index/search (@model/models :cheese) "cheddar")
-        secret (index/search (@model/models :cheese) "bing")
-        not-found (index/search (@model/models :cheese) "klaxxon")]
+        found (index/search (model/models :cheese) "cheddar")
+        secret (index/search (model/models :cheese) "bing")
+        not-found (index/search (model/models :cheese) "klaxxon")]
     (testing "New added content's fields are indexed correctly"
       (is (= (count found) 1))
       (is (= (count secret) 0))
@@ -59,10 +59,10 @@
                   {:name "Gruyère"
                    :description "Yum fondue, yeah"
                    :secret "Crunchy frog"})
-        found (index/search (@model/models :cheese) "fondue")
-        secret (index/search (@model/models :cheese) "frog")
+        found (index/search (model/models :cheese) "fondue")
+        secret (index/search (model/models :cheese) "frog")
         removed (model/destroy :cheese (:id fromage))
-        not-found (index/search (@model/models :cheese) "fondue")]
+        not-found (index/search (model/models :cheese) "fondue")]
     (testing "Indexed content is removed when model is deleted"
       (is (= (count found) 1))
       (is (= (count secret) 0))
@@ -73,11 +73,11 @@
                   {:name "Camembert"
                    :description "A bit runny"
                    :secret "shhh"})
-        found (index/search (@model/models :cheese) "runny")
-        secret (index/search (@model/models :cheese) "shhh")
+        found (index/search (model/models :cheese) "runny")
+        secret (index/search (model/models :cheese) "shhh")
         updated (model/update :cheese (:id fromage) (assoc fromage :description "The cat's eaten it"))
-        not-found (index/search (@model/models :cheese) "runny")
-        now-found (index/search (@model/models :cheese) "eaten")]
+        not-found (index/search (model/models :cheese) "runny")
+        now-found (index/search (model/models :cheese) "eaten")]
     (testing "Updated records are updated in index"
       (is (= (count found) 1))
       (is (= (count secret) 0))
@@ -85,7 +85,7 @@
       (is (= (count now-found) 1)))))
 
 (defn add-localized-to-index-test []
-  (let [cheese-model (@model/models :cheese)
+  (let [cheese-model (model/models :cheese)
         localized (model/update :cheese (:id cheese-model) {:localized true})
         spanish (model/create :locale {:description "Spanish" :code "es_ES" :region "Spain"})
         argentine (model/create :locale {:description "Argentine Spanish" :code "es_AR" :region "Argentina"})
@@ -116,7 +116,7 @@
       (is (= (count neither-found-locale) 0)))))
 
 (defn single-localized-record-test []
-  (let [cheese-model (@model/models :cheese)
+  (let [cheese-model (model/models :cheese)
         localized (model/update :cheese (:id cheese-model) {:localized true})
         german (model/create :locale {:description "Swiss German" :code "de_CH" :region "Switzerland"})
         french (model/create :locale {:description "Swiss French" :code "fr_CH" :region "Switzerland"})

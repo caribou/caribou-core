@@ -27,8 +27,7 @@
   (table-additions [this field] [])
   (subfield-names [this field] [(str field "_id")])
   (setup-field [this spec]
-    (let [id-slug (str (:slug row) "_id")
-          model (db/find-model (:model_id row) @field/models)]
+    (let [id-slug (str (:slug row) "_id")]
       ((resolve 'caribou.model/update) :model (:model_id row)
        {:fields [{:name (util/titleize id-slug)
                   :type "integer"
@@ -42,7 +41,7 @@
     (field/rename-index this (str old-slug "_id") (str new-slug "_id")))
 
   (cleanup-field [this]
-    (let [model (get @field/models (:model_id row))
+    (let [model (field/models (:model_id row))
           id-slug (-> row :slug (str "_id") keyword)]
       (db/drop-index (:slug model) id-slug)
       ((resolve 'caribou.model/destroy) :field (-> model :fields id-slug :row :id))))
@@ -63,11 +62,11 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (assoc/model-select-fields (:location @field/models)
+    (assoc/model-select-fields (field/models :location)
                                (str prefix "$" (:slug row)) opts))
 
   (join-conditions [this prefix opts]
-    (let [model (@field/models (:model_id row))
+    (let [model (field/models (:model_id row))
           slug (:slug row)
           id-slug (keyword (str slug "_id"))
           id-field (-> model :fields id-slug)
@@ -80,19 +79,19 @@
     [this prefix opts]
     (assoc/with-propagation :where opts (:slug row)
       (fn [down]
-        (assoc/model-where-conditions (:location @field/models)
+        (assoc/model-where-conditions (field/models :location)
                                       (str prefix "$" (:slug row)) down))))
 
   (natural-orderings [this prefix opts])
 
   (build-order [this prefix opts]
-    (assoc/join-order this (:location @field/models) prefix opts))
+    (assoc/join-order this (field/models :location) prefix opts))
 
   (field-generator [this generators]
     generators)
 
   (fuse-field [this prefix archetype skein opts]
-    (assoc/join-fusion this (:location @field/models) prefix archetype skein opts))
+    (assoc/join-fusion this (field/models :location) prefix archetype skein opts))
 
   (localized? [this] false)
   (models-involved [this opts all] all)
@@ -102,7 +101,7 @@
     (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
 
   (render [this content opts]
-    (assoc/join-render this (:location @field/models) content opts))
+    (assoc/join-render this (field/models :location) content opts))
   (validate [this opts] (validation/for-address this opts)))
 
 (defn constructor

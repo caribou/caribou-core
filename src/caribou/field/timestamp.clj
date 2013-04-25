@@ -90,7 +90,7 @@
 (defn build-extract
   [field prefix slug opts [index value]]
   (let [model-id (-> field :row :model_id)
-        model (@field/models model-id)
+        model (field/models model-id)
         field-select (field/coalesce-locale model field prefix slug opts)]
     (util/clause "extract(%1 from %2) = %3" [(name index) field-select value])))
 
@@ -110,7 +110,7 @@
    would find all rows who were created on July 15th, 2020."
   [field prefix slug opts where]
   (let [model-id (-> field :row :model_id)
-        model (@field/models model-id)
+        model (field/models model-id)
         field-select (field/coalesce-locale model field prefix slug opts)]
     (if (map? where)
       (let [where-keys (set (keys where))

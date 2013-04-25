@@ -19,17 +19,17 @@
 
 (defn db-fixture
   [f]
-  (sql/with-connection @config/db
+  (sql/with-connection (config :db :database)
     (test-init)
     (f)
     (doseq [slug [:yellow :purple :zap :chartreuse :fuchsia :base :level
                   :void :white :agent]]
-      (when (db/table? slug) (destroy :model (-> @models slug :id)))
+      (when (db/table? slug) (destroy :model (models slug :id)))
       (when (db/table? :everywhere)
         (do
           (db/do-sql "delete from locale")
-          (destroy :model (-> @models :nowhere :id))
-          (destroy :model (-> @models :everywhere :id))))
+          (destroy :model (models :nowhere :id))
+          (destroy :model (models :everywhere :id))))
       (when-let [passport (pick :asset {:where
                                         {:filename "passport.picture"}})]
         (destroy :asset (:id passport))))))
@@ -51,7 +51,7 @@
                                 {:name "Wibib" :type "boolean"}]})
         yellow (create :yellow {:gogon "obobo" :wibib true})]
     (testing "Model life cycle verification."
-      (is (<= 8 (count (-> @models :yellow :fields))))
+      (is (<= 8 (count (models :yellow :fields))))
       (is (= (model :name) "Yellow"))
       (is ((models :yellow) :name "Yellow"))
       (is (db/table? :yellow))
@@ -145,9 +145,9 @@
 
       (destroy :model (zap :id))
 
-      (is (empty? (-> @models :purple :fields :green_id)))
+      (is (empty? (models :purple :fields :green_id)))
 
-      (destroy :model (-> @models :purple :id))
+      (destroy :model (models :purple :id))
 
       (is (and (not (db/table? :purple))
                (not (db/table? :yellow))
@@ -218,9 +218,9 @@
 
       (destroy :model (zap :id))
 
-      (is (empty? (-> @models :purple :fields :green_id)))
+      (is (empty? (models :purple :fields :green_id)))
 
-      (destroy :model (-> @models :purple :id))
+      (destroy :model (models :purple :id))
 
       (is (and (not (db/table? :purple))
                (not (db/table? :yellow))
@@ -435,7 +435,7 @@
         other-other (update :locale (:id other) {:code "bx_pa"})
 
         _ (update :model (:id everywhere)
-                  {:fields [{:id (-> @models :everywhere :fields :grass :row
+                  {:fields [{:id (models :everywhere :fields :grass :row
                                      :id)
                              :name "Blade" :slug "blade"}]})
 
@@ -524,7 +524,7 @@
       (is (= '("Hey" "What") (map #(-> % :everywhere :up) bx-joins)))
 
       (log/debug (form-uberquery
-                  (@models :everywhere)
+                  (models :everywhere)
                   {:include {:nowhere {}}
                    :where {:nowhere {:down "Ylel"}}
                    :order {:nowhere {:down :desc}}
@@ -564,7 +564,7 @@
 
         _ (update
            :model (:id everywhere)
-           {:fields [{:id (-> @models :everywhere :fields :grass :row :id)
+           {:fields [{:id (models :everywhere :fields :grass :row :id)
                       :name "Blade" :slug "blade"}]})
 
         xxx-other (update
@@ -637,7 +637,7 @@
 
         nowhat-query
         (form-uberquery
-         (:nowhere @models)
+         (models :nowhere)
          {:where {:id (:id xxx)}
           :include {:everywhere {}}
           :locale "bx_pa"})
@@ -675,7 +675,7 @@
       (is (= '("Hey" "What") (map #(-> % :everywhere :up) bx-joins)))
 
       (log/debug (form-uberquery
-                  (@models :everywhere)
+                  (models :everywhere)
                   {:include {:nowhere {}}
                    :where {:nowhere {:down "Ylel"}}
                    :order {:nowhere {:down :desc}}
@@ -812,7 +812,7 @@
            (let [field-slugs (map (comp keyword :name) fields)
                  field-ids (map
                             (fn [slug]
-                              (-> @models :agent :fields slug :row :id))
+                              (models :agent :fields slug :row :id))
                             field-slugs)
                  field-ids (filter number? field-ids)]
              (log/debug (str "field slugs" (apply str field-slugs)))

@@ -1,6 +1,6 @@
 (ns caribou.config
   (:use [clojure.walk :only (keywordize-keys)]
-        [caribou.util :only (map-vals pathify file-exists?)])
+        [caribou.util :only (map-vals pathify file-exists? deep-merge-with)])
   (:require [clojure.java.io :as io]
             [clojure.string :as string]
             [caribou.util :as util]
@@ -36,18 +36,39 @@
    (or (system-property :environment)
        "development")))
 
-(defn app-value-eq
-  [kw value]
-  (= (@app kw) value))
+(def ^:dynamic config
+  {:app {:debug               true
+         :use-database        true
+         :public-dir          "public"
+         :asset-dir           "app/"
+         :hooks-ns            "caribou.hooks"
+         :fields-ns           "caribou.fields"
+         :enable-query-cache  false
+         :query-defaults      {}}
+   :db {:database {:classname    "org.h2.Driver"
+                   :subprotocol  "h2"
+                   :host         "localhost"
+                   :database     "caribou_development"
+                   :user         "h2"
+                   :password     ""}}
+   :logging {:loggers [{:type :stdout :level :debug}]}
+   :index {:path "caribou-index"
+           :default-limit 1000}
+   :models {}})
+
+(defn draw
+  [& path]
+  (get-in config path))
 
 (defn assoc-subname
-  [config]
-  (adapter/build-subname @db-adapter config))
+  [db-config]
+  (adapter/build-subname (draw :db :adapter) db-config))
 
 (def ^{:private true :doc "Map of schemes to subprotocols"} subprotocols
   {"postgres" "postgresql"})
 
-(defn- parse-properties-uri [^URI uri]
+(defn- parse-properties-uri
+  [^URI uri]
   (let [host (.getHost uri)
         port (if (pos? (.getPort uri)) (.getPort uri))
         path (.getPath uri)
@@ -58,10 +79,11 @@
                  (str "//" host path))
       :subprotocol (subprotocols scheme scheme)}
      (if-let [user-info (.getUserInfo uri)]
-             {:user (first (string/split user-info #":"))
-              :password (second (string/split user-info #":"))}))))
+       {:user (first (string/split user-info #":"))
+        :password (second (string/split user-info #":"))}))))
 
-(defn- strip-jdbc [^String spec]
+(defn- strip-jdbc
+  [^String spec]
   (if (.startsWith spec "jdbc:")
     (.substring spec 5)
     spec))
@@ -75,6 +97,29 @@
         (assoc db-config :user user :password password)
         db-config))
     db-config))
+
+(defn read-config
+  [config-file]
+  (with-open [fd (java.io.PushbackReader.
+                  (io/reader config-file))]
+    (read fd)))
+
+(defn submerge
+  [a b]
+  (if (string? b) b (merge a b)))
+
+(defn config-from-resource
+  "Loads the appropritate configuration file based on environment"
+  [resource]
+  (merge-with submerge config (read-config (io/resource resource))))
+
+(defn environment-config-resource
+  []
+  (format "config/%s.clj" (name (environment))))
+
+(defn config-from-environment
+  []
+  (config-from-resource (environment-config-resource)))
 
 (defn configure-db-from-environment
   "Pass in the current config and a map of environment variables that specify where the db connection
@@ -91,26 +136,23 @@
       (update-in config [:database] #(merge % db-config)))
     config))
 
-(defn set-db-config
-  "Accepts a map to configure the DB.  Format:
+(defn process-config
+  [config]
+  (let [db-config (-> config :db :database)
+        adapter (db-adapter/adapter-for db-config)
+        subnamed (adapter/build-subname adapter db-config)]
+    (deep-merge-with
+     (fn [& args]
+       (last args))
+     config
+     {:db {:database subnamed
+           :adapter adapter}})))
 
-    :classname org.postgresql.Driver
-    :subprotocol postgresql
-    :host localhost
-    :database caribou
-    :user postgres"
-  [db-map]
-  (alter db merge (assoc-subname db-map)))
-
-(defn read-config
-  [config-file]
-  (with-open [fd (java.io.PushbackReader.
-                  (io/reader config-file))]
-    (read fd)))
-
-(defn read-database-config
-  [config-file]
-  (assoc-subname ((read-config config-file) :database)))
+(defmacro with-config
+  [new-config & body]
+  `(let [full# (process-config ~new-config)]
+     (with-redefs [caribou.config/config full#]
+       ~@body)))
 
 (defn configure
   [config-map]
@@ -122,7 +164,7 @@
      (alter app merge config-map))
     (dosync
      (alter db merge (assoc-subname db-config)))
-    (adapter/init @db-adapter)
+    ;; (adapter/init @db-adapter)
     (logger/init (:loggers logging-config))
     config-map))
 
@@ -131,7 +173,6 @@
   (load-caribou-properties)
   (let [boot-resource "config/boot.clj"
         boot (io/resource boot-resource)]
-
     (if (nil? boot)
       (throw (Exception.
               (format "Could not find %s on the classpath" boot-resource))))

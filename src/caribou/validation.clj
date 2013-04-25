@@ -8,7 +8,7 @@
 (defn beams
   [slug opts]
   "verify that the given options make sense for the model given by the slug"
-  (let [model (get @field/models (keyword slug))]
+  (let [model (field/models (keyword slug))]
     (when-not model (throw (new Exception
                                 (format "no such model: %s" slug))))
     (doseq [include (recursive-merge (get opts :where) (get opts :include))]
@@ -60,7 +60,7 @@
 
 (defn for-associated-id
   [this id-field opts]
-  (let [slug (-> this :row id-field (@field/models) :slug)]
+  (let [slug (-> this :row id-field (field/models) :slug)]
     (beams slug opts)))
 
 ;; (defn for-part

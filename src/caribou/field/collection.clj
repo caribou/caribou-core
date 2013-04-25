@@ -12,8 +12,8 @@
   (let [slug (-> field :row :slug)]
     (assoc/with-propagation :where opts slug
       (fn [down]
-        (let [model (@field/models (-> field :row :model_id))
-              target (@field/models (-> field :row :target_id))
+        (let [model (field/models (-> field :row :model_id))
+              target (field/models (-> field :row :target_id))
               link (-> field :env :link :slug)
               link-id-slug (keyword (str link "_id"))
               id-field (-> target :fields link-id-slug)
@@ -32,7 +32,7 @@
   (if-let [include (:include opts)]
     (let [slug (keyword (-> field :row :slug))]
       (if-let [sub (slug include)]
-        (let [target (@field/models (-> field :row :target_id))
+        (let [target (field/models (-> field :row :target_id))
               down {:include sub}]
           (update-in
            content [slug]
@@ -50,7 +50,7 @@
   (let [part (-> this :env :link)
         part-position (keyword (str (:slug part) "_position"))
         target-id (-> this :row :target_id)
-        target (get @field/models target-id)
+        target (field/models target-id)
         target-slug (-> target :slug keyword)]
     (doseq [ordering orderings]
       ((resolve 'caribou.model/update)
@@ -62,7 +62,7 @@
     (let [part-field (-> field :env :link)
           part-id-key (-> part-field :slug (str "_id") keyword)
           part-key-key (-> part-field :slug (str "_key") keyword)
-          model (get @field/models (:model_id part-field))
+          model (field/models (:model_id part-field))
           model-key (-> model :slug keyword)
           updated (doseq [part collection]
                     (let [part (if (map? part)
@@ -82,8 +82,8 @@
   (setup-field
     [this spec]
     (if (or (nil? (:link_id row)) (zero? (:link_id row)))
-      (let [model (db/find-model (:model_id row) @field/models)
-            target (db/find-model (:target_id row) @field/models)
+      (let [model (db/find-model (:model_id row) (field/models))
+            target (db/find-model (:target_id row) (field/models))
             map? (or (:map spec) (:map row))
             reciprocal-name (or (:reciprocal_name spec) (:name model))
             part ((resolve 'caribou.model/create) :field
@@ -108,7 +108,7 @@
 
   (target-for
     [this]
-    (@field/models (:target_id row)))
+    (field/models (:target_id row)))
 
   (update-values
     [this content values]
@@ -116,8 +116,8 @@
       (if (assoc/present? (content removed))
         (let [ex (map util/convert-int (string/split (content removed) #","))
               part (env :link)
-              part-key (keyword (str (part :slug) "_id"))
-              target ((@field/models (row :target_id)) :slug)]
+              part-key (keyword (str (:slug part) "_id"))
+              target (field/models (:target_id row) :slug)]
           (doseq [gone ex]
             (if (:dependent row)
               ((resolve 'caribou.model/destroy) target gone)
@@ -143,7 +143,7 @@
     [this prefix opts]
     (assoc/with-propagation :include opts (:slug row)
       (fn [down]
-        (let [target (@field/models (:target_id row))]
+        (let [target (field/models (:target_id row))]
           (assoc/model-select-fields target (str prefix "$" (:slug row))
                                      down)))))
 
@@ -151,8 +151,8 @@
     [this prefix opts]
     (assoc/with-propagation :include opts (:slug row)
       (fn [down]
-        (let [model (@field/models (:model_id row))
-              target (@field/models (:target_id row))
+        (let [model (field/models (:model_id row))
+              target (field/models (:target_id row))
               link (-> this :env :link :slug)
               link-id-slug (keyword (str link "_id"))
               id-field (-> target :fields link-id-slug)
@@ -172,8 +172,8 @@
 
   (natural-orderings
     [this prefix opts]
-    (let [model (@field/models (:model_id row))
-          target (@field/models (:target_id row))
+    (let [model (field/models (:model_id row))
+          target (field/models (:target_id row))
           link (-> this :env :link :slug)
           link-position-slug (keyword (str link "_position"))
           position-field (-> target :fields link-position-slug)
@@ -185,7 +185,7 @@
       [(str field-select " asc") downstream]))
 
   (build-order [this prefix opts]
-    (assoc/join-order this (@field/models (row :target_id)) prefix opts))
+    (assoc/join-order this (field/models (row :target_id)) prefix opts))
 
   (field-generator [this generators]
     generators)

@@ -39,7 +39,7 @@
    really does explode someday!)"
   ([slug] (rally slug {}))
   ([slug opts]
-     (let [model (@field/models (keyword slug))
+     (let [model (field/models (keyword slug))
            order (or (opts :order) "asc")
            order-by (or (opts :order_by) "position")
            limit (str (or (opts :limit) 30))
@@ -93,8 +93,10 @@
 
 ;; UBERQUERY ---------------------------------------------
 
-(def model-slugs (ref {}))
-
+;; (def model-slugs (ref {}))
+(defn model-slugs
+  []
+  (filter keyword? (keys (models))))
 
 (declare update destroy create)
 
@@ -240,14 +242,13 @@
          of 'name', ordered by the model slug and offset by 3."
   ([slug] (gather slug {}))
   ([slug opts]
-     (let [query-defaults (:query-defaults @config/app)
+     (let [query-defaults (config/draw :app :query-defaults)
            defaulted (query/apply-query-defaults opts query-defaults)
-           query-hash (query/hash-query slug defaulted)
-           cache @query/queries]
-       (if-let [cached (and (:enable-query-cache @config/app)
-                            (get @query/queries query-hash))]
+           query-hash (query/hash-query slug defaulted)]
+       (if-let [cached (and (config/draw :app :enable-query-cache)
+                            (query/retrieve-query query-hash))]
          cached
-         (let [model ((keyword slug) @models)]
+         (let [model (models (keyword slug))]
            (when-not model
              (throw (new Exception (str "invalid caribou model:" slug))))
            ;; beam-validator throws an exception if opts are bad
@@ -387,10 +388,10 @@
   assumed that in each namespace hooks are set via add-hook as defined
   below"
   []
-  (let [hooks-ns (@config/app :hooks-ns)
+  (let [hooks-ns (config/draw :app :hooks-ns)
         make-hook-ns (fn [slug] (symbol (str hooks-ns "." (name slug))))]
     (when hooks-ns
-      (doseq [model-slug @model-slugs]
+      (doseq [model-slug (model-slugs)]
         (-> model-slug make-hook-ns util/sloppy-require)))))
 
 (def lifecycle-hooks (ref {}))
@@ -504,7 +505,7 @@
 
 (defn local-models
   []
-  (filter :localized (map #(-> @models %) @model-slugs)))
+  (filter :localized (map models (model-slugs))))
 
 (defn add-locale
   [locale]
@@ -524,7 +525,7 @@
 (defn add-status-to-model [model]
   (update :model (:id model) {:fields [{:name "Status"
                                         :type "part"
-                                        :target_id (-> @models :status :id)
+                                        :target_id (models :status :id)
                                         :reciprocal_name (:name model)}]})
   (let [status-id-field (pick :field {:where {:name "Status Id"
                                               :model_id (:id model)}})]
@@ -541,7 +542,7 @@
   [env]
   (if (and (-> env :content :localized) (not (-> env :original :localized)))
     (let [slug (-> env :content :slug keyword)]
-      (localize-model (get @models slug))))
+      (localize-model (models slug))))
   env)
 
 (defn propagate-new-locale
@@ -607,7 +608,7 @@
    (fn [env]
      (let [original (-> env :original :slug)
            slug (-> env :content :slug)
-           model (get @models (keyword original))]
+           model (models (keyword original))]
        (when (not= original slug)
          (db/rename-table original slug)
          (doseq [field (-> model :fields vals)]
@@ -621,7 +622,7 @@
      env))
 
   ;; (add-hook :model :before_destroy :cleanup-fields (fn [env]
-  ;;   (let [model (get @models (-> env :content :slug))]
+  ;;   (let [model (models (-> env :content :slug))]
   ;;     (doseq [field (-> model :fields vals)]
   ;;       (destroy :field (-> field :row :id))))
   ;;   env))
@@ -644,7 +645,7 @@
                       ;env))))
                         ;(gather :model))
 
-  (if (:locale @models)
+  (if (models :locale)
     (do
       (add-hook
        :locale :after_create :add_to_localized_models
@@ -656,7 +657,7 @@
        (fn [env]
          (rename-updated-locale env)))))
 
-  (if (:status @models)
+  (if (models :status)
     (add-hook
      :model :after_create :add_status_part
      (fn [env] (add-status-part env)))))
@@ -674,7 +675,7 @@
   [env]
   (let [field (make-field (:content env))
         model-id (-> env :content :model_id)
-        model (db/find-model model-id @models)
+        model (db/find-model model-id (models))
         model-slug (:slug model)
         slug (-> env :content :slug)
         default (process-default (-> env :spec :type)
@@ -711,7 +712,7 @@
         model-id (-> field :row :model_id)
         model (db/choose :model model-id)
         model-slug (:slug model)
-        model-fields (get (get @models model-id) :fields)
+        model-fields (get (models model-id) :fields)
         local-field? (and (:localized model) (field/localized? field))
         locales (if local-field? (map :code (gather :locale)))
         
@@ -790,7 +791,7 @@
           (field/cleanup-field field)))
           ;; (doseq [addition (field/table-additions field (-> env :content :slug))]
           ;;   (db/drop-column (:slug model) (first addition)))))
-      ;; (let [model (get @models (-> env :content :model_id))
+      ;; (let [model (models (-> env :content :model_id))
       ;;       fields (get model :fields)
       ;;       field (fields (keyword (-> env :content :slug)))]
       ;;   (field/cleanup-field field)
@@ -810,12 +811,12 @@
                            (get model :id))
         field-map (util/seq-to-map #(keyword (-> % :row :slug))
                                    (map make-field fields))]
-    (make-lifecycle-hooks (model :slug))
+    (make-lifecycle-hooks (:slug model))
     (assoc model :fields field-map)))
 
 (defn add-app-fields
   []
-  (when-let [fields-ns (@config/app :fields-ns)]
+  (when-let [fields-ns (config/draw :app :fields-ns)]
     (util/sloppy-require (symbol fields-ns))))
 
 (defn invoke-fields
@@ -840,10 +841,6 @@
             (fn [in-ref new-models] new-models)
             (merge (util/seq-to-map #(keyword (% :slug)) invoked)
                    (util/seq-to-map #(% :id) invoked)))))
-
-  ;; get all of our model slugs
-  (dosync
-   (ref-set model-slugs (filter keyword? (keys @models))))
   (add-app-model-hooks))
 
 (defn update-values-reduction
@@ -937,7 +934,7 @@
 (defn destroy
   "destroy the item of the given model with the given id."
   [slug id]
-  (let [model (get @models (keyword slug))
+  (let [model (models (keyword slug))
         content (db/choose slug id)
         env {:model model :content content :slug slug :op :destroy}
         _before (run-hook slug :before_destroy env)
@@ -954,7 +951,7 @@
      (doseq [ordering orderings]
        (update slug (:id ordering) (dissoc ordering :id))))
   ([slug id field-slug orderings]
-     (let [model (get @models (keyword slug))
+     (let [model (models (keyword slug))
            field (-> model :fields (get (keyword field-slug)))]
        (field/propagate-order field id orderings))))
 
@@ -1024,7 +1021,7 @@
   [[] slug])
 
 (defn model-create [this spec]
-  (sql/with-connection @config/db
+  (sql/with-connection (config/draw :db :database)
     (create (.state this) spec)))
 
 (defn model-slug [this]
@@ -1032,13 +1029,13 @@
 
 (defn init
   []
-  (if (nil? (@config/app :use-database))
+  (if (nil? (config/draw :app :use-database))
     (throw (Exception. "You must set :use-database in the app config")))
 
-  (if (empty? @config/db)
+  (if (empty? (config/draw :db :database))
     (throw (Exception. "Please configure caribou prior to initializing model")))
 
-  (sql/with-connection @config/db
+  (sql/with-connection (config/draw :db :database)
     (invoke-models)))
 
 ;; MODEL GENERATION -------------------
@@ -1068,7 +1065,7 @@
   "Given a slug and a number n, generate that number of instances of
   the model given by that slug."
   [slug n]
-  (let [g (model-generator (slug @models))]
+  (let [g (model-generator (models slug))]
     (map (fn [_] (generate g)) (repeat n nil))))
 
 (defn spawn-model
@@ -1078,3 +1075,4 @@
   [slug n]
   (let [generated (generate-model slug n)]
     (doall (map #(create slug %) generated))))
+

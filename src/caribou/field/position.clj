@@ -11,7 +11,7 @@
         update (int/integer-update-values field content values)
         val (get update key)
         model-id (:model_id row)
-        model (-> model-id (@field/models) :slug)]
+        model (field/models model-id :slug)]
     (if val
       update
       (assoc update key

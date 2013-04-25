@@ -560,15 +560,17 @@
 
 (defn build-links []
   (model/invoke-models)
-  (model/update :model (-> @model/models :site :id)
-          {:fields [{:name "Domains"
-                     :type "collection"
-                     :dependent true
-                     :target_id (-> @model/models :domain :id)}
-                    {:name "Pages"
-                     :type "collection"
-                     :target_id (-> @model/models :page :id)}]}
-          {:op :migration})
+  (model/update
+   :model (model/models :site :id)
+   {:fields
+    [{:name "Domains"
+      :type "collection"
+      :dependent true
+      :target_id (model/models :domain :id)}
+     {:name "Pages"
+      :type "collection"
+      :target_id (model/models :page :id)}]}
+   {:op :migration})
   (doseq [m (model/gather :model)] (model/add-status-to-model m)))
 
 (defn drop-tables
@@ -580,7 +582,6 @@
   (db/drop-table :field)
   (db/drop-table :model)
   (db/drop-table :migration))
-
 
 (defn migrate
   []
