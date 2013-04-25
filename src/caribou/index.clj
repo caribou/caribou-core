@@ -8,7 +8,7 @@
 (def required-keys [:id])
 
 (defn index-path []
-  (or (-> @config/app :index :path) "clucy-index"))
+  (or (config/draw :index :path) "clucy-index"))
 
 (defn index []
   (if-not (nil? @_index)
@@ -28,7 +28,7 @@
 (defn- searchable-keys [model]
   (map #(-> % :slug keyword) (searchable-fields model)))
 
-(defn default-limit [] (or (-> @config/app :index :default-limit) 1000))
+(defn default-limit [] (or (config/draw :index :default-limit) 1000))
 
 (defn compound-key [content locale]
   (if (empty? locale)

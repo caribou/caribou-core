@@ -14,7 +14,7 @@
 (defn table-columns
   "Return a list of all columns for the table corresponding to this model."
   [slug]
-  (let [model (@field/models (keyword slug))]
+  (let [model (field/models (keyword slug))]
     (apply
      concat
      (map
@@ -96,7 +96,7 @@
   [field opts all]
   (if-let [down (with-propagation :include opts (-> field :row :slug)
                   (fn [down]
-                    (let [target (@field/models (-> field :row :target_id))]
+                    (let [target (field/models (-> field :row :target_id))]
                       (model-models-involved target down all))))]
     down
     all))
@@ -222,7 +222,7 @@
            nesting 
            (with-propagation :include opts slug
              (fn [down]
-               (let [target (@field/models (-> this :row :target_id))
+               (let [target (field/models (-> this :row :target_id))
                      value (fusion target (str prefix "$" (name slug)) skein down)
                      protected (filter :id value)]
                  (assoc archetype slug (process protected)))))]

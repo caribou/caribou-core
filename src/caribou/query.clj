@@ -48,6 +48,9 @@
   (swap! queries (fn [_] {}))
   (swap! reverse-cache (fn [_] {})))
 
+(defn retrieve-query
+  [query-hash]
+  (get @queries query-hash))
 
 ;; QUERY DEFAULTS ----------------------------------------
 ;; this could live elsewhere

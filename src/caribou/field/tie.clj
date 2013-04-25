@@ -13,7 +13,7 @@
 
   (setup-field [this spec]
     (let [model_id (:model_id row)
-          model (@field/models model_id)
+          model (field/models model_id)
           id-slug (str (:slug row) "_id")]
       ((resolve 'caribou.model/update) :model model_id
         {:fields
@@ -29,7 +29,7 @@
     (field/rename-index this (str old-slug "_id") (str new-slug "_id")))
 
   (cleanup-field [this]
-    (let [model (@field/models (row :model_id))
+    (let [model (field/models (row :model_id))
           fields (:fields model)
           id-slug (keyword (str (:slug row) "_id"))]
       (db/drop-index (:slug model) id-slug)
@@ -46,14 +46,14 @@
   (join-fields [this prefix opts]
     (assoc/with-propagation :include opts (:slug row)
       (fn [down]
-        (let [target (@field/models (:model_id row))]
+        (let [target (field/models (:model_id row))]
           (assoc/model-select-fields target (str prefix "$" (:slug row))
                                      down)))))
 
   (join-conditions [this prefix opts]
     (assoc/with-propagation :include opts (:slug row)
       (fn [down]
-        (let [target (@field/models (:model_id row))
+        (let [target (field/models (:model_id row))
               id-slug (keyword (str (:slug row) "_id"))
               id-field (-> target :fields id-slug)
               table-alias (str prefix "$" (:slug row))
@@ -69,23 +69,23 @@
     [this prefix opts]
     (assoc/with-propagation :where opts (:slug row)
       (fn [down]
-        (let [target (@field/models (:model_id row))]
+        (let [target (field/models (:model_id row))]
           (assoc/model-where-conditions target (str prefix "$" (:slug row)) down)))))
 
   (natural-orderings [this prefix opts]
     (assoc/with-propagation :where opts (:slug row)
       (fn [down]
-        (let [target (@field/models (:model_id row))]
+        (let [target (field/models (:model_id row))]
           (assoc/model-natural-orderings target (str prefix "$" (:slug row)) down)))))
 
   (build-order [this prefix opts]
-    (assoc/join-order this (@field/models (:model_id row)) prefix opts))
+    (assoc/join-order this (field/models (:model_id row)) prefix opts))
 
   (field-generator [this generators]
     generators)
 
   (fuse-field [this prefix archetype skein opts]
-    (assoc/part-fusion this (@field/models (-> this :row :model_id)) prefix archetype skein opts))
+    (assoc/part-fusion this (field/models (-> this :row :model_id)) prefix archetype skein opts))
 
   (localized? [this] false)
 
@@ -93,7 +93,7 @@
   (models-involved [this opts all]
     (if-let [down (assoc/with-propagation :include opts (:slug row)
                     (fn [down]
-                      (let [target (@field/models (:model_id row))]
+                      (let [target (field/models (:model_id row))]
                         (assoc/model-models-involved target down all))))]
       down
       all))
@@ -102,11 +102,11 @@
     (assoc/with-propagation :include opts (:slug row)
       (fn [down]
         (if-let [tie-key (keyword (str (:slug row) "_id"))]
-          (let [model (@field/models (:model_id row))]
+          (let [model (field/models (:model_id row))]
             (assoc/from model (db/choose (:slug model) (content tie-key)) down))))))
 
   (render [this content opts]
-    (assoc/part-render this (@field/models (:model_id row)) content opts))
+    (assoc/part-render this (field/models (:model_id row)) content opts))
 
   (validate [this opts] (validation/for-assoc this opts)))
 

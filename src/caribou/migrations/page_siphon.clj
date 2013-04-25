@@ -14,7 +14,7 @@
 
     (model/update
      :model
-     (-> @model/models :page :id)
+     (model/models :page :id)
      {:fields [{:name "Siphons"
                 :type "collection"
                 :target_id (:id siphon)

@@ -41,7 +41,11 @@
   (render [this content opts] "renders out a single field from this content item")
   (validate [this opts] "given a set of options and the models, verifies the options are appropriate and well formed for gathering"))
 
-(def models (ref {}))
+(defn models
+  [& path]
+  (get-in (config/draw :models) path))
+
+;; (def models (ref {}))
 
 ;; functions for localized fields
 (defn build-locale-field
@@ -103,7 +107,7 @@
   [this prefix archetype skein opts]
   (let [pure (pure-fusion this prefix archetype skein opts)
         slug (keyword (-> this :row :slug))]
-    (update-in pure [slug] (partial adapter/text-value @config/db-adapter))))
+    (update-in pure [slug] (partial adapter/text-value (config/draw :db :adapter)))))
 
 (defn structure-fusion
   [this prefix archetype skein opts]
@@ -111,7 +115,7 @@
         slug (keyword (-> this :row :slug))]
     (update-in
      pure [slug]
-     #(let [value (adapter/text-value @config/db-adapter %)]
+     #(let [value (adapter/text-value (config/draw :db :adapter) %)]
         (if (and value (not (empty? value)))
           (read-string value))))))
 
@@ -122,7 +126,7 @@
 (defn pure-where
   [field prefix slug opts where]
   (let [model-id (-> field :row :model_id)
-        model (db/find-model model-id @models)
+        model (db/find-model model-id (models))
         [operator value] (where-operator where)
         field-select (coalesce-locale model field prefix slug opts)]
     (util/clause "%1 %2 %3" [field-select operator value])))
@@ -132,14 +136,14 @@
   (let [slug (-> field :row :slug)]
     (if-let [by (get (:order opts) (keyword slug))]
       (let [model-id (-> field :row :model_id)
-            model (db/find-model model-id @models)]
+            model (db/find-model model-id (models))]
         (str (coalesce-locale model field prefix slug opts) " "
              (name by))))))
 
 (defn string-where
   [field prefix slug opts where]
   (let [model-id (-> field :row :model_id)
-        model (db/find-model model-id @models)
+        model (db/find-model model-id (models))
         [operator value] (where-operator where)
         field-select (coalesce-locale model field prefix slug opts)]
     (util/clause "%1 %2 '%3'" [field-select operator value])))
@@ -147,7 +151,7 @@
 (defn field-cleanup
   [field]
   (let [model-id (-> field :row :model_id)
-        model (get @models model-id)]
+        model (models model-id)]
     (doseq [addition (table-additions field (-> field :row :slug))]
       (db/drop-column (:slug model) (first addition)))))
 

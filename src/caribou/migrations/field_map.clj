@@ -6,7 +6,7 @@
   []
   (model/update
    :model
-   (-> @model/models :field :id)
+   (model/models :field :id)
    {:fields [{:name "Map" :type "boolean"}]}))
 
 (defn rollback

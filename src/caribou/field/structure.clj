@@ -2,6 +2,7 @@
   (:require [caribou.field :as field]
             [caribou.util :as util]
             [caribou.config :as config]
+            [caribou.logger :as log]
             [caribou.db.adapter.protocol :as adapter]
             [caribou.validation :as validation]))
 
@@ -39,14 +40,19 @@
   (propagate-order [this id orderings])
   (models-involved [this opts all] all)
   (field-from [this content opts]
-    (read-string
-     (adapter/text-value
-      @config/db-adapter
-      (content (keyword (:slug row))))))
+    (try 
+      (read-string
+       (adapter/text-value
+        (config/draw :db :adapter)
+        (content (keyword (:slug row)))))
+      (catch Exception e
+        (do
+          (log/debug (str "Bad value for " (:slug row) ": " (str e)))
+          {}))))
   (render [this content opts]
     (update-in
      content [(keyword (:slug row))]
-     #(read-string (adapter/text-value @config/db-adapter %))))
+     #(read-string (adapter/text-value (config/draw :db :adapter) %))))
   (validate [this opts] (validation/for-type this opts string? "structure object")))
 
 (defn constructor

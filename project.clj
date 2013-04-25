@@ -3,6 +3,7 @@
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [org.clojure/java.jdbc "0.2.3"
                   :exclusions [org.clojure/clojure]]
+                 
                  [postgresql/postgresql "8.4-702.jdbc4"]
                  [com.h2database/h2 "1.3.170"]
                  [mysql/mysql-connector-java "5.1.6"]
