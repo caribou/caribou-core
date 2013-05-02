@@ -1031,7 +1031,7 @@
   [[] slug])
 
 (defn model-create [this spec]
-  (sql/with-connection (config/draw :db :database)
+  (sql/with-connection (config/draw :database)
     (create (.state this) spec)))
 
 (defn model-slug [this]
@@ -1042,10 +1042,10 @@
   (if (nil? (config/draw :app :use-database))
     (throw (Exception. "You must set :use-database in the app config")))
 
-  (if (empty? (config/draw :db :database))
+  (if (empty? (config/draw :database))
     (throw (Exception. "Please configure caribou prior to initializing model")))
 
-  (sql/with-connection (config/draw :db :database)
+  (sql/with-connection (config/draw :database)
     (invoke-models)))
 
 ;; MODEL GENERATION -------------------

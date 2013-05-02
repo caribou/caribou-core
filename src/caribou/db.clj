@@ -40,7 +40,7 @@
   [table values]
   (debug/out :db (clause "insert into %1 values %2" [(name table) (value-map values)]))
   (let [result (sql/insert-record table values)]
-    (adapter/insert-result (config/draw :db :adapter) (name table) result)))
+    (adapter/insert-result (config/draw :database :adapter) (name table) result)))
 
 (defn update
   "update the given row with the given values"
@@ -104,7 +104,7 @@
 (defn table?
   "check to see if a table by the given name exists"
   [table]
-  (adapter/table? (config/draw :db :adapter) table))
+  (adapter/table? (config/draw :database :adapter) table))
 
 (defn create-table
   "create a table with the given columns, of the format
@@ -143,7 +143,7 @@
 (defn rename-column
   "rename a column in the given table to new-name."
   [table column new-name]
-  (adapter/rename-column (config/draw :db :adapter) table column new-name))
+  (adapter/rename-column (config/draw :database :adapter) table column new-name))
 
 (defn drop-column
   "remove the given column from the table."
@@ -153,7 +153,7 @@
 
 (defn create-index
   [table column]
-  (if (adapter/supports-constraints? (config/draw :db :adapter))
+  (if (adapter/supports-constraints? (config/draw :database :adapter))
     (try
       (sql/do-commands
        (debug/out :db (clause "create index %1_%2_index on %1 (%2)" (map #(zap (name %)) [table column]))))
@@ -161,30 +161,30 @@
 
 (defn drop-index
   [table column]
-  (if (adapter/supports-constraints? (config/draw :db :adapter))
-    (adapter/drop-index (config/draw :db :adapter) (name table) (name column))))
+  (if (adapter/supports-constraints? (config/draw :database :adapter))
+    (adapter/drop-index (config/draw :database :adapter) (name table) (name column))))
 
 (defn drop-model-index
   [old-table new-table column]
-  (if (adapter/supports-constraints? (config/draw :db :adapter))
-    (adapter/drop-model-index (config/draw :db :adapter) (name old-table) (name new-table) (name column))))
+  (if (adapter/supports-constraints? (config/draw :database :adapter))
+    (adapter/drop-model-index (config/draw :database :adapter) (name old-table) (name new-table) (name column))))
 
 (defn set-default
   "sets the default for a column"
   [table column default]
-  (if (adapter/supports-constraints? (config/draw :db :adapter))
+  (if (adapter/supports-constraints? (config/draw :database :adapter))
     (let [value (sqlize default)]
       (sql/do-commands
        (debug/out :db (clause "alter table %1 alter column %2 set default %3" [(zap table) (zap column) value]))))))
 
 (defn set-required
   [table column value]
-  (if (adapter/supports-constraints? (config/draw :db :adapter))
-    (adapter/set-required (config/draw :db :adapter) (name table) (name column) value)))
+  (if (adapter/supports-constraints? (config/draw :database :adapter))
+    (adapter/set-required (config/draw :database :adapter) (name table) (name column) value)))
 
 (defn set-unique
   [table column value]
-  (if (adapter/supports-constraints? (config/draw :db :adapter))
+  (if (adapter/supports-constraints? (config/draw :database :adapter))
     (sql/do-commands
      (debug/out :db (clause
                      (if value
@@ -194,7 +194,7 @@
 
 (defn add-primary-key
   [table column]
-  (if (adapter/supports-constraints? (config/draw :db :adapter))
+  (if (adapter/supports-constraints? (config/draw :database :adapter))
     (try
       (sql/do-commands
        (debug/out
@@ -204,7 +204,7 @@
 
 (defn add-reference
   [table column reference deletion]
-  (if (adapter/supports-constraints? (config/draw :db :adapter))
+  (if (adapter/supports-constraints? (config/draw :database :adapter))
     (try
       (sql/do-commands
        (debug/out :db (clause
@@ -261,7 +261,7 @@
 
 (defn call
   [f]
-  (sql/with-connection (config/draw :db :database) (f)))
+  (sql/with-connection (config/draw :database) (f)))
 
 (defn wrap-db
   [handler db & [opts]]
@@ -274,7 +274,7 @@
 (defmacro with-db
   [config & body]
   `(config/with-config ~config
-     (sql/with-connection (config/draw :db :database)
+     (sql/with-connection (config/draw :database)
        ~@body)))
 
 (defn tally

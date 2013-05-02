@@ -107,7 +107,7 @@
   [this prefix archetype skein opts]
   (let [pure (pure-fusion this prefix archetype skein opts)
         slug (keyword (-> this :row :slug))]
-    (update-in pure [slug] (partial adapter/text-value (config/draw :db :adapter)))))
+    (update-in pure [slug] (partial adapter/text-value (config/draw :database :adapter)))))
 
 (defn structure-fusion
   [this prefix archetype skein opts]
@@ -115,7 +115,7 @@
         slug (keyword (-> this :row :slug))]
     (update-in
      pure [slug]
-     #(let [value (adapter/text-value (config/draw :db :adapter) %)]
+     #(let [value (adapter/text-value (config/draw :database :adapter) %)]
         (if (and value (not (empty? value)))
           (read-string value))))))
 

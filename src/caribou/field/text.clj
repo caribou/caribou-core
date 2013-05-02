@@ -39,11 +39,11 @@
   (propagate-order [this id orderings])
   (models-involved [this opts all] all)
   (field-from [this content opts]
-    (adapter/text-value (config/draw :db :adapter) (content (keyword (:slug row)))))
+    (adapter/text-value (config/draw :database :adapter) (content (keyword (:slug row)))))
   (render [this content opts]
     (update-in
      content [(keyword (:slug row))]
-     #(adapter/text-value (config/draw :db :adapter) %)))
+     #(adapter/text-value (config/draw :database :adapter) %)))
   (validate [this opts] (validation/for-type this opts string? "text object")))
 
 (defn constructor
