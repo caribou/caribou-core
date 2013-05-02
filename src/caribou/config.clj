@@ -53,9 +53,7 @@
               :database     "caribou_development"
               :user         "h2"
               :password     ""}
-   :logging {:loggers [{:type :stdout :level :debug}]
-             :level (atom 7)
-             :logs (atom [])}
+   :logging {:loggers [{:type :stdout :level :debug}]}
    :index {:path "caribou-index"
            :default-limit 1000}
    :models (atom {})
