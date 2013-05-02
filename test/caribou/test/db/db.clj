@@ -20,7 +20,7 @@
 
 (defn unicode-support-test
   []
-  (is (adapter/unicode-supported? (config/draw :db :adapter))))
+  (is (adapter/unicode-supported? (config/draw :database :adapter))))
 
 ;; TODO: test database...
 ;; query

@@ -46,14 +46,14 @@
          :fields-ns           "caribou.fields"
          :enable-query-cache  false
          :query-defaults      {}}
-   :db {:database {:classname    "org.h2.Driver"
-                   :subprotocol  "h2"
-                   :host         "localhost"
-                   :protocol     "file"
-                   :path         "/tmp/"
-                   :database     "caribou_development"
-                   :user         "h2"
-                   :password     ""}}
+   :database {:classname    "org.h2.Driver"
+              :subprotocol  "h2"
+              :host         "localhost"
+              :protocol     "file"
+              :path         "/tmp/"
+              :database     "caribou_development"
+              :user         "h2"
+              :password     ""}
    :logging {:loggers [{:type :stdout :level :debug}]}
    :index {:path "caribou-index"
            :default-limit 1000}
@@ -67,7 +67,7 @@
 
 (defn assoc-subname
   [db-config]
-  (adapter/build-subname (draw :db :adapter) db-config))
+  (adapter/build-subname (draw :database :adapter) db-config))
 
 (def ^{:private true :doc "Map of schemes to subprotocols"} subprotocols
   {"postgres" "postgresql"})
@@ -143,16 +143,16 @@
 
 (defn process-config
   [config]
-  (let [db-config (-> config :db :database)
+  (let [db-config (:database config)
         adapter (db-adapter/adapter-for db-config)
-        subnamed (adapter/build-subname adapter db-config)]
+        subnamed (adapter/build-subname adapter db-config)
+        adapted (assoc subnamed :adapter adapter)]
     (deep-merge-with
      (fn [& args]
        (last args))
      (default-config)
      config
-     {:db {:database subnamed
-           :adapter adapter}})))
+     {:database adapted})))
 
 (defmacro with-config
   [new-config & body]

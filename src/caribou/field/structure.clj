@@ -43,7 +43,7 @@
     (try 
       (read-string
        (adapter/text-value
-        (config/draw :db :adapter)
+        (config/draw :database :adapter)
         (content (keyword (:slug row)))))
       (catch Exception e
         (do
@@ -52,7 +52,7 @@
   (render [this content opts]
     (update-in
      content [(keyword (:slug row))]
-     #(read-string (adapter/text-value (config/draw :db :adapter) %))))
+     #(read-string (adapter/text-value (config/draw :database :adapter) %))))
   (validate [this opts] (validation/for-type this opts string? "structure object")))
 
 (defn constructor
