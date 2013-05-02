@@ -8,6 +8,7 @@
             [caribou.config :as config]
             [caribou.logger :as log]
             [caribou.db :as db]
+            [caribou.hooks :as hooks]
             [caribou.field :as field]
             [caribou.field.constructors :as field-constructors]
             [caribou.field.timestamp :as timestamp]
@@ -93,7 +94,6 @@
 
 ;; UBERQUERY ---------------------------------------------
 
-;; (def model-slugs (ref {}))
 (defn model-slugs
   []
   (filter keyword? (keys (models))))
@@ -380,7 +380,11 @@
   ;; (let [oneify (assoc opts :limit 1)]
   (first (find-all slug opts)))
 
-;; HOOKS -------------------------------------------------------
+;; HOOKS ---------------------------------------------------------
+
+(defn model-hooks-ns
+  [base slug]
+  (symbol (str base "." (name slug))))
 
 (defn add-app-model-hooks
   "finds and loads every namespace under the hooks-ns that matches the
@@ -390,79 +394,10 @@
   assumed that in each namespace hooks are set via add-hook as defined
   below"
   []
-  (let [hooks-ns (config/draw :app :hooks-ns)
-        make-hook-ns (fn [slug] (symbol (str hooks-ns "." (name slug))))]
-    (when hooks-ns
-      (doseq [model-slug (model-slugs)]
-        (-> model-slug make-hook-ns util/sloppy-require)))))
-
-(def lifecycle-hooks (ref {}))
-
-(defn make-lifecycle-hooks
-  "establish the set of functions which are called throughout the
-  lifecycle of all rows for a given model (slug).  the possible hook
-  points are:
-
-    :before_create -- called for create only, before the record is
-    made
-
-    :after_create -- called for create only, now the record has an id
-
-    :before_update -- called for update only, before any changes are
-    made
-
-    :after_update -- called for update only, now the changes have been
-    committed
-
-    :before_save -- called for create and update
-
-    :after_save -- called for create and update
-
-    :before_destroy -- only called on destruction, record has not yet
-    been removed
-
-    :after_destroy -- only called on destruction, now the db has no
-    record of it"
-  [slug]
-  (if (not (@lifecycle-hooks (keyword slug)))
-    (let [hooks {(keyword slug)
-                 {:before_create  (ref {})
-                  :after_create   (ref {})
-                  :before_update  (ref {})
-                  :after_update   (ref {})
-                  :before_save    (ref {})
-                  :after_save     (ref {})
-                  :before_destroy (ref {})
-                  :after_destroy  (ref {})}}]
-      (dosync
-       (alter lifecycle-hooks merge hooks)))))
-
-(defn run-hook
-  "run the hooks for the given model slug given by timing.  env
-  contains any necessary additional information for the running of the
-  hook"
-  [slug timing env]
-  (let [kind (@lifecycle-hooks (keyword slug))]
-    (if kind
-      (let [hook (deref (kind (keyword timing)))]
-        (reduce #((hook %2) %1) env (keys hook)))
-      env)))
-
-(defn add-hook
-  "add a hook for the given model slug for the given timing.  each hook
-  must have a unique id, or it overwrites the previous hook at that
-  id."
-  [slug timings id func]
-  (let [timings (if (keyword? timings) [timings] timings)]
-    (doseq [timing timings]
-      (if-let [model-hooks (lifecycle-hooks (keyword slug))]
-        (if-let [hook (model-hooks (keyword timing))]
-          (let [hook-name (keyword id)]
-            (dosync
-             (alter hook merge {hook-name func})))
-          (throw (Exception. (format "No model lifecycle hook called %s"
-                                     timing))))
-        (throw (Exception. (format "No model called %s" slug)))))))
+  (if-let [hooks-ns (config/draw :app :hooks-ns)]
+    (let [make-hook-ns (partial model-hooks-ns hooks-ns)]
+      (doseq [slug (model-slugs)]
+        (-> slug make-hook-ns util/sloppy-require)))))
 
 (defn add-parent-id
   [env]
@@ -583,18 +518,18 @@
   (db/create-index model-name "id"))
 
 (defn- add-model-hooks []
-  (add-hook
+  (hooks/add-hook
    :model :before_create :build_table
    (fn [env]
      (create-model-table (util/slugify (-> env :spec :name)))
      env))
   
-  (add-hook
+  (hooks/add-hook
    :model :after_create :add_base_fields
    (fn [env] (add-base-fields env)))
   ;; (assoc-in env [:spec :fields] (concat (-> env :spec :fields) base-fields))))
 
-  ;; (add-hook :model :before_save :write_migrations (fn [env]
+  ;; (hooks/add-hook :model :before_save :write_migrations (fn [env]
   ;;   (try                                                 
   ;;     (if (and (not (-> env :spec :locked)) (not (= (-> env :opts :op) :migration)))
   ;;       (let [now (.getTime (Date.))
@@ -605,7 +540,7 @@
   ;;     (catch Exception e env))
   ;;   env))
 
-  (add-hook
+  (hooks/add-hook
    :model :after_update :rename
    (fn [env]
      (let [original (-> env :original :slug)
@@ -617,19 +552,19 @@
            (field/rename-model field original slug))))
      env))
 
-  (add-hook
+  (hooks/add-hook
    :model :after_save :invoke_all
    (fn [env]
      (model-after-save env) ;; (invoke-models)
      env))
 
-  ;; (add-hook :model :before_destroy :cleanup-fields (fn [env]
+  ;; (hooks/add-hook :model :before_destroy :cleanup-fields (fn [env]
   ;;   (let [model (models (-> env :content :slug))]
   ;;     (doseq [field (-> model :fields vals)]
   ;;       (destroy :field (-> field :row :id))))
   ;;   env))
 
-  (add-hook
+  (hooks/add-hook
    :model :after_destroy :cleanup
    (fn [env]
      (db/drop-table (-> env :content :slug))
@@ -640,7 +575,7 @@
   ;; TODO make locale-aware
   ;(map (fn [m]
         ;(when-not (:locked m)
-          ;(add-hook (:slug m) :after_save :index
+          ;(hooks/add-hook (:slug m) :after_save :index
                     ;(fn [env]
                       ;(log/info (str "Indexing " (:slug m) " " (-> env :content :slug)))
                       ;(index/update (get models (:slug m)) (-> env :content))
@@ -649,18 +584,18 @@
 
   (if (models :locale)
     (do
-      (add-hook
+      (hooks/add-hook
        :locale :after_create :add_to_localized_models
        (fn [env]
          (propagate-new-locale env)))
 
-      (add-hook
+      (hooks/add-hook
        :locale :after_update :rename_localized_fields
        (fn [env]
          (rename-updated-locale env)))))
 
   (if (models :status)
-    (add-hook
+    (hooks/add-hook
      :model :after_create :add_status_part
      (fn [env] (add-status-part env)))))
 
@@ -776,16 +711,16 @@
       (:values env))))
 
 (defn- add-field-hooks []
-  (add-hook
+  (hooks/add-hook
    :field :before_save :check_link_slug
    (fn [env] (field-check-link-slug env)))
-  (add-hook
+  (hooks/add-hook
    :field :after_create :add_columns
    (fn [env] (field-add-columns env)))
-  (add-hook
+  (hooks/add-hook
    :field :after_update :reify_field
    (fn [env] (field-reify-column env)))
-  (add-hook
+  (hooks/add-hook
    :field :after_destroy :drop_columns (fn [env]
     (try                                                  
       (if-let [content (:content env)]
@@ -813,7 +748,7 @@
                            (get model :id))
         field-map (util/seq-to-map #(keyword (-> % :row :slug))
                                    (map make-field fields))]
-    (make-lifecycle-hooks (:slug model))
+    (hooks/make-lifecycle-hooks (:slug model))
     (assoc model :fields field-map)))
 
 (defn add-app-fields
@@ -846,12 +781,6 @@
     (add-field-hooks)
     (bind-models (merge by-slug by-id) config/config)
     (add-app-model-hooks)))
-    ;; (dosync
-    ;;  (alter models
-    ;;         (fn [in-ref new-models] new-models)
-    ;;         (merge (util/seq-to-map #(keyword (% :slug)) invoked)
-    ;;                (util/seq-to-map #(% :id) invoked)))))
-    ;; (add-app-model-hooks))
 
 (defn update-values-reduction
   [spec]
@@ -878,8 +807,8 @@
                      {} (vals (dissoc (:fields model) :updated_at)))
              env {:model model :values values :spec spec :op :create :opts opts}
 
-             _save (run-hook slug :before_save env)
-             _create (run-hook slug :before_create _save)
+             _save (hooks/run-hook slug :before_save env)
+             _create (hooks/run-hook slug :before_create _save)
 
              local-values (localize-values model (:values _create) opts)
 
@@ -892,7 +821,7 @@
 
              merged (merge (:spec _create) content)
 
-             _after (run-hook
+             _after (hooks/run-hook
                      slug :after_create
                      (merge _create {:content merged}))
 
@@ -901,7 +830,7 @@
                    (:content _after)
                    (vals (:fields model)))
 
-             _final (run-hook slug :after_save (merge _after {:content post}))]
+             _final (hooks/run-hook slug :after_save (merge _after {:content post}))]
          (query/clear-model-cache (list (:id model)))
          (:content _final)))))
 
@@ -921,23 +850,22 @@
                           {} (vals (model :fields)))
            env {:model model :values values :spec spec :original original
                 :op :update :opts opts}
-           _save (run-hook slug :before_save env)
-           _update (run-hook slug :before_update _save)
+           _save (hooks/run-hook slug :before_save env)
+           _update (hooks/run-hook slug :before_update _save)
            local-values (localize-values model (:values _update) opts)
            success (db/update
                     slug ["id = ?" (util/convert-int id)]
                     (assoc local-values
                       :updated_at (current-timestamp)))
-           ;content (pick slug {:where {:id id}})
            content (pick slug (merge {:where {:id id}}
                                      (if (contains? opts :locale) {:locale (:locale opts)} {})))
            indexed (index/update model content {:locale (:locale opts)})
            merged (merge (_update :spec) content)
-           _after (run-hook slug :after_update
+           _after (hooks/run-hook slug :after_update
                             (merge _update {:content merged}))
            post (reduce #(field/post-update %2 %1 opts)
                         (_after :content) (vals (model :fields)))
-           _final (run-hook slug :after_save (merge _after {:content post}))]
+           _final (hooks/run-hook slug :after_save (merge _after {:content post}))]
        (query/clear-model-cache (list (:id model)))
        (_final :content))))
 
@@ -947,12 +875,12 @@
   (let [model (models (keyword slug))
         content (db/choose slug id)
         env {:model model :content content :slug slug :op :destroy}
-        _before (run-hook slug :before_destroy env)
+        _before (hooks/run-hook slug :before_destroy env)
         pre (reduce #(field/pre-destroy %2 %1)
                     (_before :content) (-> model :fields vals))
         deleted (db/delete slug "id = %1" id)
         _ (index/delete model content)
-        _after (run-hook slug :after_destroy (merge _before {:content pre}))]
+        _after (hooks/run-hook slug :after_destroy (merge _before {:content pre}))]
     (query/clear-model-cache (list (:id model)))
     (_after :content)))
 

@@ -51,22 +51,6 @@
       (catch Exception e
         (log/render-exception e)))))
 
-;; (let [keys (join "," (map sqlize (keys mapping)))
-;;       values (join "," (map sqlize (vals mapping)))
-;;       q (clause "insert into %1 (%2) values (%3)" [(zap (name table)) keys values])]
-;;   (sql/with-connection db
-;;     (sql/do-commands
-;;       (log/out :db q)))))
-
-;; (defn update
-;;   "update the given row with the given values"
-;;   [table values & where]
-;;   (let [v (value-map values)
-;;         q (clause "update %1 set %2 where " [(zap (name table)) v])
-;;         w (clause (first where) (rest where))
-;;         t (str q w)]
-;;     (sql/do-commands (log/out :db t))))
-
 (defn delete
   "delete out of the given table according to the supplied where clause"
   [table & where]
