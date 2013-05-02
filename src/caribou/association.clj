@@ -96,7 +96,7 @@
   [field opts all]
   (if-let [down (with-propagation :include opts (-> field :row :slug)
                   (fn [down]
-                    (let [target (field/models (-> field :row :target_id))]
+                    (let [target (field/models (-> field :row :target-id))]
                       (model-models-involved target down all))))]
     down
     all))
@@ -126,7 +126,7 @@
 (defn build-alias
   [model field prefix slug opts]
   (let [select-field (field/coalesce-locale model field prefix slug opts)]
-    (str select-field " as " prefix "$" (name slug))))
+    (str select-field " as " (util/dbize prefix) "$" (util/dbize slug))))
 
 (defn select-fields
   "Find all necessary columns for the select query based on the given include nesting
@@ -212,7 +212,7 @@
 
 (defn collection-fusion
   ([this prefix archetype skein opts]
-     (let [key-slug (-> this :env :link :slug (str "_key") keyword)
+     (let [key-slug (-> this :env :link :slug (str "-key") keyword)
            fusion-op (if (-> this :row :map)
                        #(seq->map % key-slug)
                        identity)]
@@ -222,7 +222,7 @@
            nesting 
            (with-propagation :include opts slug
              (fn [down]
-               (let [target (field/models (-> this :row :target_id))
+               (let [target (field/models (-> this :row :target-id))
                      value (fusion target (str prefix "$" (name slug)) skein down)
                      protected (filter :id value)]
                  (assoc archetype slug (process protected)))))]
@@ -231,8 +231,8 @@
 (defn map-fusion
   ([this prefix archetype skein opts]
      (let [slug (-> this :row :slug)
-           key-slug (keyword (str slug "_key"))
-           position-slug (keyword (str slug "_position"))
+           key-slug (keyword (str slug "-key"))
+           position-slug (keyword (str slug "-position"))
            fusion-op (if (-> this :row :map)
                        #(seq->map % key-slug)
                        identity)

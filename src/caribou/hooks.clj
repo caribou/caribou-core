@@ -9,24 +9,24 @@
   lifecycle of all rows for a given model (slug).  the possible hook
   points are:
 
-    :before_create -- called for create only, before the record is made
-    :after_create -- called for create only, now the record has an id
-    :before_update -- called for update only, before any changes are made
-    :after_update -- called for update only, now the changes have been committed
-    :before_save -- called for create and update
-    :after_save -- called for create and update
-    :before_destroy -- only called on destruction, record has not yet been removed
-    :after_destroy -- only called on destruction, now the db has no record of it"
+    :before-create -- called for create only, before the record is made
+    :after-create -- called for create only, now the record has an id
+    :before-update -- called for update only, before any changes are made
+    :after-update -- called for update only, now the changes have been committed
+    :before-save -- called for create and update
+    :after-save -- called for create and update
+    :before-destroy -- only called on destruction, record has not yet been removed
+    :after-destroy -- only called on destruction, now the db has no record of it"
 
   []
-  {:before_create  {}
-   :after_create   {}
-   :before_update  {}
-   :after_update   {}
-   :before_save    {}
-   :after_save     {}
-   :before_destroy {}
-   :after_destroy  {}})
+  {:before-create  {}
+   :after-create   {}
+   :before-update  {}
+   :after-update   {}
+   :before-save    {}
+   :after-save     {}
+   :before-destroy {}
+   :after-destroy  {}})
 
 (defn hooks-for-model
   [slug]

@@ -9,12 +9,12 @@
 (defn mysql-table?
   "Determine if this table exists in the mysql database."
   [table]
-  (if (query "show tables like '%1'" (zap (name table)))
+  (if (query "show tables like '%1'" (dbize table))
     true false))
 
 (defn find-column-type
   [table column]
-  (let [result (query "show fields from %1 where Field = '%2'" (zap table) (zap column))]
+  (let [result (query "show fields from %1 where Field = '%2'" (dbize table) (dbize column))]
     (-> result first :type)))
 
 (defn mysql-set-required
@@ -25,21 +25,21 @@
                      (if value
                        "alter table %1 modify %2 %3 not null"
                        "alter table %1 modify %2 %3")
-                     [(zap table) (zap column) field-type])))))
+                     [(dbize table) (dbize column) field-type])))))
 
 (defn mysql-rename-column
   [table column new-name]
   (try
     (let [field-type (find-column-type table column)
           alter-statement "alter table %1 change %2 %3 %4"
-          rename (log/out :db (clause alter-statement (map (comp zap name) [table column new-name field-type])))]
+          rename (log/out :db (clause alter-statement (map dbize [table column new-name field-type])))]
       (sql/do-commands rename))
     (catch Exception e (log/render-exception e))))
 
 (defn mysql-insert-result
   [this table result]
   (sql/with-query-results res
-    [(str "select * from " (name table)
+    [(str "select * from " (dbize table)
           " where id = " (result (first (keys result))))]
     (first (doall res))))
 
@@ -47,14 +47,14 @@
   [table column]
   (try
     (sql/do-commands
-     (log/out :db (clause "alter table %1 drop index %1_%2_index" (map (comp zap name) [table column]))))
+     (log/out :db (clause "alter table %1 drop index %1_%2_index" (map dbize [table column]))))
     (catch Exception e (log/render-exception e))))
 
 (defn mysql-drop-model-index
   [old-table new-table column]
   (try
     (sql/do-commands
-     (log/out :db (clause "alter table %2 drop index %1_%3_index" (map (comp zap name) [old-table new-table column]))))
+     (log/out :db (clause "alter table %2 drop index %1_%3_index" (map dbize [old-table new-table column]))))
     (catch Exception e (log/render-exception e))))
 
 (defrecord MysqlAdapter [config]

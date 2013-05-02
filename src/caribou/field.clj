@@ -48,11 +48,11 @@
 ;; functions for localized fields
 (defn build-locale-field
   [prefix slug locale]
-  (str prefix "." (name locale) "_" (name slug)))
+  (str (util/dbize prefix) "." (util/dbize locale) "_" (util/dbize slug)))
 
 (defn build-select-field
   [prefix slug]
-  (str prefix "." (name slug)))
+  (str (util/dbize prefix) "." (util/dbize slug)))
 
 (defn build-coalesce
   [prefix slug locale results]
@@ -62,12 +62,12 @@
       local
       (str "coalesce(" local ", " global ")"))))
 
-(defn select-locale
-  [model field prefix slug opts]
-  (let [locale (:locale opts)]
-    (if (and locale (:localized model) (localized? field))
-      (build-locale-field prefix slug locale)
-      (build-select-field prefix slug))))
+;; (defn select-locale
+;;   [model field prefix slug opts]
+;;   (let [locale (:locale opts)]
+;;     (if (and locale (:localized model) (localized? field))
+;;       (build-locale-field prefix slug locale)
+;;       (build-select-field prefix slug))))
 
 (defn coalesce-locale
   [model field prefix slug opts]
@@ -119,11 +119,11 @@
 
 (defn id-models-involved
   [field opts all]
-  (conj all (-> field :row :model_id)))
+  (conj all (-> field :row :model-id)))
 
 (defn pure-where
   [field prefix slug opts where]
-  (let [model-id (-> field :row :model_id)
+  (let [model-id (-> field :row :model-id)
         model (db/find-model model-id (models))
         [operator value] (where-operator where)
         field-select (coalesce-locale model field prefix slug opts)]
@@ -133,14 +133,14 @@
   [field prefix opts]
   (let [slug (-> field :row :slug)]
     (if-let [by (get (:order opts) (keyword slug))]
-      (let [model-id (-> field :row :model_id)
+      (let [model-id (-> field :row :model-id)
             model (db/find-model model-id (models))]
         (str (coalesce-locale model field prefix slug opts) " "
              (name by))))))
 
 (defn string-where
   [field prefix slug opts where]
-  (let [model-id (-> field :row :model_id)
+  (let [model-id (-> field :row :model-id)
         model (db/find-model model-id (models))
         [operator value] (where-operator where)
         field-select (coalesce-locale model field prefix slug opts)]
@@ -148,7 +148,7 @@
 
 (defn field-cleanup
   [field]
-  (let [model-id (-> field :row :model_id)
+  (let [model-id (-> field :row :model-id)
         model (models model-id)]
     (doseq [addition (table-additions field (-> field :row :slug))]
       (db/drop-column (:slug model) (first addition)))))
@@ -160,7 +160,7 @@
 
 (defn rename-index
   [field old-slug new-slug]
-  (let [model (db/choose :model (-> field :row :model_id))]
+  (let [model (db/choose :model (-> field :row :model-id))]
     (db/drop-index (:slug model) old-slug)
     (db/create-index (:slug model) new-slug)))
 
@@ -170,4 +170,3 @@
 (defn add-constructor
   [key construct]
   (swap! field-constructors (fn [c] (assoc c key construct))))
-

@@ -20,7 +20,7 @@
   (reduce #(assoc %1 (f %2) %2) {} q))
 
 (defn slugify [s]
-  (.toLowerCase (string/replace (string/join "_" (re-seq #"[a-zA-Z0-9]+" (name s))) #"^[0-9]" "_")))
+  (.toLowerCase (string/replace (string/join "-" (re-seq #"[a-zA-Z0-9]+" (name s))) #"^[0-9]" "-")))
 
 (defn url-slugify [s]
   (.toLowerCase (string/join "-" (re-seq #"[a-zA-Z0-9]+" (name s)))))
@@ -129,6 +129,14 @@
 
 ;; db support -------------------------------
 
+(def naming-strategy
+  {:entity
+   (fn [k]
+     (string/replace (name k) "-" "_"))
+   :keyword
+   (fn [e]
+     (keyword (string/lower-case (string/replace e "_" "-"))))})
+
 (defn zap
   "quickly sanitize a potentially dirty string in preparation for a sql query"
   [s]
@@ -137,6 +145,12 @@
    (keyword? s) (zap (name s))
    :else s))
 
+(defn dbize
+  [s]
+  (if (or (keyword? s) (string? s))
+    (sql/as-named-identifier naming-strategy (keyword (zap s)))
+    s))
+
 (defn clause
   "substitute values into a string template based on numbered % parameters"
   [pred args]
@@ -144,7 +158,7 @@
                                   (let [item (nth args i)]
                                     (Matcher/quoteReplacement
                                      (cond
-                                      (keyword? item) (name item)
+                                      (keyword? item) (dbize (name item))
                                       :else
                                       (str item))))))]
     (if (empty? args)

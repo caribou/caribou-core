@@ -17,7 +17,7 @@
      (model/models :page :id)
      {:fields [{:name "Siphons"
                 :type "collection"
-                :target_id (:id siphon)
+                :target-id (:id siphon)
                 :map true}]})))
 
 (defn rollback

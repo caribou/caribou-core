@@ -9,10 +9,10 @@
 
 (defn full-address [address]
   (string/join " " [(address :address)
-             (address :address_two)
+             (address :address-two)
              (address :city)
              (address :state)
-             (address :postal_code)
+             (address :postal-code)
              (address :country)]))
 
 (defn geocode-address [address]
@@ -25,31 +25,31 @@
 (defrecord AddressField [row env]
   field/Field
   (table-additions [this field] [])
-  (subfield-names [this field] [(str field "_id")])
+  (subfield-names [this field] [(str field "-id")])
   (setup-field [this spec]
-    (let [id-slug (str (:slug row) "_id")]
-      ((resolve 'caribou.model/update) :model (:model_id row)
+    (let [id-slug (str (:slug row) "-id")]
+      ((resolve 'caribou.model/update) :model (:model-id row)
        {:fields [{:name (util/titleize id-slug)
                   :type "integer"
                   :editable false
                   :reference :location}]} {:op :migration})))
 
   (rename-model [this old-slug new-slug]
-    (field/rename-model-index old-slug new-slug (str (-> this :row :slug) "_id")))
+    (field/rename-model-index old-slug new-slug (str (-> this :row :slug) "-id")))
 
   (rename-field [this old-slug new-slug]
-    (field/rename-index this (str old-slug "_id") (str new-slug "_id")))
+    (field/rename-index this (str old-slug "-id") (str new-slug "-id")))
 
   (cleanup-field [this]
-    (let [model (field/models (:model_id row))
-          id-slug (-> row :slug (str "_id") keyword)]
+    (let [model (field/models (:model-id row))
+          id-slug (-> row :slug (str "-id") keyword)]
       (db/drop-index (:slug model) id-slug)
       ((resolve 'caribou.model/destroy) :field (-> model :fields id-slug :row :id))))
 
   (target-for [this] nil)
   (update-values [this content values]
     (let [posted (content (keyword (:slug row)))
-          idkey (keyword (str (:slug row) "_id"))
+          idkey (keyword (str (:slug row) "-id"))
           preexisting (content idkey)
           address (if preexisting (assoc posted :id preexisting) posted)]
       (if address
@@ -66,14 +66,14 @@
                                (str prefix "$" (:slug row)) opts))
 
   (join-conditions [this prefix opts]
-    (let [model (field/models (:model_id row))
+    (let [model (field/models (:model-id row))
           slug (:slug row)
-          id-slug (keyword (str slug "_id"))
+          id-slug (keyword (str slug "-id"))
           id-field (-> model :fields id-slug)
           field-select (field/coalesce-locale model id-field prefix
                                                (name id-slug) opts)]
       [(util/clause "left outer join location %2$%1 on (%3 = %2$%1.id)"
-                    [(:slug row) prefix field-select])]))
+                    [(util/dbize (:slug row)) (util/dbize prefix) field-select])]))
 
   (build-where
     [this prefix opts]
@@ -98,7 +98,7 @@
 
   (propagate-order [this id orderings])
   (field-from [this content opts]
-    (or (db/choose :location (content (keyword (str (:slug row) "_id")))) {}))
+    (or (db/choose :location (content (keyword (str (:slug row) "-id")))) {}))
 
   (render [this content opts]
     (assoc/join-render this (field/models :location) content opts))

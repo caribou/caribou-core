@@ -11,7 +11,7 @@
    :migration
    [:id "SERIAL" "PRIMARY KEY"]
    [:name "varchar(55)" "NOT NULL" "UNIQUE"]
-   [:run_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]))
+   [:run-at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]))
 
 (defn create-models-table []
   (db/create-table
@@ -23,13 +23,13 @@
    [:position :integer "DEFAULT 0"]
    [:nested :boolean "DEFAULT false"]
    [:locked :boolean "DEFAULT false"]
-   [:join_model :boolean "DEFAULT false"]
+   [:join-model :boolean "DEFAULT false"]
    [:abstract :boolean "DEFAULT false"]
    [:localized :boolean "DEFAULT false"]
    [:searchable :boolean "DEFAULT false"]
-   [:ancestor_id :integer "DEFAULT NULL"]
-   [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
-   [:updated_at "timestamp" "NOT NULL"])) ;; "DEFAULT current_timestamp"]))
+   [:ancestor-id :integer "DEFAULT NULL"]
+   [:created-at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
+   [:updated-at "timestamp" "NOT NULL"])) ;; "DEFAULT current_timestamp"]))
 
 (defn create-field-table []
   (db/create-table
@@ -38,12 +38,12 @@
    [:name "varchar(55)" "NOT NULL"]
    [:slug "varchar(55)" "NOT NULL"]
    [:type "varchar(256)" "NOT NULL"]
-   [:default_value "varchar(256)"]
-   [:link_id :integer "DEFAULT NULL"]
-   [:model_id :integer "NOT NULL" "REFERENCES model ON DELETE CASCADE"]
-   [:model_position :integer "DEFAULT 0"]
-   [:target_id :integer "DEFAULT NULL"]
-   [:target_type "varchar(55)" "DEFAULT NULL"]
+   [:default-value "varchar(256)"]
+   [:link-id :integer "DEFAULT NULL"]
+   [:model-id :integer "NOT NULL" "REFERENCES model ON DELETE CASCADE"]
+   [:model-position :integer "DEFAULT 0"]
+   [:target-id :integer "DEFAULT NULL"]
+   [:target-type "varchar(55)" "DEFAULT NULL"]
    [:description :text]
    [:position :integer "DEFAULT 0"]
    [:required :boolean "DEFAULT false"]
@@ -54,8 +54,8 @@
    [:editable :boolean "DEFAULT true"]
    [:searchable :boolean "DEFAULT false"]
    [:dependent :boolean "DEFAULT false"]
-   [:created_at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
-   [:updated_at "timestamp" "NOT NULL"])) ;; "DEFAULT current_timestamp"]))
+   [:created-at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
+   [:updated-at "timestamp" "NOT NULL"])) ;; "DEFAULT current_timestamp"]))
 
 (defn create-model-model []
   (db/insert
@@ -64,7 +64,7 @@
     :slug "model"
     :description "base model for models"
     :position 1
-    :updated_at (model/current-timestamp)
+    :updated-at (model/current-timestamp)
     :locked true}))
 
 (defn create-field-model []
@@ -74,7 +74,7 @@
     :slug "field"
     :description "a model that specifies what fields a model has"
     :position 2
-    :updated_at (model/current-timestamp)
+    :updated-at (model/current-timestamp)
     :locked true}))
 
 (defn create-model-fields []
@@ -87,16 +87,16 @@
       :locked true
       :immutable true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (let [name-field (db/insert
                       :field
                       {:name "Name"
                        :slug "name"
                        :type "string"
                        :locked true
-                       :updated_at (model/current-timestamp)
-                       :model_id model-id})]
+                       :updated-at (model/current-timestamp)
+                       :model-id model-id})]
       (db/insert
        :field
        {:name "Slug"
@@ -104,41 +104,41 @@
         :type "slug"
         :locked true
         :editable false
-        :updated_at (model/current-timestamp)
-        :link_id (name-field :id)
-        :model_id model-id}))
+        :updated-at (model/current-timestamp)
+        :link-id (name-field :id)
+        :model-id model-id}))
     (db/insert
      :field
      {:name "Description"
       :slug "description"
       :type "text"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Position"
       :slug "position"
       :type "position"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Nested"
       :slug "nested"
       :type "boolean"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Join Model"
-      :slug "join_model"
+      :slug "join-model"
       :type "boolean"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Fields"
@@ -146,8 +146,8 @@
       :type "collection"
       :dependent true
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Locked"
@@ -156,60 +156,60 @@
       :locked true
       :immutable true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Abstract"
       :slug "abstract"
       :type "boolean"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Localized"
       :slug "localized"
       :type "boolean"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Searchable"
       :slug "searchable"
       :type "boolean"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Ancestor Id"
-      :slug "ancestor_id"
+      :slug "ancestor-id"
       :type "integer"
       :locked true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Created At"
-      :slug "created_at"
+      :slug "created-at"
       :type "timestamp"
       :locked true
       :immutable true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Updated At"
-      :slug "updated_at"
+      :slug "updated-at"
       :type "timestamp"
       :locked true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})))
+      :updated-at (model/current-timestamp)
+      :model-id model-id})))
 
 (defn create-field-fields []
   (let [model-id ((first (util/query "select id from model where slug = 'field'")) :id)]
@@ -221,8 +221,8 @@
       :locked true
       :immutable true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Link"
@@ -231,25 +231,25 @@
       :locked true
       :immutable true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Link Id"
-      :slug "link_id"
+      :slug "link-id"
       :type "integer"
       :locked true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (let [name-field (db/insert
                       :field
                       {:name "Name"
                        :slug "name"
                        :type "string"
                        :locked true
-                       :updated_at (model/current-timestamp)
-                       :model_id model-id})]
+                       :updated-at (model/current-timestamp)
+                       :model-id model-id})]
       (db/insert
        :field
        {:name "Slug"
@@ -257,9 +257,9 @@
         :type "slug"
         :locked true
         :editable false
-        :updated_at (model/current-timestamp)
-        :link_id (name-field :id)
-        :model_id model-id}))
+        :updated-at (model/current-timestamp)
+        :link-id (name-field :id)
+        :model-id model-id}))
     (db/insert
      :field
      {:name "Type"
@@ -268,61 +268,61 @@
       :locked true
       :immutable true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Default Value"
-      :slug "default_value"
+      :slug "default-value"
       :type "string"
       :locked true
       :immutable true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Description"
       :slug "description"
       :type "text"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Position"
       :slug "position"
       :type "position"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Model Id"
-      :slug "model_id"
+      :slug "model-id"
       :type "integer"
       :locked true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Target Id"
-      :slug "target_id"
+      :slug "target-id"
       :type "integer"
       :locked true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Model Position"
-      :slug "model_position"
+      :slug "model-position"
       :type "position"
       :locked true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Model"
@@ -330,32 +330,32 @@
       :type "part"
       :locked true
       :dependent true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Required"
       :slug "required"
       :type "boolean"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Disjoint"
       :slug "disjoint"
       :type "boolean"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Singular"
       :slug "singular"
       :type "boolean"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Editable"
@@ -364,8 +364,8 @@
       :locked true
       :immutable true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Immutable"
@@ -374,8 +374,8 @@
       :locked true
       :immutable true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Locked"
@@ -384,51 +384,51 @@
       :locked true
       :immutable true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Searchable"
       :slug "searchable"
       :type "boolean"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Dependent"
       :slug "dependent"
       :type "boolean"
       :locked true
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Created At"
-      :slug "created_at"
+      :slug "created-at"
       :type "timestamp"
       :locked true
       :immutable true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})
+      :updated-at (model/current-timestamp)
+      :model-id model-id})
     (db/insert
      :field
      {:name "Updated At"
-      :slug "updated_at"
+      :slug "updated-at"
       :type "timestamp"
       :locked true
       :editable false
-      :updated_at (model/current-timestamp)
-      :model_id model-id})))
+      :updated-at (model/current-timestamp)
+      :model-id model-id})))
 
 (defn forge-link []
   (let [model (first (db/fetch :model "slug = '%1'" "model"))
         field (first (db/fetch :model "slug = '%1'" "field"))
         collection (first (db/fetch :field "slug = '%1' and model_id = %2" "fields" (model :id)))
         part (first (db/fetch :field "slug = '%1' and model_id = %2" "model" (field :id)))]
-    (db/update :field ["id = ?" (part :id)] {:link_id (collection :id) :target_id (model :id)})
-    (db/update :field ["id = ?" (collection :id)] {:link_id (part :id) :target_id (field :id)})))
+    (db/update :field ["id = ?" (part :id)] {:link-id (collection :id) :target-id (model :id)})
+    (db/update :field ["id = ?" (collection :id)] {:link-id (part :id) :target-id (field :id)})))
 
 (defn lock [fields]
   (map #(assoc % :locked true) fields))
@@ -439,7 +439,7 @@
            :locked true
            :nested true
            :fields (lock [{:name "Name" :type "string" :required true :disjoint true}
-                          {:name "Slug" :type "slug" :link_slug "name"}
+                          {:name "Slug" :type "slug" :link-slug "name"}
                           {:name "Path" :type "string"}
                           {:name "Controller" :type "string" :required true}
                           {:name "Action" :type "string" :required true}
@@ -488,7 +488,7 @@
            :position 8
            :locked true
            :fields (lock [{:name "Name" :type "string" :required true}
-                          {:name "Slug" :type "slug" :link_slug "name"}
+                          {:name "Slug" :type "slug" :link-slug "name"}
                           {:name "Asset" :type "asset"}
                           {:name "Description" :type "text"}])})
 
@@ -523,8 +523,8 @@
              :description "all of the possible states a model can be in"
              :position 12
              :locked true
-             :fields (lock [{:name "Name" :type "string" :model_position -1 :position -1} ; position hack
-                            {:name "Slug" :type "slug" :link_slug "name"}
+             :fields (lock [{:name "Name" :type "string" :model-position -1 :position -1} ; position hack
+                            {:name "Slug" :type "slug" :link-slug "name"}
                             {:name "Description" :type "text"}])})
 
 (defn create-default-status []
@@ -533,21 +533,21 @@
                       :slug "draft"
                       :description "Draft status is not publicly visible"
                       :locked true
-                      :updated_at (model/current-timestamp)
+                      :updated-at (model/current-timestamp)
                      })
   (db/insert :status {:id 2
                       :name "Published"
                       :slug "published"
                       :description "Published means visible to the public"
                       :locked true
-                      :updated_at (model/current-timestamp)
+                      :updated-at (model/current-timestamp)
                      }))
 
 (defn create-default-user []
   (model/create :account {:email "caribou"
-                          :first_name "Caribou"
-                          :last_name "User"
-                          :crypted_password (auth/hash-password "caribou")}))
+                          :first-name "Caribou"
+                          :last-name "User"
+                          :crypted-password (auth/hash-password "caribou")}))
 
 (def incubating
   [page account view locale asset site domain location i18n status])
@@ -566,10 +566,10 @@
     [{:name "Domains"
       :type "collection"
       :dependent true
-      :target_id (model/models :domain :id)}
+      :target-id (model/models :domain :id)}
      {:name "Pages"
       :type "collection"
-      :target_id (model/models :page :id)}]}
+      :target-id (model/models :page :id)}]}
    {:op :migration})
   (doseq [m (model/gather :model)] (model/add-status-to-model m)))
 

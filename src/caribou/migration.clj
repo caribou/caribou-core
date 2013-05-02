@@ -6,7 +6,8 @@
             [caribou.util :as util]
             [caribou.config :as config]
             [caribou.logger :as log]
-            [caribou.db :as db]))
+            [caribou.db :as db]
+            [caribou.core :as core]))
 
 (defn used-migrations
   []
@@ -53,12 +54,14 @@
   [prj config-file exit? & migrations]
 
   (let [cfg (config/read-config config-file)
-        _   (config/configure cfg)
-        db-config (config/assoc-subname (munge-for-migrate (cfg :database)))
+        cfg (config/process-config cfg)
+        ;; _ (config/configure cfg)
+        ;; db-config (config/assoc-subname (munge-for-migrate (cfg :database)))
         app-migration-namespace (:migration-namespace prj)]
-    (config/configure cfg)
+    ;; (config/configure cfg)
 
-    (sql/with-connection db-config
+    ;; (sql/with-connection db-config
+    (db/with-db cfg
       (log/info "Already used these: ")
       (pprint/pprint (used-migrations))
       (let [core-migrations (load-migration-order "caribou.migrations")
@@ -100,12 +103,21 @@
 (defn run-rollbacks
   [prj config-file exit? & rollbacks]
   (let [cfg (config/read-config config-file)
-        _   (config/configure cfg)
-        db-config (config/assoc-subname (munge-for-migrate (cfg :database)))
+        cfg (config/process-config cfg)
+        ;; _ (config/configure cfg)
+        ;; db-config (config/assoc-subname (munge-for-migrate (cfg :database)))
         app-migration-namespace (:migration-namespace prj)]
-    (config/configure cfg)
+    ;; (config/configure cfg)
 
-    (sql/with-connection db-config
+    ;; (sql/with-connection db-config
+    (db/with-db cfg
+  ;; (let [cfg (config/read-config config-file)
+  ;;       _ (config/configure cfg)
+  ;;       db-config (config/assoc-subname (munge-for-migrate (cfg :database)))
+  ;;       app-migration-namespace (:migration-namespace prj)]
+  ;;   (config/configure cfg)
+
+  ;;   (sql/with-connection db-config
       (let [available-rollbacks (if (empty? (remove nil? rollbacks))
                                   (reverse (used-migrations))
                                   rollbacks)]

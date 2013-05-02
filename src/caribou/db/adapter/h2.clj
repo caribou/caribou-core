@@ -32,7 +32,7 @@
   "Determine if the given table exists in the database."
   [table]
   (let [tables (h2-tables)
-        table-name (name table)]
+        table-name (dbize table)]
     (some #(= % table-name) tables)))
 
 (defn h2-set-required
@@ -42,7 +42,7 @@
                    (if value
                      "alter table %1 alter column %2 set not null"
                      "alter table %1 alter column %2 drop not null")
-                   [(zap table) (zap column)]))))
+                   [(dbize table) (dbize column)]))))
 
 (defn h2-rename-column
   [table column new-name]
@@ -50,7 +50,7 @@
     (let [alter-statement "alter table %1 alter column %2 rename to %3"
           rename (log/out
                   :db
-                  (clause alter-statement (map name [table column new-name])))]
+                  (clause alter-statement (map dbize [table column new-name])))]
       (sql/do-commands rename))
     (catch Exception e (log/render-exception e))))
 
@@ -59,7 +59,7 @@
   (try
     (sql/do-commands
      (log/out :db (clause "drop index %1_%2_index"
-                            (map #(zap (name %)) [table column]))))
+                            (map dbize [table column]))))
     (catch Exception e (log/render-exception e))))
 
 (defn h2-text-value
@@ -84,7 +84,7 @@
   (supports-constraints? [this] false)
   (insert-result [this table result]
     (sql/with-query-results res
-      [(str "select * from " (name table)
+      [(str "select * from " (dbize table)
             " where id = " (result (first (keys result))))]
       (first (doall res))))
   (rename-column [this table column new-name]

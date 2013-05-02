@@ -1,23 +1,23 @@
 (ns caribou.db
-  (:use caribou.util
-        [clojure.string :only (join split)])
+  (:use [clojure.string :only (join split)])
   (:require [clojure.string :as string]
             [clojure.java.jdbc :as sql]
             [caribou.logger :as log]
             [caribou.config :as config]
+            [caribou.util :as util]
             [caribou.db.adapter.protocol :as adapter]))
 
 (import java.util.regex.Matcher)
 
 (defn recursive-query [table fields base-where recur-where]
-  (let [field-names (distinct (map name (concat [:id :parent_id] fields)))
+  (let [field-names (distinct (map name (concat [:id :parent-id] fields)))
         field-list (join "," field-names)]
-    (query (str "with recursive %1_tree(" field-list
+    (util/query (str "with recursive %1_tree(" field-list
                 ") as (select " field-list
                 " from %1 where %2 union select "
                 (join "," (map #(str "%1." %) field-names))
                 " from %1,%1_tree where %3)"
-                " select * from %1_tree") (name table) base-where recur-where)))
+                " select * from %1_tree") (util/dbize table) base-where recur-where)))
 
 (defn sqlize
   "process a raw value into a sql appropriate string"
@@ -25,9 +25,9 @@
   (cond
     (number? value) value
     (isa? (type value) Boolean) value
-    (keyword? value) (zap (name value))
-    (string? value) (str "'" (zap value) "'")
-    :else (str "'" (zap (str value)) "'")))
+    (keyword? value) (util/dbize value)
+    (string? value) (str "'" (util/zap value) "'")
+    :else (str "'" (util/zap (str value)) "'")))
 
 (defn value-map
   "build a string of values fit for an insert or update statement"
@@ -37,9 +37,9 @@
 (defn insert
   "insert a row into the given table with the given values"
   [table values]
-  (log/out :db (clause "insert into %1 values %2" [(name table) (value-map values)]))
-  (let [result (sql/insert-record table values)]
-    (adapter/insert-result (config/draw :database :adapter) (name table) result)))
+  (log/out :db (util/clause "insert into %1 values %2" [(util/dbize table) (value-map values)]))
+  (let [result (sql/insert-record (util/dbize table) values)]
+    (adapter/insert-result (config/draw :database :adapter) (util/dbize table) result)))
 
 (defn update
   "update the given row with the given values"
@@ -47,27 +47,29 @@
   (log/out :db (str "update " table " " where " set " values))
   (if (not (empty? values))
     (try
-      (sql/update-values table where values)
+      (sql/update-values (util/dbize table) where values)
       (catch Exception e
         (log/render-exception e)))))
 
 (defn delete
   "delete out of the given table according to the supplied where clause"
   [table & where]
-  (log/out :db (clause "delete from %1 values %2" [(name table) (clause (first where) (rest where))]))
-  (sql/delete-rows (name table) [(if (not (empty? where)) (clause (first where) (rest where)))]))
+  (log/out :db (util/clause "delete from %1 values %2" [(util/dbize table) (util/clause (first where) (rest where))]))
+  (sql/delete-rows (util/dbize table) [(if (not (empty? where)) (util/clause (first where) (rest where)))]))
 
 (defn fetch
   "pull all items from a table according to the given conditions"
   [table & where]
-  (apply query (cons (str "select * from %" (count where) " where " (first where))
-                     (concat (rest where) [(name table)]))))
+  (apply
+   util/query
+   (cons (str "select * from %" (count where) " where " (first where))
+         (concat (rest where) [(util/dbize table)]))))
 
 (defn choose
   "pull just the record with the given id from the given table"
   [table id]
   (if id
-    (first (query "select * from %1 where id = %2" (zap (name table)) (zap (str id))))
+    (first (util/query "select * from %1 where id = %2" (util/dbize table) (util/dbize (str id))))
     nil))
 
 (defn find-model
@@ -87,9 +89,9 @@
 
 (defn create-table
   "create a table with the given columns, of the format
-  [:column_name :type & :extra]"
+  [:column-name :type & :extra]"
   [table & fields]
-  (log/out :db (clause "create table %1 %2" [(name table) fields]))
+  (log/out :db (util/clause "create table %1 %2" [(util/dbize table) fields]))
   (try
     (apply sql/create-table (cons table fields))
     (catch Exception e (log/render-exception e))))
@@ -97,7 +99,7 @@
 (defn rename-table
   "change the name of a table to new-name."
   [table new-name]
-  (let [rename (log/out :db (clause "alter table %1 rename to %2" [(name table) (name new-name)]))]
+  (let [rename (log/out :db (util/clause "alter table %1 rename to %2" [(util/dbize table) (util/dbize new-name)]))]
     (try
       (sql/do-commands rename)
       (catch Exception e (log/render-exception e)))))
@@ -105,7 +107,7 @@
 (defn drop-table
   "remove the given table from the database."
   [table]
-  (let [drop (log/out :db (clause "drop table %1 cascade" [(name table)]))]
+  (let [drop (log/out :db (util/clause "drop table %1 cascade" [(util/dbize table)]))]
     (try
       (sql/do-commands drop)
       (catch Exception e (log/render-exception e)))))
@@ -113,10 +115,10 @@
 (defn add-column
   "add the given column to the table."
   [table column opts]
-  (let [type (join " " (map name opts))]
+  (let [type (join " " (map util/dbize opts))]
     (try
       (sql/do-commands
-       (log/out :db (clause "alter table %1 add column %2 %3" (map #(zap (name %)) [table column type]))))
+       (log/out :db (util/clause "alter table %1 add column %2 %3" (map util/dbize [table column type]))))
       (catch Exception e (log/render-exception e)))))
 
 (defn rename-column
@@ -128,25 +130,25 @@
   "remove the given column from the table."
   [table column]
   (sql/do-commands
-   (log/out :db (clause "alter table %1 drop column %2" (map #(zap (name %)) [table column])))))
+   (log/out :db (util/clause "alter table %1 drop column %2" (map util/dbize [table column])))))
 
 (defn create-index
   [table column]
   (if (adapter/supports-constraints? (config/draw :database :adapter))
     (try
       (sql/do-commands
-       (log/out :db (clause "create index %1_%2_index on %1 (%2)" (map #(zap (name %)) [table column]))))
+       (log/out :db (util/clause "create index %1_%2_index on %1 (%2)" (map util/dbize [table column]))))
       (catch Exception e (log/render-exception e)))))
 
 (defn drop-index
   [table column]
   (if (adapter/supports-constraints? (config/draw :database :adapter))
-    (adapter/drop-index (config/draw :database :adapter) (name table) (name column))))
+    (adapter/drop-index (config/draw :database :adapter) (util/dbize table) (util/dbize column))))
 
 (defn drop-model-index
   [old-table new-table column]
   (if (adapter/supports-constraints? (config/draw :database :adapter))
-    (adapter/drop-model-index (config/draw :database :adapter) (name old-table) (name new-table) (name column))))
+    (adapter/drop-model-index (config/draw :database :adapter) (util/dbize old-table) (util/dbize new-table) (util/dbize column))))
 
 (defn set-default
   "sets the default for a column"
@@ -154,22 +156,22 @@
   (if (adapter/supports-constraints? (config/draw :database :adapter))
     (let [value (sqlize default)]
       (sql/do-commands
-       (log/out :db (clause "alter table %1 alter column %2 set default %3" [(zap table) (zap column) value]))))))
+       (log/out :db (util/clause "alter table %1 alter column %2 set default %3" [(util/dbize table) (util/dbize column) value]))))))
 
 (defn set-required
   [table column value]
   (if (adapter/supports-constraints? (config/draw :database :adapter))
-    (adapter/set-required (config/draw :database :adapter) (name table) (name column) value)))
+    (adapter/set-required (config/draw :database :adapter) (util/dbize table) (util/dbize column) value)))
 
 (defn set-unique
   [table column value]
   (if (adapter/supports-constraints? (config/draw :database :adapter))
     (sql/do-commands
-     (log/out :db (clause
+     (log/out :db (util/clause
                      (if value
                        "alter table %1 add constraint %2_unique unique (%2)"
                        "alter table %1 drop constraint %2_unique")
-                     [(zap table) (zap column)])))))
+                     [(util/dbize table) (util/dbize column)])))))
 
 (defn add-primary-key
   [table column]
@@ -178,7 +180,7 @@
       (sql/do-commands
        (log/out
         :db
-        (clause "alter table %1 add primary key (%2)" [(zap table) (zap column)])))
+        (util/clause "alter table %1 add primary key (%2)" [(util/dbize table) (util/dbize column)])))
       (catch Exception e (log/render-exception e)))))
 
 (defn add-reference
@@ -186,12 +188,12 @@
   (if (adapter/supports-constraints? (config/draw :database :adapter))
     (try
       (sql/do-commands
-       (log/out :db (clause
+       (log/out :db (util/clause
                        (condp = deletion
                          :destroy "alter table %1 add foreign key(%2) references %3 on delete cascade"
                          :default "alter table %1 add foreign key(%2) references %3 on delete set default"
                          "alter table %1 add foreign key(%2) references %3 on delete set null")
-                       [(zap table) (zap column) (zap reference)])))
+                       [(util/dbize table) (util/dbize column) (util/dbize reference)])))
       (catch Exception e
         (log/error (str "UNABLE TO ADD REFERENCE FOR" table column reference deletion e))))))
 
@@ -216,7 +218,7 @@
     (try
       (sql/with-connection (change-db-keep-host config "template1")
         (with-open [s (.createStatement (sql/connection))]
-          (.addBatch s (str "drop database " (zap db-name)))
+          (.addBatch s (str "drop database " (util/dbize db-name)))
           (seq (.executeBatch s))))
       (catch Exception e (log/render-exception e)))))
 
@@ -228,7 +230,7 @@
     (try
       (sql/with-connection (change-db-keep-host config "template1") 
         (with-open [s (.createStatement (sql/connection))]
-          (.addBatch s (str "create database " (zap db-name)))
+          (.addBatch s (str "create database " (util/dbize db-name)))
           (seq (.executeBatch s))))
       (catch Exception e (log/render-exception e)))))
 
@@ -253,13 +255,14 @@
 (defmacro with-db
   [config & body]
   `(config/with-config ~config
-     (sql/with-connection (config/draw :database)
-       ~@body)))
+     (sql/with-naming-strategy util/naming-strategy
+       (sql/with-connection (config/draw :database)
+         ~@body))))
 
 (defn tally
   "return how many total records are in this table"
   [table]
-  (let [result (first (query "select count(id) from %1" (name table)))]
+  (let [result (first (util/query "select count(id) from %1" (util/dbize table)))]
     (result (first (keys result)))))
 
 

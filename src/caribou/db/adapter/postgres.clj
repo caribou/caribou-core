@@ -12,7 +12,7 @@
   (< 0
      (count
       (query "select true from pg_class where relname='%1'"
-             (zap (name table))))))
+             (dbize (name table))))))
 
 (defn postgres-set-required
   [table column value]
@@ -21,13 +21,13 @@
                    (if value
                      "alter table %1 alter column %2 set not null"
                      "alter table %1 alter column %2 drop not null")
-                   [(zap table) (zap column)]))))
+                   [(dbize table) (dbize column)]))))
 
 (defn postgres-rename-column
   [table column new-name]
   (try
     (let [alter-statement "alter table %1 rename column %2 to %3"
-          rename (log/out :db (clause alter-statement (map (comp zap name) [table column new-name])))]
+          rename (log/out :db (clause alter-statement (map dbize [table column new-name])))]
       (sql/do-commands rename))
     (catch Exception e (log/render-exception e))))
 
@@ -35,7 +35,7 @@
   [table column]
   (try
     (sql/do-commands
-     (log/out :db (clause "drop index %1_%2_index" (map (comp zap name) [table column]))))
+     (log/out :db (clause "drop index %1_%2_index" (map dbize [table column]))))
     (catch Exception e (log/render-exception e))))
 
 (defrecord PostgresAdapter [config]
