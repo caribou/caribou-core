@@ -45,8 +45,6 @@
   [& path]
   (get-in (deref (config/draw :models)) path))
 
-;; (def models (ref {}))
-
 ;; functions for localized fields
 (defn build-locale-field
   [prefix slug locale]

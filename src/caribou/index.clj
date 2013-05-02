@@ -4,17 +4,20 @@
             [fs.core :as fs]
             [caribou.config :as config]))
 
-(def _index (ref nil))
+(defn index-store
+  []
+  (config/draw :index :store))
+
 (def required-keys [:id])
 
 (defn index-path []
-  (or (config/draw :index :path) "clucy-index"))
+  (or (config/draw :index :path) "caribou-index"))
 
 (defn index []
-  (if-not (nil? @_index)
-    @_index
-    (dosync
-      (ref-set _index (clucy/disk-index (index-path))))))
+  (let [store (deref (index-store))]
+    (if (nil? store)
+      (reset! (index-store) (clucy/disk-index (index-path)))
+      store)))
 
 (defn- searchable-fields [model]
   (let [field-defs (map :row (vals (-> model :fields)))

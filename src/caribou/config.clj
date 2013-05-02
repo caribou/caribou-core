@@ -10,10 +10,6 @@
 (import java.net.URI)
 (declare config-path)
 
-;; (def app (ref {}))
-;; (def db (ref {}))
-;; (def db-adapter (ref nil))
-
 (defn set-properties
   [props]
   (doseq [prop-key (keys props)]
@@ -55,9 +51,12 @@
               :password     ""}
    :logging {:loggers [{:type :stdout :level :debug}]}
    :index {:path "caribou-index"
-           :default-limit 1000}
+           :default-limit 1000
+           :store (atom nil)}
    :models (atom {})
-   :hooks (atom {})})
+   :hooks (atom {})
+   :query {:queries (atom {})
+           :reverse-cache (atom {})}})
 
 (def ^:dynamic config (default-config))
 
