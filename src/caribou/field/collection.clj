@@ -2,6 +2,7 @@
   (:require [clojure.string :as string]
             [caribou.field :as field]
             [caribou.util :as util]
+            [caribou.logger :as log]
             [caribou.db :as db]
             [caribou.validation :as validation]
             [caribou.association :as assoc]))

@@ -145,7 +145,8 @@
 
 (defn model-outer-condition
   [model inner order limit opts]
-  (let [subcondition (if (not (empty? inner)) (str " where " inner))
+  (let [subcondition (if (not (empty? inner))
+                       (str " where " inner))
         query-string (string/join " " [" where %1.id in"
                                        "(select * from (select %1.id"
                                        "from %1 %2%3%4) as _conditions_)"])]
@@ -188,7 +189,7 @@
    includes."
   [opts]
   (if-let [include-keys (-> opts :include keys)]
-    (let [keys-difference (fn   [a b]
+    (let [keys-difference (fn [a b]
                             (set/difference (-> a keys set) (-> b keys set)))
           split-keys [:include :order]
           unsplit (apply (partial dissoc opts) split-keys)
@@ -243,7 +244,8 @@
   ([slug] (gather slug {}))
   ([slug opts]
      (let [query-defaults (config/draw :app :query-defaults)
-           defaulted (query/apply-query-defaults opts query-defaults)
+           ;; defaulted (query/apply-query-defaults opts query-defaults)
+           defaulted opts
            query-hash (query/hash-query slug defaulted)]
        (if-let [cached (and (config/draw :app :enable-query-cache)
                             (query/retrieve-query query-hash))]
@@ -825,6 +827,10 @@
   (doseq [[key construct] (seq field-constructors/base-constructors)]
     (field/add-constructor key construct)))
 
+(defn bind-models
+  [resurrected config]
+  (reset! (:models config) resurrected))
+
 (defn invoke-models
   "call to populate the application model cache in model/models.
   (otherwise we hit the db all the time with model and field selects)
@@ -833,15 +839,19 @@
   []
   (invoke-fields)
   (let [rows (util/query "select * from model")
-        invoked (doall (map invoke-model rows))]
+        invoked (doall (map invoke-model rows))
+        by-slug (util/seq-to-map #(-> % :slug keyword) invoked)
+        by-id (util/seq-to-map :id invoked)]
     (add-model-hooks)
     (add-field-hooks)
-    (dosync
-     (alter models 
-            (fn [in-ref new-models] new-models)
-            (merge (util/seq-to-map #(keyword (% :slug)) invoked)
-                   (util/seq-to-map #(% :id) invoked)))))
-  (add-app-model-hooks))
+    (bind-models (merge by-slug by-id) config/config)
+    (add-app-model-hooks)))
+    ;; (dosync
+    ;;  (alter models
+    ;;         (fn [in-ref new-models] new-models)
+    ;;         (merge (util/seq-to-map #(keyword (% :slug)) invoked)
+    ;;                (util/seq-to-map #(% :id) invoked)))))
+    ;; (add-app-model-hooks))
 
 (defn update-values-reduction
   [spec]
@@ -1076,3 +1086,7 @@
   (let [generated (generate-model slug n)]
     (doall (map #(create slug %) generated))))
 
+(defmacro with-models
+  [config & body]
+  `(db/with-db ~config
+     ~@body))

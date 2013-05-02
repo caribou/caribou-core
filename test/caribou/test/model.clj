@@ -1,6 +1,7 @@
 (ns caribou.test.model
   (:use [caribou.debug]
         [caribou.model]
+        [caribou.test]
         [clojure.test])
   (:require [clojure.java.jdbc :as sql]
             [clojure.java.io :as io]
@@ -10,7 +11,8 @@
             [caribou.logger :as log]
             [caribou.query :as query]
             [caribou.validation :as validation]
-            [caribou.config :as config]))
+            [caribou.config :as config]
+            [caribou.core :as core]))
 
 (defn test-init
   []
@@ -18,8 +20,8 @@
   (query/clear-queries))
 
 (defn db-fixture
-  [f]
-  (sql/with-connection (config :db :database)
+  [f config]
+  (core/with-caribou config
     (test-init)
     (f)
     (doseq [slug [:yellow :purple :zap :chartreuse :fuchsia :base :level
@@ -829,29 +831,28 @@
 
 (defn all-model-tests
   [config]
-  (config/configure config)
-  (db-fixture invoke-model-test)
-  (db-fixture model-lifecycle-test)
-  (db-fixture model-interaction-test)
-  (db-fixture model-link-test)
-  (db-fixture parallel-include-test)
-  (db-fixture localized-model-test)
-  (db-fixture nested-model-test)
-  (db-fixture fields-types-test)
-  (db-fixture collection-map-test)
-  (db-fixture localized-map-field-test))
+  (db-fixture invoke-model-test config)
+  (db-fixture model-lifecycle-test config)
+  (db-fixture model-interaction-test config)
+  (db-fixture model-link-test config)
+  (db-fixture parallel-include-test config)
+  (db-fixture localized-model-test config)
+  (db-fixture nested-model-test config)
+  (db-fixture fields-types-test config)
+  (db-fixture collection-map-test config)
+  (db-fixture localized-map-field-test config))
 
 (deftest ^:mysql
   mysql-tests
-  (let [config (config/read-config (io/resource "config/test-mysql.clj"))]
+  (let [config (read-config :mysql)]
     (all-model-tests config)))
 
 (deftest ^:postgres
   postgres-tests
-  (let [config (config/read-config (io/resource "config/test-postgres.clj"))]
+  (let [config (read-config :postgres)]
     (all-model-tests config)))
 
 (deftest ^:h2
   h2-tests
-  (let [config (config/read-config (io/resource "config/test-h2.clj"))]
+  (let [config (read-config :h2)]
     (all-model-tests config)))

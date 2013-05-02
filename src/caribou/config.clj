@@ -6,14 +6,14 @@
             [caribou.util :as util]
             [caribou.db.adapter :as db-adapter]
             [caribou.db.adapter.protocol :as adapter]
-            [caribou.logger :as logger]))
+            [caribou.logger :as log]))
 
 (import java.net.URI)
 (declare config-path)
 
-(def app (ref {}))
-(def db (ref {}))
-(def db-adapter (ref nil))
+;; (def app (ref {}))
+;; (def db (ref {}))
+;; (def db-adapter (ref nil))
 
 (defn set-properties
   [props]
@@ -36,7 +36,8 @@
    (or (system-property :environment)
        "development")))
 
-(def ^:dynamic config
+(defn default-config
+  []
   {:app {:debug               true
          :use-database        true
          :public-dir          "public"
@@ -48,13 +49,17 @@
    :db {:database {:classname    "org.h2.Driver"
                    :subprotocol  "h2"
                    :host         "localhost"
+                   :protocol     "file"
+                   :path         "/tmp/"
                    :database     "caribou_development"
                    :user         "h2"
                    :password     ""}}
    :logging {:loggers [{:type :stdout :level :debug}]}
    :index {:path "caribou-index"
            :default-limit 1000}
-   :models {}})
+   :models (atom {})})
+
+(def ^:dynamic config (default-config))
 
 (defn draw
   [& path]
@@ -144,28 +149,28 @@
     (deep-merge-with
      (fn [& args]
        (last args))
+     (default-config)
      config
      {:db {:database subnamed
            :adapter adapter}})))
 
 (defmacro with-config
   [new-config & body]
-  `(let [full# (process-config ~new-config)]
-     (with-redefs [caribou.config/config full#]
-       ~@body)))
+  `(with-redefs [caribou.config/config ~new-config]
+     ~@body))
 
 (defn configure
   [config-map]
   (let [db-config (config-map :database)
         logging-config (config-map :logging)]
-    (dosync
-     (ref-set db-adapter (db-adapter/adapter-for db-config)))
-    (dosync
-     (alter app merge config-map))
-    (dosync
-     (alter db merge (assoc-subname db-config)))
+    ;; (dosync
+    ;;  (ref-set db-adapter (db-adapter/adapter-for db-config)))
+    ;; (dosync
+    ;;  (alter app merge config-map))
+    ;; (dosync
+    ;;  (alter db merge (assoc-subname db-config)))
     ;; (adapter/init @db-adapter)
-    (logger/init (:loggers logging-config))
+    ;; (log/init (:loggers logging-config))
     config-map))
 
 (defn init

@@ -1,16 +1,18 @@
 (ns caribou.test.db.db
   (:use [clojure.test]
         [caribou.util]
+        [caribou.test]
         [caribou.db.adapter.protocol :as adapter])
   (:require [clojure.java.jdbc :as sql]
             [clojure.java.io :as io]
-            [caribou.config :as config]
             [clojure.string :as string]
-            [caribou.db :as db]))
+            [caribou.config :as config]
+            [caribou.db :as db]
+            [caribou.core :as core]))
 
 (defn db-fixture
-  [f]
-  (sql/with-connection @config/db
+  [f config]
+  (core/with-caribou config
     (f)
     (doseq [tmp-table ["veggies" "fruit"]]
       (when (db/table? tmp-table)
@@ -18,7 +20,7 @@
 
 (defn unicode-support-test
   []
-  (is (adapter/unicode-supported? @config/db-adapter)))
+  (is (adapter/unicode-supported? (config/draw :db :adapter))))
 
 ;; TODO: test database...
 ;; query
@@ -61,38 +63,27 @@
     (db/create-table tmp-table [:id "SERIAL" "PRIMARY KEY"])
     (db/add-column tmp-table "jopotonio" [:integer])))
 
+(defn all-db-tests
+  [config]
+  (db-fixture unicode-support-test config)
+  (db-fixture query-test config)
+  (db-fixture query2-exception-test config)
+  (db-fixture choose-test config)
+  (db-fixture table-test config)
+  (db-fixture create-new-table-drop-table-test config)
+  (db-fixture add-column-test config))
+
 (deftest ^:mysql
   mysql-tests
-  (let [config (config/read-config (io/resource "config/test-mysql.clj"))]
-    (config/configure config)
-    (db-fixture unicode-support-test)
-    (db-fixture query-test)
-    (db-fixture query2-exception-test)
-    (db-fixture choose-test)
-    (db-fixture table-test)
-    (db-fixture create-new-table-drop-table-test)
-    (db-fixture add-column-test)))
+  (let [config (read-config :mysql)]
+    (all-db-tests config)))
 
 (deftest ^:postgres
   postgres-tests
-  (let [config (config/read-config (io/resource "config/test-postgres.clj"))]
-    (config/configure config)
-    (db-fixture unicode-support-test)
-    (db-fixture query-test)
-    (db-fixture query2-exception-test)
-    (db-fixture choose-test)
-    (db-fixture table-test)
-    (db-fixture create-new-table-drop-table-test)
-    (db-fixture add-column-test)))
+  (let [config (read-config :postgres)]
+    (all-db-tests config)))
 
 (deftest ^:h2
   h2-tests
-  (let [config (config/read-config (io/resource "config/test-h2.clj"))]
-    (config/configure config)
-    (db-fixture unicode-support-test)
-    (db-fixture query-test)
-    (db-fixture query2-exception-test)
-    (db-fixture choose-test)
-    (db-fixture table-test)
-    (db-fixture create-new-table-drop-table-test)
-    (db-fixture add-column-test)))
+  (let [config (read-config :h2)]
+    (all-db-tests config)))
