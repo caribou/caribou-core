@@ -39,7 +39,7 @@
            (fn []
              (util/rand-str
               (inc (rand-int 139))
-              "_abcdefghijklmnopqrstuvwxyz_"))))
+              "-abcdefghijklmnopqrstuvwxyz-"))))
   (fuse-field [this prefix archetype skein opts]
     (field/pure-fusion this prefix archetype skein opts))
   (localized? [this] true)
@@ -55,5 +55,5 @@
 
 (defn constructor
   [row] 
-  (let [link (db/choose :field (row :link_id))]
+  (let [link (db/choose :field (row :link-id))]
     (SlugField. row {:link link})))

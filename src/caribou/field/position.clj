@@ -10,16 +10,17 @@
         key (keyword slug)
         update (int/integer-update-values field content values)
         val (get update key)
-        model-id (:model_id row)
+        model-id (:model-id row)
         model (field/models model-id :slug)]
     (if val
       update
-      (assoc update key
-             (let [result (util/query
-                           (str "select max(" slug ")+1 as max from "
-                                model))]
-               (or (-> result first :max)
-                   0))))))
+      (assoc update
+        key (let [result
+                  (util/query
+                   (str "select max(" (util/dbize slug) ")+1 as max from "
+                        (util/dbize model)))]
+              (or (-> result first :max)
+                  0))))))
                     
 (defrecord PositionField [row env]
   field/Field

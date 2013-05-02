@@ -80,18 +80,18 @@
                          :position 3
                          :fields [{:name "Ibibib" :type "string"}
                                   {:name "Yobob" :type "slug"
-                                   :link_slug "ibibib"}
+                                   :link-slug "ibibib"}
                                   {:name "Yellows" :type "collection"
                                    :dependent true
-                                   :target_id (yellow-row :id)}]})
+                                   :target-id (yellow-row :id)}]})
 
         yellow (models :yellow)
         zap (models :zap)
 
         zzzap (create :zap {:ibibib "kkkkkkk"})
-        yyy (create :yellow {:gogon "obobo" :wibib true :zap_id (zzzap :id)})
-        yyyz (create :yellow {:gogon "igigi" :wibib false :zap_id (zzzap :id)})
-        yy (create :yellow {:gogon "lalal" :wibib true :zap_id (zzzap :id)})]
+        yyy (create :yellow {:gogon "obobo" :wibib true :zap-id (zzzap :id)})
+        yyyz (create :yellow {:gogon "igigi" :wibib false :zap-id (zzzap :id)})
+        yy (create :yellow {:gogon "lalal" :wibib true :zap-id (zzzap :id)})]
     (update :yellow (yyy :id) {:gogon "binbin"})
     (update :zap (zzzap :id)
             {:ibibib "OOOOOO mmmmm   ZZZZZZZZZZ"
@@ -102,7 +102,7 @@
       (let [zap-reload (db/choose :zap (zzzap :id))]
         (is (= ((db/choose :yellow (yyyz :id)) :gogon) "IIbbiiIIIbbibib"))
         (is (= ((db/choose :yellow (yyy :id)) :gogon) "binbin"))
-        (is (= (zap-reload :yobob) "oooooo_mmmmm_zzzzzzzzzz"))
+        (is (= (zap-reload :yobob) "oooooo-mmmmm-zzzzzzzzzz"))
         (is (= "OOOOOO mmmmm   ZZZZZZZZZZ"
                ((from zap zap-reload {:include {}})
                 :ibibib)))
@@ -121,13 +121,13 @@
         (let [zappo (db/choose :zap (zzzap :id))
               purple (db/choose :purple (yyy :id))]
           (is (= (zappo :okokok) "OOOOOO mmmmm   ZZZZZZZZZZ"))
-          (is (= (purple :green_id) (zappo :id))))
+          (is (= (purple :green-id) (zappo :id))))
 
         ;; testing the order function for collections
         (let [zap-query {:where {:id (:id zzzap)} :include {:yellows {}}}
               zappix (pick :zap zap-query)
               yellows (:yellows zappix)
-              positions (reverse (range 1 (-> yellows count inc)))
+              positions (reverse (range 1 (+ 1 (-> yellows count))))
               orderings (map
                          (fn [yellows pos]
                            {:id (:id yellows) :position pos})
@@ -136,9 +136,9 @@
           (let [zapx (pick :zap zap-query)
                 orders (map
                         (fn [yellows]
-                          {:id (:id yellows) :position (:green_position yellows)})
+                          {:id (:id yellows) :position (:green-position yellows)})
                         (:yellows zapx))]
-            (is (= (reverse positions) (map :green_position (:yellows zapx))))
+            (is (= (reverse positions) (map :green-position (:yellows zapx))))
             (is (= (sort-by :id orders) (sort-by :id orderings)))))
 
         (destroy :zap (:id zap-reload))
@@ -147,7 +147,7 @@
 
       (destroy :model (zap :id))
 
-      (is (empty? (models :purple :fields :green_id)))
+      (is (empty? (models :purple :fields :green-id)))
 
       (destroy :model (models :purple :id))
 
@@ -170,19 +170,19 @@
                          :position 3
                          :fields [{:name "Ibibib" :type "string"}
                                   {:name "Yobob" :type "slug"
-                                   :link_slug "ibibib"}
+                                   :link-slug "ibibib"}
                                   {:name "Yellows" :type "collection"
                                    :map true
                                    :dependent true
-                                   :target_id (yellow-row :id)}]})
+                                   :target-id (yellow-row :id)}]})
 
         yellow (models :yellow)
         zap (models :zap)
 
         zzzap (create :zap {:ibibib "kkkkkkk"})
-        yyy   (create :yellow {:gogon "obobo" :wibib true :zap_id (zzzap :id) :zap_key "grey"})
-        yyyz  (create :yellow {:gogon "igigi" :wibib false :zap_id (zzzap :id) :zap_key "ochre"})
-        yy    (create :yellow {:gogon "lalal" :wibib true :zap_id (zzzap :id) :zap_key "amarillo"})]
+        yyy   (create :yellow {:gogon "obobo" :wibib true :zap-id (zzzap :id) :zap-key "grey"})
+        yyyz  (create :yellow {:gogon "igigi" :wibib false :zap-id (zzzap :id) :zap-key "ochre"})
+        yy    (create :yellow {:gogon "lalal" :wibib true :zap-id (zzzap :id) :zap-key "amarillo"})]
     (update :yellow (yyy :id) {:gogon "binbin"})
     (update :zap (zzzap :id)
             {:ibibib "OOOOOO mmmmm   ZZZZZZZZZZ"
@@ -193,7 +193,7 @@
       (let [zap-reload (db/choose :zap (zzzap :id))]
         (is (= ((db/choose :yellow (yyyz :id)) :gogon) "IIbbiiIIIbbibib"))
         (is (= ((db/choose :yellow (yyy :id)) :gogon) "binbin"))
-        (is (= (zap-reload :yobob) "oooooo_mmmmm_zzzzzzzzzz"))
+        (is (= (zap-reload :yobob) "oooooo-mmmmm-zzzzzzzzzz"))
         (is (= "OOOOOO mmmmm   ZZZZZZZZZZ"
                ((from zap zap-reload {:include {}})
                 :ibibib)))
@@ -212,7 +212,7 @@
         (let [zappo (db/choose :zap (zzzap :id))
               purple (db/choose :purple (yyy :id))]
           (is (= (zappo :okokok) "OOOOOO mmmmm   ZZZZZZZZZZ"))
-          (is (= (purple :green_id) (zappo :id))))
+          (is (= (purple :green-id) (zappo :id))))
 
         (destroy :zap (:id zap-reload))
         (let [purples (util/query "select * from purple")]
@@ -220,7 +220,7 @@
 
       (destroy :model (zap :id))
 
-      (is (empty? (models :purple :fields :green_id)))
+      (is (empty? (models :purple :fields :green-id)))
 
       (destroy :model (models :purple :id))
 
@@ -245,11 +245,11 @@
                  :position 3
                  :fields [{:name "Zozoz" :type "string"}
                           {:name "Chartreusii" :type "link" :dependent true
-                           :target_id (chartreuse-row :id)}]})
+                           :target-id (chartreuse-row :id)}]})
 
         chartreuse (models :chartreuse)
         fuchsia (models :fuchsia)
-        charfuch (models :chartreusii_fuchsia)
+        charfuch (models :chartreusii-fuchsia)
 
         cf-link (-> chartreuse :fields :fuchsia)
         fc-link (-> fuchsia :fields :chartreusii)
@@ -296,11 +296,11 @@
                            {:id (:id nightpurple) :position pos})
                          nightpurples positions)]
           (order :chartreuse (:id ccoc) :nightpurple orderings)
-          (let [ccmc (pick :chartreuse {:include {:nightpurple_join {}} :where {:id (:id ccc)}})
+          (let [ccmc (pick :chartreuse {:include {:nightpurple-join {}} :where {:id (:id ccc)}})
                 orders (map
                         (fn [nightpurple]
-                          {:id (:nightpurple_id nightpurple) :position (:nightpurple_position nightpurple)})
-                        (:nightpurple_join ccmc))]
+                          {:id (:nightpurple-id nightpurple) :position (:nightpurple-position nightpurple)})
+                        (:nightpurple-join ccmc))]
             (is (= (sort-by :id orders) (sort-by :id orderings)))))
 
 
@@ -314,7 +314,7 @@
                     :offset 0})]
           (is (= 1 (count coc)))
           (is (= 2 (count (:nightpurple (first coc)))))
-          (is (present? (models :chartreusii_nightpurple)))
+          (is (present? (models :chartreusii-nightpurple)))
 
           (let [falses (gather :chartreuse {:where {:kokok false}})]
             (is (= 3 (count falses)))))))))
@@ -330,14 +330,14 @@
                    {:name "Level"
                     :fields [{:name "Strata" :type "integer"}
                              {:name "Base" :type "part"
-                              :target_id (:id base-row)
-                              :dependent true :reciprocal_name "Levels"}]})
+                              :target-id (:id base-row)
+                              :dependent true :reciprocal-name "Levels"}]})
         void-row (create
                   :model
                   {:name "Void"
                    :fields [{:name "Tether" :type "string"}
-                            {:name "Base" :type "part" :target_id (:id base-row)
-                             :dependent true :reciprocal_name "Void"}]})
+                            {:name "Base" :type "part" :target-id (:id base-row)
+                             :dependent true :reciprocal-name "Void"}]})
 
         base-a (create :base {:thing "AAAA" :position 1
                               :levels [{:strata 5} {:strata 8} {:strata -3}]
@@ -399,11 +399,11 @@
             ;; printed, until it is ready for prime time
             ;; (gather :base {:include {:levels {} :void {}}
             ;;                :where {:levels {:strata 5
-            ;;                :invalid_field nil}}}))))))
+            ;;                :invalid-field nil}}}))))))
             (validation/beams :base
                               {:include {:levels {} :void {}}
                                :where {:levels {:strata 5
-                                                :invalid_field nil}}}))))))
+                                                :invalid-field nil}}}))))))
 
 (defn localized-model-test
   []
@@ -425,7 +425,7 @@
                  {:name "Nowhere" :localized true
                   :fields [{:name "Down" :type "string"}
                            {:name "Everywhere" :type "link" :dependent true
-                            :target_id (everywhere :id)}]})
+                            :target-id (everywhere :id)}]})
         a (create :everywhere {:up "Hey" :grass "On" :through true :under 10.1})
         b (create :everywhere {:up "What" :grass "Bead" :through true
                                :under 33.333})
@@ -487,14 +487,14 @@
 
         joins
         (gather
-         :everywhere_nowhere
+         :everywhere-nowhere
          {:include {:everywhere {}}
           :where {:everywhere {:through true}}
           :order {:everywhere {:under :asc}}})
 
         bx-joins
         (gather
-         :everywhere_nowhere
+         :everywhere-nowhere
          {:include {:everywhere {}}
           :where {:everywhere {:through true}}
           :order {:everywhere {:under :asc}}
@@ -553,7 +553,7 @@
                  {:name "Nowhere" :localized true
                   :fields [{:name "Down" :type "string"}
                            {:name "Everywhere" :type "link" :dependent true
-                            :map true :target_id (everywhere :id)}]})
+                            :map true :target-id (everywhere :id)}]})
         a (create :everywhere {:up "Hey" :grass "On" :through true :under 10.1})
         b (create :everywhere {:up "What" :grass "Bead" :through true
                                :under 33.333})
@@ -624,14 +624,14 @@
 
         joins
         (gather
-         :everywhere_nowhere
+         :everywhere-nowhere
          {:include {:everywhere {}}
           :where {:everywhere {:through true}}
           :order {:everywhere {:under :asc}}})
 
         bx-joins
         (gather
-         :everywhere_nowhere
+         :everywhere-nowhere
          {:include {:everywhere {}}
           :where {:everywhere {:through true}}
           :order {:everywhere {:under :asc}}
@@ -690,17 +690,17 @@
   (let [white (create :model {:name "White" :nested true
                               :fields [{:name "Grey" :type "string"}]})
         aaa (create :white {:grey "obobob"})
-        bbb (create :white {:grey "ininin" :parent_id (aaa :id)})
-        ccc (create :white {:grey "kkukku" :parent_id (aaa :id)})
-        ddd (create :white {:grey "zezeze" :parent_id (bbb :id)})
-        eee (create :white {:grey "omomom" :parent_id (ddd :id)})
-        fff (create :white {:grey "mnomno" :parent_id (ddd :id)})
-        ggg (create :white {:grey "jjijji" :parent_id (ccc :id)})
+        bbb (create :white {:grey "ininin" :parent-id (aaa :id)})
+        ccc (create :white {:grey "kkukku" :parent-id (aaa :id)})
+        ddd (create :white {:grey "zezeze" :parent-id (bbb :id)})
+        eee (create :white {:grey "omomom" :parent-id (ddd :id)})
+        fff (create :white {:grey "mnomno" :parent-id (ddd :id)})
+        ggg (create :white {:grey "jjijji" :parent-id (ccc :id)})
         tree (arrange-tree [aaa bbb ccc ddd eee fff ggg])]
-    ;; fff_path (progenitors :white (fff :id))
-    ;; bbb_children (descendents :white (bbb :id))]
-    ;; (is (= 4 (count fff_path)))
-    ;; (is (= 4 (count bbb_children))))
+    ;; fff-path (progenitors :white (fff :id))
+    ;; bbb-children (descendents :white (bbb :id))]
+    ;; (is (= 4 (count fff-path)))
+    ;; (is (= 4 (count bbb-children))))
     (testing "Nested models."
       (doseq [branch tree]
         (log/debug (doall (str tree))))
@@ -721,8 +721,8 @@
                      ["round" "slug"]
                      ["bio" "text"]
                      ["adequate" "boolean"]
-                     ["born_at" "timestamp"]
-                     ["dies_at" "timestamp"]
+                     ["born-at" "timestamp"]
+                     ["dies-at" "timestamp"]
                      ["passport" "asset"]
                      ["license" "position"]
                      ["residence" "address"]])
@@ -741,22 +741,22 @@
                      ;; :bio (str "He did stuff: ☃" (util/rand-str 65500))
                      :adequate true
                      ;; mysql date-time precision issue
-                     :born_at "January 1 1970"
+                     :born-at "January 1 1970"
                      ;; mysql date-time precision issue
-                     :dies_at "January 1 2037"
-                     :passport_id (:id passport)
+                     :dies-at "January 1 2037"
+                     :passport-id (:id passport)
                      ;; connectivity issues prevent this from working
                      ;; :residence {:address "WHITE HOUSE"
                      ;;             :country "USA"}
                      }
         bond (create :agent bond-values)
         doppleganger (create :agent (assoc bond-values
-                                      :born_at "January 2 1970"))
+                                      :born-at "January 2 1970"))
         agent-id (:id agent)
         bond-id (:id bond)
         doppleganger-id (:id doppleganger)
         bond (pick :agent {:where {:id bond-id}})
-        dopple (following :agent bond :born_at)
+        dopple (following :agent bond :born-at)
         ;; amount of floating point error that is allowable
         ;; mysql precision issue
         EPSILON 0.000001
@@ -775,7 +775,7 @@
               (is (seq bond))
               (is (seq dopple))
               ;; id fields are implicit
-              (is (= -1 (.compareTo (:born_at bond) (:born_at dopple))))
+              (is (= -1 (.compareTo (:born-at bond) (:born-at dopple))))
               (is (number? (:id agent)))
               (is (number? (:id bond)))
               (is (number? (:id dopple)))
@@ -793,8 +793,8 @@
               ;; if this breaks...
               (is (:adequate bond))
               ;; unix time of 1/1/1970 / 1/1/2037
-              (is (and (= 28800000 (.getTime (:born_at bond)))
-                       (= 2114409600000 (.getTime (:dies_at bond)))))
+              (is (and (= 28800000 (.getTime (:born-at bond)))
+                       (= 2114409600000 (.getTime (:dies-at bond)))))
               (is (= "passport.picture" (-> bond :passport :filename)))
               ;; (is (and (= 0.0 (-> bond :residence :lat))
               ;;          (= 0.0 (-> bond :residence :long))))
@@ -823,7 +823,7 @@
                (destroy :field id))))))
     (testing "Addition of fields to a model."
       (is (nil? (doseq [field-spec fields]
-                  (create :field (merge field-spec {:model_id agent-id}))))))
+                  (create :field (merge field-spec {:model-id agent-id}))))))
     (testing "Updating field values."
       (is (nil? (doseq [update-spec bond-values]
                   (update :agent bond-id (into {} [update-spec]))))))

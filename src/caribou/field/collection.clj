@@ -13,10 +13,10 @@
   (let [slug (-> field :row :slug)]
     (assoc/with-propagation :where opts slug
       (fn [down]
-        (let [model (field/models (-> field :row :model_id))
-              target (field/models (-> field :row :target_id))
+        (let [model (field/models (-> field :row :model-id))
+              target (field/models (-> field :row :target-id))
               link (-> field :env :link :slug)
-              link-id-slug (keyword (str link "_id"))
+              link-id-slug (keyword (str link "-id"))
               id-field (-> target :fields link-id-slug)
               table-alias (str prefix "$" slug)
               field-select (field/coalesce-locale
@@ -24,7 +24,10 @@
                             (name link-id-slug) opts)
               subconditions (assoc/model-where-conditions
                              target table-alias down)
-              params [prefix field-select (:slug target) table-alias
+              params [(util/dbize prefix)
+                      field-select
+                      (util/dbize (:slug target))
+                      (util/dbize table-alias)
                       subconditions]]
           (util/clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
 
@@ -33,7 +36,7 @@
   (if-let [include (:include opts)]
     (let [slug (keyword (-> field :row :slug))]
       (if-let [sub (slug include)]
-        (let [target (field/models (-> field :row :target_id))
+        (let [target (field/models (-> field :row :target-id))
               down {:include sub}]
           (update-in
            content [slug]
@@ -50,7 +53,7 @@
   [this id orderings]
   (let [part (-> this :env :link)
         part-position (keyword (str (:slug part) "_position"))
-        target-id (-> this :row :target_id)
+        target-id (-> this :row :target-id)
         target (field/models target-id)
         target-slug (-> target :slug keyword)]
     (doseq [ordering orderings]
@@ -61,9 +64,9 @@
   [field content opts]
   (if-let [collection (get content (-> field :row :slug keyword))]
     (let [part-field (-> field :env :link)
-          part-id-key (-> part-field :slug (str "_id") keyword)
-          part-key-key (-> part-field :slug (str "_key") keyword)
-          model (field/models (:model_id part-field))
+          part-id-key (-> part-field :slug (str "-id") keyword)
+          part-key-key (-> part-field :slug (str "-key") keyword)
+          model (field/models (:model-id part-field))
           model-key (-> model :slug keyword)
           updated (doseq [part collection]
                     (let [part (if (map? part)
@@ -82,21 +85,21 @@
 
   (setup-field
     [this spec]
-    (if (or (nil? (:link_id row)) (zero? (:link_id row)))
-      (let [model (db/find-model (:model_id row) (field/models))
-            target (db/find-model (:target_id row) (field/models))
+    (if (or (nil? (:link-id row)) (zero? (:link-id row)))
+      (let [model (db/find-model (:model-id row) (field/models))
+            target (db/find-model (:target-id row) (field/models))
             map? (or (:map spec) (:map row))
-            reciprocal-name (or (:reciprocal_name spec) (:name model))
+            reciprocal-name (or (:reciprocal-name spec) (:name model))
             part ((resolve 'caribou.model/create) :field
                    {:name reciprocal-name
                     :type "part"
                     :map map?
-                    :model_id (:target_id row)
-                    :target_id (:model_id row)
-                    :link_id (:id row)
+                    :model-id (:target-id row)
+                    :target-id (:model-id row)
+                    :link-id (:id row)
                     :dependent (:dependent row)})]
         (db/update :field ["id = ?" (util/convert-int (:id row))]
-                   {:link_id (:id part)}))))
+                   {:link-id (:id part)}))))
 
   (rename-model [this old-slug new-slug])
   (rename-field [this old-slug new-slug])
@@ -109,16 +112,16 @@
 
   (target-for
     [this]
-    (field/models (:target_id row)))
+    (field/models (:target-id row)))
 
   (update-values
     [this content values]
-    (let [removed (keyword (str "removed_" (:slug row)))]
+    (let [removed (keyword (str "removed-" (:slug row)))]
       (if (assoc/present? (content removed))
         (let [ex (map util/convert-int (string/split (content removed) #","))
               part (env :link)
-              part-key (keyword (str (:slug part) "_id"))
-              target (field/models (:target_id row) :slug)]
+              part-key (keyword (str (:slug part) "-id"))
+              target (field/models (:target-id row) :slug)]
           (doseq [gone ex]
             (if (:dependent row)
               ((resolve 'caribou.model/destroy) target gone)
@@ -144,7 +147,7 @@
     [this prefix opts]
     (assoc/with-propagation :include opts (:slug row)
       (fn [down]
-        (let [target (field/models (:target_id row))]
+        (let [target (field/models (:target-id row))]
           (assoc/model-select-fields target (str prefix "$" (:slug row))
                                      down)))))
 
@@ -152,17 +155,20 @@
     [this prefix opts]
     (assoc/with-propagation :include opts (:slug row)
       (fn [down]
-        (let [model (field/models (:model_id row))
-              target (field/models (:target_id row))
+        (let [model (field/models (:model-id row))
+              target (field/models (:target-id row))
               link (-> this :env :link :slug)
-              link-id-slug (keyword (str link "_id"))
+              link-id-slug (keyword (str link "-id"))
               id-field (-> target :fields link-id-slug)
               table-alias (str prefix "$" (:slug row))
               field-select (field/coalesce-locale
                             target id-field table-alias
                             (name link-id-slug) opts)
               downstream (assoc/model-join-conditions target table-alias down)
-              params [(:slug target) table-alias prefix field-select]]
+              params [(util/dbize (:slug target))
+                      (util/dbize table-alias)
+                      (util/dbize prefix)
+                      field-select]]
           (concat
            [(util/clause "left outer join %1 %2 on (%3.id = %4)" params)]
            downstream)))))
@@ -173,10 +179,10 @@
 
   (natural-orderings
     [this prefix opts]
-    (let [model (field/models (:model_id row))
-          target (field/models (:target_id row))
+    (let [model (field/models (:model-id row))
+          target (field/models (:target-id row))
           link (-> this :env :link :slug)
-          link-position-slug (keyword (str link "_position"))
+          link-position-slug (keyword (str link "-position"))
           position-field (-> target :fields link-position-slug)
           table-alias (str prefix "$" (:slug row))
           field-select (field/coalesce-locale
@@ -186,7 +192,7 @@
       [(str field-select " asc") downstream]))
 
   (build-order [this prefix opts]
-    (assoc/join-order this (field/models (row :target_id)) prefix opts))
+    (assoc/join-order this (field/models (row :target-id)) prefix opts))
 
   (field-generator [this generators]
     generators)
@@ -222,6 +228,6 @@
 
 (defn constructor
   [row]
-  (let [link (if (row :link_id)
-               (db/choose :field (row :link_id)))]
+  (let [link (if (row :link-id)
+               (db/choose :field (row :link-id)))]
     (CollectionField. row {:link link})))

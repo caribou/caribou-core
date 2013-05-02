@@ -15,8 +15,8 @@
         :type "string"
         :locked true
         :editable true
-        :updated_at (model/current-timestamp)
-        :model_id model-id})))
+        :updated-at (model/current-timestamp)
+        :model-id model-id})))
 
 (defn rollback []
   (let [model-id ((first (util/query "select id from model where slug = 'field'")) :id)]

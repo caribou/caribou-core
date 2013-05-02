@@ -65,9 +65,9 @@
 
 ;; (defn for-part
 ;;   [this opts models]
-;;   (for-associated-id this :model_id opts models))
+;;   (for-associated-id this :model-id opts models))
 
 (defn for-assoc
   [this opts]
-  (for-associated-id this :target_id opts))
+  (for-associated-id this :target-id opts))
 
