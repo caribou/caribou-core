@@ -5,8 +5,7 @@
             [clojure.string :as string]
             [caribou.util :as util]
             [caribou.db.adapter :as db-adapter]
-            [caribou.db.adapter.protocol :as adapter]
-            [caribou.logger :as log]))
+            [caribou.db.adapter.protocol :as adapter]))
 
 (import java.net.URI)
 (declare config-path)
@@ -54,16 +53,28 @@
               :database     "caribou_development"
               :user         "h2"
               :password     ""}
-   :logging {:loggers [{:type :stdout :level :debug}]}
+   :logging {:loggers [{:type :stdout :level :debug}]
+             :level (atom 7)
+             :logs (atom [])}
    :index {:path "caribou-index"
            :default-limit 1000}
-   :models (atom {})})
+   :models (atom {})
+   :hooks (atom {})})
 
 (def ^:dynamic config (default-config))
 
 (defn draw
   [& path]
   (get-in config path))
+
+(defn update-config
+  [config path value]
+  (let [at (get-in config path)]
+    (if (= clojure.lang.Atom (class at))
+      (do
+        (reset! at value)
+        config)
+      (update-in config path value))))
 
 (defn assoc-subname
   [db-config]
@@ -158,27 +169,3 @@
   [new-config & body]
   `(with-redefs [caribou.config/config ~new-config]
      ~@body))
-
-(defn configure
-  [config-map]
-  (let [db-config (config-map :database)
-        logging-config (config-map :logging)]
-    ;; (dosync
-    ;;  (ref-set db-adapter (db-adapter/adapter-for db-config)))
-    ;; (dosync
-    ;;  (alter app merge config-map))
-    ;; (dosync
-    ;;  (alter db merge (assoc-subname db-config)))
-    ;; (adapter/init @db-adapter)
-    ;; (log/init (:loggers logging-config))
-    config-map))
-
-(defn init
-  []
-  (load-caribou-properties)
-  (let [boot-resource "config/boot.clj"
-        boot (io/resource boot-resource)]
-    (if (nil? boot)
-      (throw (Exception.
-              (format "Could not find %s on the classpath" boot-resource))))
-    (load-reader (io/reader boot))))

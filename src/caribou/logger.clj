@@ -126,3 +126,27 @@
   [& args]
   (debug (apply str args)))
 
+(defn out
+  "just output the value without the clojure form"
+  [key x]
+  (debug x key)
+  x)
+
+(defn print-exception
+  [e]
+  (out :stacktrace (str ">>> " (.toString e)))
+  (doseq [trace (.getStackTrace e)]
+    (out :stacktrace (str "    |--" trace))))
+
+(defn print-sql-exception
+  [e]
+  (try 
+    (let [next (.getNextException e)]
+      (print-exception next))
+    (catch Exception o (print-exception e))))
+
+(defn render-exception [e]
+  (if-let [cause (.getCause e)]
+    (print-sql-exception cause)
+    (print-sql-exception e)))
+
