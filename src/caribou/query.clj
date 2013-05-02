@@ -1,9 +1,15 @@
 (ns caribou.query
   (:require [clojure.walk :as walk]
-            [caribou.util :as util]))
+            [caribou.util :as util]
+            [caribou.config :as config]))
 
-(def queries (atom {}))
-(def reverse-cache (atom {}))
+(defn queries
+  []
+  (config/draw :query :queries))
+
+(defn reverse-cache
+  []
+  (config/draw :query :reverse-cache))
 
 (defn sort-map
   [m]
@@ -21,36 +27,40 @@
 
 (defn cache-query
   [query-hash results]
-  (swap! queries #(assoc % query-hash results)))
+  (swap! (queries) assoc query-hash results))
 
 (defn reverse-cache-add
   [id code]
-  (if (contains? @reverse-cache id)
-    (swap! reverse-cache #(update-in % [id] (fn [v] (conj v code))))
-    (swap! reverse-cache #(assoc % id (list code)))))
+  (let [cache (reverse-cache)]
+    (if (contains? @cache id)
+      (swap! cache #(update-in % [id] (fn [v] (conj v code))))
+      (swap! cache #(assoc % id (list code))))))
 
 (defn reverse-cache-get
   [id]
-  (get @reverse-cache id))
+  (get (deref (reverse-cache)) id))
 
 (defn reverse-cache-delete
   [ids]
-  (swap! reverse-cache #(apply dissoc (cons % ids))))
+  (swap! (reverse-cache) #(apply dissoc (cons % ids))))
 
 (defn clear-model-cache
   [ids]
-  (swap! queries #(apply (partial dissoc %)
-                         (mapcat (fn [id] (reverse-cache-get id)) ids)))
+  (swap!
+   (queries)
+   #(apply
+     (partial dissoc %)
+     (mapcat (fn [id] (reverse-cache-get id)) ids)))
   (reverse-cache-delete ids))
 
 (defn clear-queries
   []
-  (swap! queries (fn [_] {}))
-  (swap! reverse-cache (fn [_] {})))
+  (reset! (queries) {})
+  (reset! (reverse-cache) {}))
 
 (defn retrieve-query
   [query-hash]
-  (get @queries query-hash))
+  (get (deref (queries)) query-hash))
 
 ;; QUERY DEFAULTS ----------------------------------------
 ;; this could live elsewhere
