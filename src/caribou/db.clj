@@ -271,6 +271,12 @@
     (fn [request]
       (handler request))))
 
+(defmacro with-db
+  [config & body]
+  `(config/with-config ~config
+     (sql/with-connection (config/draw :db :database)
+       ~@body)))
+
 (defn tally
   "return how many total records are in this table"
   [table]

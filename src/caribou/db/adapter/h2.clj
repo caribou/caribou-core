@@ -71,11 +71,16 @@
     ""))
   ;; (string/replace (string/replace (str text) #"^'" "") #"'$" "")))
 
+(defn h2-build-subname
+  [{:keys [protocol path database] :as config}]
+  (assoc config :subname (str protocol ":" path database)))
+
 (defrecord H2Adapter [config]
   DatabaseAdapter
   (init [this])
   (table? [this table] (h2-table? table))
-  (build-subname [this config] config)
+  (build-subname [this config]
+    (h2-build-subname config))
   (unicode-supported? [this] true)
   (supports-constraints? [this] false)
   (insert-result [this table result]

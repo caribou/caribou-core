@@ -1,7 +1,6 @@
 (ns caribou.test.query-defaults
   (:use [clojure.test])
-  (:require [caribou.query :as query]
-            [caribou.model :as model]))
+  (:require [caribou.query :as query]))
 
 (deftest ^:non-db add-query-defaults
 	(let [defaults {:name "Tarquin" :status "Biscuit-barrel"}

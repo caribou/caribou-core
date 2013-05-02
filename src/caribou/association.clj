@@ -6,8 +6,8 @@
 
 (defn with-propagation
   [sign opts field includer]
-  (if-let [outer (sign opts)]
-    (if-let [inner (outer (keyword field))]
+  (if-let [outer (get opts sign)]
+    (if-let [inner (get outer (keyword field))]
       (let [down (assoc opts sign inner)]
         (includer down)))))
 

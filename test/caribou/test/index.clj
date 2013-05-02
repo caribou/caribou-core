@@ -1,5 +1,6 @@
 (ns caribou.test.index
-  (:use [clojure.test])
+  (:use [clojure.test]
+        [caribou.test])
   (:require [caribou.model :as model]
             [caribou.db :as db]
             [clojure.java.io :as io]
@@ -7,12 +8,15 @@
             [caribou.query :as query]
             [caribou.logger :as log]
             [caribou.index :as index]
-            [caribou.config :as config]))
+            [caribou.config :as config]
+            [caribou.core :as core]))
 
 (defn remove-models
   []
+  (db/do-sql "delete from locale")
   (doseq [slug [:cheese]]
-    (when (db/table? slug) (model/destroy :model (model/models slug :id)))))
+    (when (db/table? slug)
+      (model/destroy :model (model/models slug :id)))))
 
 (defn test-init
   []
@@ -30,8 +34,8 @@
                                  {:name "Secret" :type "text" :searchable false}]}))
 
 (defn db-fixture
-  [f]
-  (sql/with-connection (config :db :database)
+  [f config]
+  (core/with-caribou config
     (test-init)
     (make-models)
     (f)
@@ -148,33 +152,30 @@
 
 (deftest ^:mysql
   mysql-tests
-  (let [config (config/read-config (io/resource "config/test-mysql.clj"))]
-    (config/configure config)
-    (db-fixture smoke-test)
-    (db-fixture add-to-index-test)
-    (db-fixture remove-from-index-test)
-    (db-fixture update-in-index-test)
-    (db-fixture add-localized-to-index-test)
+  (let [config (read-config :mysql)]
+    (db-fixture smoke-test config)
+    (db-fixture add-to-index-test config)
+    (db-fixture remove-from-index-test config)
+    (db-fixture update-in-index-test config)
+    (db-fixture add-localized-to-index-test config)
     )) 
 
 (deftest ^:postgres
   postgres-tests
-  (let [config (config/read-config (io/resource "config/test-postgres.clj"))]
-    (config/configure config)
-    (db-fixture smoke-test)
-    (db-fixture add-to-index-test)
-    (db-fixture remove-from-index-test)
-    (db-fixture update-in-index-test)
-    (db-fixture add-localized-to-index-test)
+  (let [config (read-config :postgres)]
+    (db-fixture smoke-test config)
+    (db-fixture add-to-index-test config)
+    (db-fixture remove-from-index-test config)
+    (db-fixture update-in-index-test config)
+    (db-fixture add-localized-to-index-test config)
     ))
 
 (deftest ^:h2
   h2-tests
-  (let [config (config/read-config (io/resource "config/test-h2.clj"))]
-    (config/configure config)
-    (db-fixture smoke-test)
-    (db-fixture add-to-index-test)
-    (db-fixture remove-from-index-test)
-    (db-fixture update-in-index-test)
-    (db-fixture add-localized-to-index-test)
+  (let [config (read-config :h2)]
+    (db-fixture smoke-test config)
+    (db-fixture add-to-index-test config)
+    (db-fixture remove-from-index-test config)
+    (db-fixture update-in-index-test config)
+    (db-fixture add-localized-to-index-test config)
     ))

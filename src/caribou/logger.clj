@@ -57,7 +57,6 @@
     (println (string/upper-case (name level)) message)))
 
 (def loggers (atom [[7 stdoutlog]]))
-
 (def level (atom 7))
 
 (defn make-logger

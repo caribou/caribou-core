@@ -43,7 +43,7 @@
 
 (defn models
   [& path]
-  (get-in (config/draw :models) path))
+  (get-in (deref (config/draw :models)) path))
 
 ;; (def models (ref {}))
 
