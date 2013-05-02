@@ -1,9 +1,7 @@
 (ns caribou.util
-  (:require [caribou.debug :as debug]
-            [clojure.string :as string]
+  (:require [clojure.string :as string]
             [clojure.java.jdbc :as sql]
-            [clojure.java.io :as io]
-            [caribou.logger :as log]))
+            [clojure.java.io :as io]))
 
 (import java.util.regex.Matcher)
 (import java.sql.SQLException)
@@ -76,24 +74,6 @@
   (let [[_ after] (re-find r s)]
     after))
 
-(defn print-exception
-  [e]
-  (debug/out :stacktrace (str ">>> " (.toString e)))
-  (doseq [trace (.getStackTrace e)]
-    (debug/out :stacktrace (str "    |--" trace))))
-
-(defn print-sql-exception
-  [e]
-  (try 
-    (let [next (.getNextException e)]
-      (print-exception next))
-    (catch Exception o (print-exception e))))
-
-(defn render-exception [e]
-  (if-let [cause (.getCause e)]
-    (print-sql-exception cause)
-    (print-sql-exception e)))
-
 (defn get-file-extension [file]
   (let [filename (.getName file)]
   (.toLowerCase (.substring filename (.lastIndexOf filename ".")))))
@@ -106,7 +86,7 @@
       (.load props raw)
       (into {} (for [[k v] props] [(keyword k) (read-string v)])))
     ;; this is not actually an error
-    (catch Exception e (log/notice (str "No properties file named "
+    (catch Exception e (println (str "No properties file named "
                                         props-name)))))
 
 (defn load-resource
@@ -184,7 +164,7 @@
     ;; (catch Exception e
     ;;   (do
     ;;     (render-exception e)
-    ;;     (log/error (str q args))))))
+    ;;     (println (str q args))))))
 
 ; by Chouser:
 (defn deep-merge-with

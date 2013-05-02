@@ -799,7 +799,7 @@
       ;;   (field/cleanup-field field)
       ;;   (doall (map #(db/drop-column ((models (-> field :row :model_id)) :slug) (first %)) (field/table-additions field (-> env :content :slug))))
       ;;  env)
-      (catch Exception e (util/render-exception e)))
+      (catch Exception e (log/render-exception e)))
     env)))
 
 ;; MODELS --------------------------------------------------------------------
