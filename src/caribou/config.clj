@@ -35,12 +35,15 @@
   []
   {:app {:debug               true
          :use-database        true
-         :public-dir          "public"
-         :asset-dir           "app/"
          :hooks-ns            "caribou.hooks"
          :fields-ns           "caribou.fields"
          :enable-query-cache  false
          :query-defaults      {}}
+   :assets {:dir "app/"
+            :prefix nil
+            :root ""}
+   :aws {:bucket nil
+         :credentials nil}
    :database {:classname    "org.h2.Driver"
               :subprotocol  "h2"
               :host         "localhost"
