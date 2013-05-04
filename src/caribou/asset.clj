@@ -19,11 +19,11 @@
 (defn asset-dir
   "Construct the dir this asset will live in, or look it up."
   [asset]
-  (util/pathify ["assets" (pad-break-id (asset :id))]))
+  (util/pathify ["assets" (pad-break-id (:id asset))]))
 
 (defn asset-location
   [asset]
-  (if (and asset (asset :filename))
+  (if (and asset (:filename asset))
     (util/pathify
      [(asset-dir asset)
       ;; this regex is to deal with funky windows file paths
@@ -34,7 +34,7 @@
 
 (defn s3-prefix
   ([]
-     (s3-prefix (config/draw :app :asset-prefix)))
+     (s3-prefix (config/draw :assets :prefix)))
   ([prefix]
      (if prefix
        (str prefix "/")
@@ -43,9 +43,9 @@
 (defn asset-path
   "Construct the path this asset will live in, or look it up."
   [asset]
-  (if (config/draw :app :asset-bucket)
+  (if (config/draw :aws :bucket)
     (if (and asset (:filename asset))
-      (str "https://" (config/draw :app :asset-bucket) ".s3.amazonaws.com/"
+      (str "https://" (config/draw :aws :bucket) ".s3.amazonaws.com/"
            (s3-prefix) (asset-location asset))
       "")
     (asset-location asset)))
@@ -59,10 +59,10 @@
 
 (defn upload-to-s3
   ([key asset]
-     (upload-to-s3 (config/draw :app :asset-bucket) key asset))
+     (upload-to-s3 (config/draw :aws :bucket) key asset))
   ([bucket key asset]
      (try
-       (let [cred (config/draw :app :aws-credentials)
+       (let [cred (config/draw :aws :credentials)
              mime (mime/mime-type-of key)]
          (ensure-s3-bucket cred bucket)
          (s3/put-object cred bucket key asset {:content-type mime})
@@ -73,12 +73,12 @@
 
 (defn persist-asset-on-disk
   [dir path file]
-  (.mkdirs (io/file (util/pathify [(config/draw :app :asset-dir) dir])))
-  (io/copy file (io/file (util/pathify [(config/draw :app :asset-dir) path]))))
+  (.mkdirs (io/file (util/pathify [(config/draw :assets :dir) dir])))
+  (io/copy file (io/file (util/pathify [(config/draw :assets :dir) path]))))
 
 (defn migrate-dir-to-s3
-  ([dir] (migrate-dir-to-s3 dir (config/draw :app :asset-bucket)))
-  ([dir bucket] (migrate-dir-to-s3 dir bucket (config/draw :app :asset-prefix)))
+  ([dir] (migrate-dir-to-s3 dir (config/draw :aws :bucket)))
+  ([dir bucket] (migrate-dir-to-s3 dir bucket (config/draw :assets :prefix)))
   ([dir bucket prefix]
      (let [dir-pattern (re-pattern (str dir "/"))]
        (doseq [entry (file-seq (io/file dir))]

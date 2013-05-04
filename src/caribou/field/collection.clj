@@ -8,6 +8,30 @@
             [caribou.association :as assoc]))
 
 
+(defn collection-join-conditions
+  [field prefix opts]
+  (let [slug (-> field :row :slug)]
+    (assoc/with-propagation :include opts slug
+      (fn [down]
+        (log/out :COLLECTION_JOIN (str (:row field) ":" prefix " -- " down))
+        (let [model (field/models (-> field :row :model-id))
+              target (field/models (-> field :row :target-id))
+              link (-> field :env :link :slug)
+              link-id-slug (keyword (str link "-id"))
+              id-field (-> target :fields link-id-slug)
+              table-alias (str prefix "$" slug)
+              field-select (field/coalesce-locale
+                            target id-field table-alias
+                            (name link-id-slug) opts)
+              downstream (assoc/model-join-conditions target table-alias down)
+              params [(util/dbize (:slug target))
+                      (util/dbize table-alias)
+                      (util/dbize prefix)
+                      field-select]]
+          (concat
+           [(util/clause "left outer join %1 %2 on (%3.id = %4)" params)]
+           downstream))))))
+
 (defn collection-where
   [field prefix opts]
   (let [slug (-> field :row :slug)]
@@ -153,25 +177,7 @@
 
   (join-conditions
     [this prefix opts]
-    (assoc/with-propagation :include opts (:slug row)
-      (fn [down]
-        (let [model (field/models (:model-id row))
-              target (field/models (:target-id row))
-              link (-> this :env :link :slug)
-              link-id-slug (keyword (str link "-id"))
-              id-field (-> target :fields link-id-slug)
-              table-alias (str prefix "$" (:slug row))
-              field-select (field/coalesce-locale
-                            target id-field table-alias
-                            (name link-id-slug) opts)
-              downstream (assoc/model-join-conditions target table-alias down)
-              params [(util/dbize (:slug target))
-                      (util/dbize table-alias)
-                      (util/dbize prefix)
-                      field-select]]
-          (concat
-           [(util/clause "left outer join %1 %2 on (%3.id = %4)" params)]
-           downstream)))))
+    (collection-join-conditions this prefix opts))
 
   (build-where
     [this prefix opts]
