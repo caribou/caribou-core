@@ -62,13 +62,6 @@
       local
       (str "coalesce(" local ", " global ")"))))
 
-;; (defn select-locale
-;;   [model field prefix slug opts]
-;;   (let [locale (:locale opts)]
-;;     (if (and locale (:localized model) (localized? field))
-;;       (build-locale-field prefix slug locale)
-;;       (build-select-field prefix slug))))
-
 (defn coalesce-locale
   [model field prefix slug opts]
   (let [locale (:locale opts)]
