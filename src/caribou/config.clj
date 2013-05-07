@@ -114,29 +114,6 @@
         db-config))
     db-config))
 
-(defn read-config
-  [config-file]
-  (with-open [fd (java.io.PushbackReader.
-                  (io/reader config-file))]
-    (read fd)))
-
-(defn submerge
-  [a b]
-  (if (string? b) b (merge a b)))
-
-(defn config-from-resource
-  "Loads the appropritate configuration file based on environment"
-  [resource]
-  (merge-with submerge config (read-config (io/resource resource))))
-
-(defn environment-config-resource
-  []
-  (format "config/%s.clj" (name (environment))))
-
-(defn config-from-environment
-  []
-  (config-from-resource (environment-config-resource)))
-
 (defn configure-db-from-environment
   "Pass in the current config and a map of environment variables that specify where the db connection
   information is stored.  The keys to this map are:
@@ -164,6 +141,31 @@
      (default-config)
      config
      {:database adapted})))
+
+(defn read-config
+  [config-file]
+  (with-open [fd (java.io.PushbackReader.
+                  (io/reader config-file))]
+    (read fd)))
+
+(defn config-from-resource
+  "Loads the appropritate configuration file based on environment"
+  [default resource]
+  (deep-merge-with
+   (fn [& args]
+     (last args))
+   default
+   (read-config (io/resource resource))))
+
+(defn environment-config-resource
+  []
+  (format "config/%s.clj" (name (environment))))
+
+(defn config-from-environment
+  [default]
+  (-> default
+      (config-from-resource (environment-config-resource))
+      (process-config)))
 
 (defmacro with-config
   [new-config & body]
