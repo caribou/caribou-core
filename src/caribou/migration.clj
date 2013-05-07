@@ -7,7 +7,7 @@
             [caribou.config :as config]
             [caribou.logger :as log]
             [caribou.db :as db]
-            [caribou.core :as core]))
+            [caribou.core :as caribou]))
 
 (defn used-migrations
   []
@@ -46,7 +46,8 @@
       (throw (Exception. (str migration " has no 'migrate' function"))))
     (when (nil? rollback-symbol)
       (log/warn (str "No rollback available for migration " migration)))
-    (migrate-symbol)
+    (caribou/with-caribou (caribou/init (config/draw))
+      (migrate-symbol))
     (db/insert :migration {:name migration})
     (log/info (str " <- migration " migration " ended."))))
 

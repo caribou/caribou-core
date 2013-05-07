@@ -5,5 +5,6 @@
    "page-protection"
    "add-text-format"
    "field-map"
-   "page-siphon"])
+   "page-siphon"
+   "field-localization"])
 
