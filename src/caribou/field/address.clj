@@ -63,7 +63,8 @@
 
   (join-fields [this prefix opts]
     (assoc/model-select-fields (field/models :location)
-                               (str prefix "$" (:slug row)) opts))
+                               (str prefix "$" (:slug row))
+                               (dissoc opts :include)))
 
   (join-conditions [this prefix opts]
     (let [model (field/models (:model-id row))
