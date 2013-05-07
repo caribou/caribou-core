@@ -72,6 +72,12 @@
     (first (util/query "select * from %1 where id = %2" (util/dbize table) (util/dbize (str id))))
     nil))
 
+(defn tally
+  "return how many total records are in this table"
+  [table]
+  (let [result (first (util/query "select count(id) from %1" (util/dbize table)))]
+    (result (first (keys result)))))
+
 (defn find-model
   [id models]
   (or (get models id) (choose :model id)))
@@ -258,11 +264,4 @@
      (sql/with-naming-strategy caribou.util/naming-strategy
        (sql/with-connection (config/draw :database)
          ~@body))))
-
-(defn tally
-  "return how many total records are in this table"
-  [table]
-  (let [result (first (util/query "select count(id) from %1" (util/dbize table)))]
-    (result (first (keys result)))))
-
 

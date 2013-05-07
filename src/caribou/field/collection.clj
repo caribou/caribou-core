@@ -13,7 +13,6 @@
   (let [slug (-> field :row :slug)]
     (assoc/with-propagation :include opts slug
       (fn [down]
-        (log/out :COLLECTION_JOIN (str (:row field) ":" prefix " -- " down))
         (let [model (field/models (-> field :row :model-id))
               target (field/models (-> field :row :target-id))
               link (-> field :env :link :slug)
