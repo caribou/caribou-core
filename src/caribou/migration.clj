@@ -91,7 +91,8 @@
         (let [rollback-symbol (symbol-in-namespace "rollback" rollback)]
           (when (nil? rollback-symbol)
             (throw (Exception. (str rollback " has no 'rollback' function"))))
-          (rollback-symbol)
+          (caribou/with-caribou (caribou/init (config/draw))
+            (rollback-symbol))
           (when (db/table? "migration")
             (db/delete :migration "name = '%1'" rollback))
           true)))))
