@@ -6,5 +6,6 @@
    "add-text-format"
    "field-map"
    "page-siphon"
-   "field-localization"])
+   "field-localization"
+   "slugify-underscores"])
 
