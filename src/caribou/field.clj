@@ -157,9 +157,13 @@
     (db/drop-index (:slug model) old-slug)
     (db/create-index (:slug model) new-slug)))
 
-(def field-constructors
-  (atom {}))
+(defn get-constructor
+  [type]
+  (get (deref (config/draw :field :constructors)) (keyword type)))
 
 (defn add-constructor
   [key construct]
-  (swap! field-constructors (fn [c] (assoc c key construct))))
+  (swap!
+   (config/draw :field :constructors)
+   (fn [constructors]
+     (assoc constructors (keyword key) construct))))
