@@ -411,6 +411,12 @@
 ;; LOCALIZATION --------------------------
 ;; could be in its own ns?
 
+(defn localized?
+  [field]
+  (and
+   (field/localized? field)
+   (-> field :row :localized)))
+
 (defn localize-values
   [model values opts]
   (let [locale (util/zap (:locale opts))]
@@ -419,7 +425,7 @@
        (fn [k v]
          (let [kk (keyword k)
                field (-> model :fields kk)]
-           (if (-> field :row :localized)
+           (if (localized? field)
              [(keyword (str locale "-" (name k))) v]
              [k v])))
        values)
@@ -464,7 +470,7 @@
 
 (defn local-models
   []
-  (models))
+  (map last (filter (fn [[k v]] (keyword? k)) (models))))
   ;; (filter :localized (map models (model-slugs))))
 
 (defn add-locale
@@ -479,7 +485,7 @@
 (defn update-locale
   [old-code new-code]
   (doseq [model (local-models)]
-    (doseq [field (filter #(-> % :row :localized) (-> model :fields vals))]
+    (doseq [field (filter localized? (-> model :fields vals))]
       (let [field-slug (-> field :row :slug)
             old-slug (localized-slug old-code field-slug)
             new-slug (localized-slug new-code field-slug)]
@@ -659,6 +665,8 @@
          (rest addition))))
     (field/setup-field field (env :spec))
 
+    (if (-> env :content :localized)
+      (localize-field-for-all-locales model-slug field))
     (if (present? default)
       (db/set-default model-slug slug default))
     (if (present? reference)
@@ -682,8 +690,7 @@
         model (db/choose :model model-id)
         model-slug (:slug model)
         model-fields (get (models model-id) :fields)
-        local-field? (-> field :row :localized)
-        ;; local-field? (and (:localized model) (field/localized? field))
+        local-field? (and (field/localized? field) (-> field :row :localized))
         locales (if local-field? (map :code (gather :locale)))
         
         original (:original env)
