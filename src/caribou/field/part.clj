@@ -47,19 +47,23 @@
           id-slug (str (:slug row) "-id")
           target (db/find-model (:target-id row) (field/models))
           reciprocal-name (or (:reciprocal-name spec) (:name model))
+          localized (-> this :row :localized)
           base-fields [{:name (util/titleize id-slug)
                         :type "integer"
                         :editable false
+                        :localized localized
                         :reference (:slug target)
                         :dependent (:dependent spec)}
                        {:name (util/titleize (str (:slug row) "-position"))
                         :type "position"
+                        :localized localized
                         :editable false}]
 
           part-fields (if (or (:map spec) (:map row))
                         (conj
                          base-fields
                          {:name (util/titleize (str (:slug row) "-key"))
+                          :localized localized
                           :type "string"
                           :editable false})
                         base-fields)]
@@ -67,6 +71,7 @@
         (let [collection ((resolve 'caribou.model/create) :field
                            {:name reciprocal-name
                             :type "collection"
+                            :localized localized
                             :model-id (:target-id row)
                             :target-id model-id
                             :link-id (:id row)})]

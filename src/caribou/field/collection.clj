@@ -117,6 +117,7 @@
                    {:name reciprocal-name
                     :type "part"
                     :map map?
+                    :localized (-> this :row :localized)
                     :model-id (:target-id row)
                     :target-id (:model-id row)
                     :link-id (:id row)

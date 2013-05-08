@@ -410,22 +410,22 @@
   (let [place (create :locale {:language "Ibeo" :region "Glass" :code "ib_or"})
         everywhere (create
                     :model
-                    {:name "Everywhere" :localized true
-                     :fields [{:name "Up" :type "string"}
-                              {:name "Grass" :type "text"}
-                              {:name "Through" :type "boolean"}
-                              {:name "Form Structure" :type "asset"}
-                              {:name "Colocate" :type "address"}
+                    {:name "Everywhere"
+                     :fields [{:name "Up" :type "string" :localized true}
+                              {:name "Grass" :type "text" :localized true}
+                              {:name "Through" :type "boolean" :localized true}
+                              {:name "Form Structure" :type "asset" :localized true}
+                              {:name "Colocate" :type "address" :localized true}
                               ;; {:name "Whentime" :type "timestamp"}
-                              {:name "Under" :type "decimal"}]})
+                              {:name "Under" :type "decimal" :localized true}]})
         other (create :locale {:language "Gornon" :region "Ipipip"
                                :code "go_xb"})
         nowhere (create
                  :model
-                 {:name "Nowhere" :localized true
-                  :fields [{:name "Down" :type "string"}
+                 {:name "Nowhere"
+                  :fields [{:name "Down" :type "string" :localized true}
                            {:name "Everywhere" :type "link" :dependent true
-                            :target-id (everywhere :id)}]})
+                            :target-id (everywhere :id) :localized true}]})
         a (create :everywhere {:up "Hey" :grass "On" :through true :under 10.1})
         b (create :everywhere {:up "What" :grass "Bead" :through true
                                :under 33.333})
@@ -538,22 +538,22 @@
   (let [place (create :locale {:language "Ibeo" :region "Glass" :code "ib_or"})
         everywhere (create
                     :model
-                    {:name "Everywhere" :localized true
-                     :fields [{:name "Up" :type "string"}
-                              {:name "Grass" :type "text"}
-                              {:name "Through" :type "boolean"}
-                              {:name "Form Structure" :type "asset"}
-                              {:name "Colocate" :type "address"}
-                              ;; {:name "Whentime" :type "timestamp"}
-                              {:name "Under" :type "decimal"}]})
+                    {:name "Everywhere"
+                     :fields [{:name "Up" :type "string" :localized true}
+                              {:name "Grass" :type "text" :localized true}
+                              {:name "Through" :type "boolean" :localized true}
+                              {:name "Form Structure" :type "asset" :localized true}
+                              {:name "Colocate" :type "address" :localized true}
+                              ;; {:name "Whentime" :type "timestamp" :localized true}
+                              {:name "Under" :type "decimal" :localized true}]})
         other (create :locale {:language "Gornon" :region "Ipipip"
                                :code "go_xb"})
         nowhere (create
                  :model
-                 {:name "Nowhere" :localized true
-                  :fields [{:name "Down" :type "string"}
+                 {:name "Nowhere"
+                  :fields [{:name "Down" :type "string" :localized true}
                            {:name "Everywhere" :type "link" :dependent true
-                            :map true :target-id (everywhere :id)}]})
+                            :map true :target-id (everywhere :id) :localized true}]})
         a (create :everywhere {:up "Hey" :grass "On" :through true :under 10.1})
         b (create :everywhere {:up "What" :grass "Bead" :through true
                                :under 33.333})
