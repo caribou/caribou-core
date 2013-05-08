@@ -414,16 +414,27 @@
 (defn localize-values
   [model values opts]
   (let [locale (util/zap (:locale opts))]
-    (if (and locale (:localized model))
+    (if locale
       (util/map-map
        (fn [k v]
          (let [kk (keyword k)
                field (-> model :fields kk)]
-           (if (field/localized? field)
+           (if (-> field :row :localized)
              [(keyword (str locale "-" (name k))) v]
              [k v])))
        values)
       values)))
+
+    ;; (if (and locale (:localized model))
+    ;;   (util/map-map
+    ;;    (fn [k v]
+    ;;      (let [kk (keyword k)
+    ;;            field (-> model :fields kk)]
+    ;;        (if (field/localized? field)
+    ;;          [(keyword (str locale "-" (name k))) v]
+    ;;          [k v])))
+    ;;    values)
+    ;;   values)))
 
 (defn localized-slug
   [code slug]
@@ -435,30 +446,50 @@
     (doseq [additions (field/table-additions field local-slug)]
       (db/add-column model-slug (name (first additions)) (rest additions)))))
 
+(defn localize-field-for-all-locales
+  [model-slug field]
+  (doseq [locale (gather :locale)]
+    (localize-field model-slug field locale)))
+
 (defn localize-model
   [model]
-  (doseq [field (filter field/localized? (-> model :fields vals))]
-    (doseq [locale (gather :locale)]
-      (localize-field (:slug model) field locale))))
+  (doseq [field (filter #(-> % :row :localized) (-> model :fields vals))]
+    (localize-field-for-all-locales (:slug model) field)))
+    ;; (doseq [locale (gather :locale)]
+    ;;   (localize-field (:slug model) field locale))))
+
+  ;; (doseq [field (filter field/localized? (-> model :fields vals))]
+  ;;   (doseq [locale (gather :locale)]
+  ;;     (localize-field (:slug model) field locale))))
 
 (defn local-models
   []
-  (filter :localized (map models (model-slugs))))
+  (models))
+  ;; (filter :localized (map models (model-slugs))))
 
 (defn add-locale
   [locale]
   (doseq [model (local-models)]
-    (doseq [field (filter field/localized? (-> model :fields vals))]
+    (doseq [field (filter #(-> % :row :localized) (-> model :fields vals))]
       (localize-field (:slug model) field locale))))
+
+    ;; (doseq [field (filter field/localized? (-> model :fields vals))]
+    ;;   (localize-field (:slug model) field locale))))
 
 (defn update-locale
   [old-code new-code]
   (doseq [model (local-models)]
-    (doseq [field (filter field/localized? (-> model :fields vals))]
+    (doseq [field (filter #(-> % :row :localized) (-> model :fields vals))]
       (let [field-slug (-> field :row :slug)
             old-slug (localized-slug old-code field-slug)
             new-slug (localized-slug new-code field-slug)]
         (db/rename-column (:slug model) old-slug new-slug)))))
+
+    ;; (doseq [field (filter field/localized? (-> model :fields vals))]
+    ;;   (let [field-slug (-> field :row :slug)
+    ;;         old-slug (localized-slug old-code field-slug)
+    ;;         new-slug (localized-slug new-code field-slug)]
+    ;;     (db/rename-column (:slug model) old-slug new-slug)))))
 
 (defn add-status-to-model [model]
   (update :model (:id model) {:fields [{:name "Status"
@@ -651,7 +682,8 @@
         model (db/choose :model model-id)
         model-slug (:slug model)
         model-fields (get (models model-id) :fields)
-        local-field? (and (:localized model) (field/localized? field))
+        local-field? (-> field :row :localized)
+        ;; local-field? (and (:localized model) (field/localized? field))
         locales (if local-field? (map :code (gather :locale)))
         
         original (:original env)
@@ -659,6 +691,9 @@
         
         oslug (:slug original)
         slug (:slug content)
+
+        olocalized (:localized original)
+        localized (:localized content)
 
         default (process-default (:type content) (:default-value content))
         required (:required content)
@@ -687,7 +722,10 @@
 
         (field/rename-field field oslug slug)))
 
-    (if (and (present? default) (not (= (:default-value original) default)))
+    (if (and localized (not= olocalized localized))
+      (localize-field-for-all-locales model-slug field))
+
+    (if (and (present? default) (not= (:default-value original) default))
       (db/set-default model-slug slug default))
 
     (if (and (present? required) (not= required (:required original)))

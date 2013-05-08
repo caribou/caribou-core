@@ -229,7 +229,8 @@
            target-id (-> field :row :target-id)
            target (or (field/models target-id)
                       (first (util/query "select * from model where id = %1" target-id)))
-           locale (if (and (:localized target) (:locale opts))
+           locale (if (and (-> field :row :localized) (:locale opts))
+           ;; locale (if (and (:localized target) (:locale opts))
                     (str (name (:locale opts)) "_")
                     "")
            key-slug (keyword (str (-> field :row :slug) "-key"))
@@ -283,6 +284,8 @@
             reciprocal-name (or (:reciprocal-name spec) (:name model))
             join-name (join-table-name (:name spec) reciprocal-name)
 
+            localized (-> this :row :localized)
+
             link
             ((resolve 'caribou.model/create)
              :field
@@ -291,6 +294,7 @@
               :model-id (:target-id row)
               :target-id (:model-id row)
               :link-id (:id row)
+              :localized localized
               :map false
               :dependent (:dependent row)})
 
@@ -299,18 +303,20 @@
              :model
              {:name (util/titleize join-name)
               :join-model true
-              :localized (or (:localized model) (:localized target))
+              ;; :localized (or (:localized model) (:localized target))
               :fields
               [{:name (:name spec)
                 :type "part"
                 :map map?
                 :dependent true
+                :localized localized
                 :reciprocal-name (str reciprocal-name " Join")
                 :target-id (:target-id row)}
                {:name reciprocal-name
                 :type "part"
                 :map false
                 :dependent true
+                :localized localized
                 :reciprocal-name (str (:name spec) " Join")
                 :target-id (:model-id row)}]} {:op :migration})]
 

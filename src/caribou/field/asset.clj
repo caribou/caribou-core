@@ -19,10 +19,12 @@
   (table-additions [this field] [])
   (subfield-names [this field] [(str field "-id")])
   (setup-field [this spec]
-    (let [id-slug (str (:slug row) "-id")]
+    (let [id-slug (str (:slug row) "-id")
+          localized (-> this :row :localized)]
       ((resolve 'caribou.model/update) :model (:model-id row)
        {:fields [{:name (util/titleize id-slug)
                   :type "integer"
+                  :localized localized
                   :editable false
                   :reference :asset}]} {:op :migration})))
 

@@ -67,8 +67,9 @@
   (let [locale (:locale opts)]
     (if (and
          locale
-         (:localized model)
-         (localized? field))
+         (-> field :row :localized))
+         ;; (:localized model)
+         ;; (localized? field))
       (build-coalesce prefix slug locale (:results opts))
       (build-select-field prefix slug))))
 
