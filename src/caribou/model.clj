@@ -819,14 +819,17 @@
   will have to be reinvoked to reflect the current state."
   []
   (invoke-fields)
-  (let [rows (util/query "select * from model")
-        invoked (doall (map invoke-model rows))
-        by-slug (util/seq-to-map #(-> % :slug keyword) invoked)
-        by-id (util/seq-to-map :id invoked)]
-    (add-model-hooks)
-    (add-field-hooks)
-    (bind-models (merge by-slug by-id) config/config)
-    (add-app-model-hooks)))
+  (try 
+    (let [rows (util/query "select * from model")
+          invoked (doall (map invoke-model rows))
+          by-slug (util/seq-to-map #(-> % :slug keyword) invoked)
+          by-id (util/seq-to-map :id invoked)]
+      (add-model-hooks)
+      (add-field-hooks)
+      (bind-models (merge by-slug by-id) config/config)
+      (add-app-model-hooks))
+    (catch Exception e
+      (log/out :INVOKE_MODELS "No models table yet!"))))
 
 (defn update-values-reduction
   [spec]
