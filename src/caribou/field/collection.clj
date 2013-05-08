@@ -75,7 +75,7 @@
 (defn collection-propagate-order
   [this id orderings]
   (let [part (-> this :env :link)
-        part-position (keyword (str (:slug part) "_position"))
+        part-position (keyword (str (:slug part) "-position"))
         target-id (-> this :row :target-id)
         target (field/models target-id)
         target-slug (-> target :slug keyword)]

@@ -60,8 +60,8 @@
 (defn make-field
   "turn a row from the field table into a full fledged Field record"
   [row]
-  (let [type (keyword (:type row))
-        constructor (@field/field-constructors type)]
+  (let [type (:type row)
+        constructor (field/get-constructor type)]
     (when-not constructor
       (throw (new Exception (str "no such field type: " type))))
     (constructor row)))
