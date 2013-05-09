@@ -230,7 +230,6 @@
            target (or (field/models target-id)
                       (first (util/query "select * from model where id = %1" target-id)))
            locale (if (and (-> field :row :localized) (:locale opts))
-           ;; locale (if (and (:localized target) (:locale opts))
                     (str (name (:locale opts)) "_")
                     "")
            key-slug (keyword (str (-> field :row :slug) "-key"))
@@ -303,7 +302,6 @@
              :model
              {:name (util/titleize join-name)
               :join-model true
-              ;; :localized (or (:localized model) (:localized target))
               :fields
               [{:name (:name spec)
                 :type "part"
