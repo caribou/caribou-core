@@ -62,7 +62,7 @@
    :query {:queries (atom {})
            :reverse-cache (atom {})}})
 
-(def ^:dynamic config (default-config))
+(def ^:dynamic config {})
 
 (defn draw
   [& path]
