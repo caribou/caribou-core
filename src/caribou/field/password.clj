@@ -15,9 +15,11 @@
     (field/field-cleanup this))
   (target-for [this] nil)
   (update-values [this content values]
-    (let [key (keyword (:slug row))]
+    (let [slug (:slug row)
+          key (keyword slug)
+          crypted (keyword (str "crypted-" slug))]
       (if (contains? content key)
-        (assoc values key (auth/hash-password (content key)))
+        (assoc values crypted (auth/hash-password (get content key)))
         values)))
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
