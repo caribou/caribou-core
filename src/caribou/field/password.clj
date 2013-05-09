@@ -4,23 +4,49 @@
             [caribou.auth :as auth]
             [caribou.validation :as validation]))
 
+(defn crypted-slug
+  [slug]
+  (keyword (str "crypted-" (name slug))))
+
+(defn password-setup-field
+  [field spec]
+  (let [slug (-> field :row :slug)
+        crypted (crypted-slug slug)
+        model-id (-> field :row :model-id)]
+    ((resolve 'caribou.model/update) :model model-id
+     {:fields [{:name (util/titleize crypted)
+                :type "string"
+                :editable false}]} {:op :migration})))
+
+(defn password-cleanup-field
+  [field]
+  (let [model (field/models (-> field :row :model-id))
+        slug (-> field :row :slug)
+        crypted (crypted-slug slug)]
+    ((resolve 'caribou.model/destroy) :field (-> model :fields crypted :row :id))))
+
+(defn password-update-values
+  [field content values]
+  (let [slug (-> field :row :slug)
+        key (keyword slug)
+        crypted (keyword (str "crypted-" slug))]
+    (if (contains? content key)
+      (assoc values crypted (auth/hash-password (get content key)))
+      values)))
+
 (defrecord PasswordField [row env]
   field/Field
-  (table-additions [this field] [[(keyword field) "varchar(255)"]])
+  (table-additions [this field] [])
   (subfield-names [this field] [])
-  (setup-field [this spec] nil)
+  (setup-field [this spec]
+    (password-setup-field this spec))
   (rename-model [this old-slug new-slug])
   (rename-field [this old-slug new-slug])
   (cleanup-field [this]
-    (field/field-cleanup this))
+    (password-cleanup-field this))
   (target-for [this] nil)
   (update-values [this content values]
-    (let [slug (:slug row)
-          key (keyword slug)
-          crypted (keyword (str "crypted-" slug))]
-      (if (contains? content key)
-        (assoc values crypted (auth/hash-password (get content key)))
-        values)))
+    (password-update-values this content values))
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
