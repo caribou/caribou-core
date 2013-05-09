@@ -7,5 +7,6 @@
    "field-map"
    "page-siphon"
    "field-localization"
-   "slugify-underscores"])
+   "slugify-underscores"
+   "enumeration"])
 

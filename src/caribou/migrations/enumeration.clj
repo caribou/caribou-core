@@ -1,4 +1,4 @@
-(ns caribou.migrations.field-map
+(ns caribou.migrations.enumeration
   (:require [caribou.config :as config]
             [caribou.model :as model]))
 
@@ -19,7 +19,7 @@
      {:fields [{:name "Enumerations"
                 :type "collection"
                 :reciprocal-name "Field"
-                :target-id (:id enumeration)}]})))
+                :target-id (:id enum)}]})))
 
 (defn rollback
   [])
