@@ -454,7 +454,7 @@
                              {:name "Last Name" :type "string"}
                              {:name "Handle" :type "string"}
                              {:name "Email" :type "string"}
-                             {:name "Crypted Password" :type "string"}])})
+                             {:name "Password" :type "password"}])})
 
 (def view {:name "View"
            :description "a composition of content facets"
@@ -547,7 +547,7 @@
   (model/create :account {:email "caribou"
                           :first-name "Caribou"
                           :last-name "User"
-                          :crypted-password (auth/hash-password "caribou")}))
+                          :password "caribou"}))
 
 (def incubating
   [page account view locale asset site domain location i18n status])
