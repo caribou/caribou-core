@@ -726,8 +726,20 @@
                      ["passport" "asset"]
                      ["license" "position"]
                      ["residence" "address"]])
-        agent (create :model {:name "Agent"
-                              :fields fields})
+        enum-field {:name "villian" :type "enum"
+                    :enumerations [{:entry "Le Chiffre"}
+                                   {:entry "Mr. Big"}
+                                   {:entry "Sir Hugo Drax"}
+                                   {:entry "Seraffimo Spang"}
+                                   {:entry "General Grubozaboyschikov"}
+                                   {:entry "Dr. Julius No"}
+                                   {:entry "Auric Goldfinger"}]}
+        fields (cons enum-field fields)
+        agent (create
+               :model
+               {:name "Agent"
+                :fields fields})
+
         passport (create :asset {:filename "passport.picture"})
         dopple-passport (create :asset {:filename "passport.picture"})
         bond-height 69.55
@@ -745,6 +757,7 @@
                      ;; mysql date-time precision issue
                      :dies-at "January 1 2037"
                      :passport-id (:id passport)
+                     :villian "Auric Goldfinger"
                      ;; connectivity issues prevent this from working
                      ;; :residence {:address "WHITE HOUSE"
                      ;;             :country "USA"}
@@ -780,12 +793,13 @@
               (is (number? (:id bond)))
               (is (number? (:id dopple)))
               (is (= (:nchildren bond) 32767))
+              (is (= "Auric Goldfinger" (:villian bond)))
               (is (< (java.lang.Math/abs (- bond-height (:height bond))) EPSILON))
               ;; case sensitivity
               (is (= "James Bond" (subs (:name bond) 0 10)))
               (is (= (count (:name bond)) 35))
               (is (not (= (:auth bond) "Octopu55y")))
-              (is (auth/check-password "Octopu55y" (:auth bond)))
+              (is (auth/check-password "Octopu55y" (:crypted-auth bond)))
               ;; (is (= "_8_hollow_tip" (:round bond)))
               ;; unicode
               (is (= "He did stuff: ☃" (subs (:bio bond) 0 15)))
@@ -804,7 +818,7 @@
               (is (#{0 1} (:license dopple)))
               (is (= 7 (:license connory)))
               (is (= 8 (:license brosnan)))
-              (is (#{9 10} (:license moore)))
+              (is (#{9 10 11} (:license moore)))
               (destroy :agent (:id brosnan))
               (destroy :agent (:id connory))
               (destroy :agent (:id moore)))))]
