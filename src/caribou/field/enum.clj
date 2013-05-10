@@ -24,10 +24,8 @@
                      (if (= value (:entry enum))
                        (:id enum)))
                    (-> field :row :enumerations))]
-        (if found
-          (assoc values
-            (keyword (str slug "-id")) found)
-          values))
+        (assoc values
+          (keyword (str slug "-id")) found))
       values)))
 
 (defrecord EnumField [row env]
