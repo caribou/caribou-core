@@ -431,17 +431,6 @@
        values)
       values)))
 
-    ;; (if (and locale (:localized model))
-    ;;   (util/map-map
-    ;;    (fn [k v]
-    ;;      (let [kk (keyword k)
-    ;;            field (-> model :fields kk)]
-    ;;        (if (field/localized? field)
-    ;;          [(keyword (str locale "-" (name k))) v]
-    ;;          [k v])))
-    ;;    values)
-    ;;   values)))
-
 (defn localized-slug
   [code slug]
   (keyword (str code "-" (name slug))))
@@ -461,26 +450,16 @@
   [model]
   (doseq [field (filter #(-> % :row :localized) (-> model :fields vals))]
     (localize-field-for-all-locales (:slug model) field)))
-    ;; (doseq [locale (gather :locale)]
-    ;;   (localize-field (:slug model) field locale))))
-
-  ;; (doseq [field (filter field/localized? (-> model :fields vals))]
-  ;;   (doseq [locale (gather :locale)]
-  ;;     (localize-field (:slug model) field locale))))
 
 (defn local-models
   []
   (map last (filter (fn [[k v]] (keyword? k)) (models))))
-  ;; (filter :localized (map models (model-slugs))))
 
 (defn add-locale
   [locale]
   (doseq [model (local-models)]
     (doseq [field (filter #(-> % :row :localized) (-> model :fields vals))]
       (localize-field (:slug model) field locale))))
-
-    ;; (doseq [field (filter field/localized? (-> model :fields vals))]
-    ;;   (localize-field (:slug model) field locale))))
 
 (defn update-locale
   [old-code new-code]
@@ -490,12 +469,6 @@
             old-slug (localized-slug old-code field-slug)
             new-slug (localized-slug new-code field-slug)]
         (db/rename-column (:slug model) old-slug new-slug)))))
-
-    ;; (doseq [field (filter field/localized? (-> model :fields vals))]
-    ;;   (let [field-slug (-> field :row :slug)
-    ;;         old-slug (localized-slug old-code field-slug)
-    ;;         new-slug (localized-slug new-code field-slug)]
-    ;;     (db/rename-column (:slug model) old-slug new-slug)))))
 
 (defn add-status-to-model [model]
   (update :model (:id model) {:fields [{:name "Status"
@@ -897,8 +870,9 @@
   ([slug id spec opts]
      (let [model (models (keyword slug))
            original (db/choose slug id)
-           values (reduce #(field/update-values %2 (assoc spec :id id) %1)
-                          {} (vals (model :fields)))
+           values (reduce
+                   #(field/update-values %2 (assoc spec :id id) %1)
+                   {} (-> model :fields vals))
            env {:model model :values values :spec spec :original original
                 :op :update :opts opts}
            _save (hooks/run-hook slug :before-save env)

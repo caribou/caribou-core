@@ -113,5 +113,5 @@
 
 (defn constructor
   [row]
-  (let [enumerations (util/query "select id,entry from enumeration where field_id = %1" (get row :id))]
+  (let [enumerations (util/query "select * from enumeration where field_id = %1" (get row :id))]
     (EnumField. (assoc row :enumerations enumerations) {})))

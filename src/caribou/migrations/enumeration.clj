@@ -10,7 +10,8 @@
    {:name "Enumeration"
     :locked true
     :fields [{:name "entry"
-              :type "string"}]})
+              :type "string"
+              :localized true}]})
 
   (let [enum (model/models :enumeration)]
     (model/update
