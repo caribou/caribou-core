@@ -790,10 +790,12 @@
   references to its fields in a hash with keys being the field slugs
   and vals being the field invoked as a Field protocol record."
   [model]
-  (let [fields (util/query "select * from field where model_id = %1"
-                           (get model :id))
-        field-map (util/seq-to-map #(keyword (-> % :row :slug))
-                                   (map make-field fields))]
+  (let [fields (util/query
+                "select * from field where model_id = %1"
+                (get model :id))
+        field-map (util/seq-to-map
+                   #(keyword (-> % :row :slug))
+                   (map make-field fields))]
     (hooks/make-lifecycle-hooks (:slug model))
     (assoc model :fields field-map)))
 

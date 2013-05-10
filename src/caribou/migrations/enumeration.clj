@@ -9,8 +9,7 @@
    :model
    {:name "Enumeration"
     :fields [{:name "entry"
-              :type "string"
-              :localized true}]})
+              :type "string"}]})
 
   (let [enum (model/models :enumeration)]
     (model/update
