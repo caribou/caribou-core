@@ -349,7 +349,6 @@
 (defn find-one
   "This is the same as find-all, but returns only a single item, not a vector."
   [slug opts]
-  ;; (let [oneify (assoc opts :limit 1)]
   (first (find-all slug opts)))
 
 ;; HOOKS ---------------------------------------------------------
