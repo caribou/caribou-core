@@ -4,6 +4,12 @@
             [caribou.model :as model]
             [caribou.logger :as log]))
 
+(def gather model/gather)
+(def pick model/pick)
+(def create model/create)
+(def update model/update)
+(def destroy model/destroy)
+
 (defn init
   [init-config]
   (let [full-config (config/process-config init-config)]
