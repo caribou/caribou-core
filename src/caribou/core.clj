@@ -10,6 +10,7 @@
     (db/with-db full-config
       (model/invoke-models)
       (log/init (config/draw :logging :loggers))
+      (repl/repl-init)
       (config/draw))))
 
 (defmacro with-caribou

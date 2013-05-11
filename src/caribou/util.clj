@@ -171,14 +171,9 @@
 (defn query
   "make an arbitrary query, substituting in extra args as % parameters"
   [q & args]
-  ;; (try 
   (sql/with-query-results res
     [(clause q args)]
     (doall res)))
-    ;; (catch Exception e
-    ;;   (do
-    ;;     (render-exception e)
-    ;;     (println (str q args))))))
 
 ; by Chouser:
 (defn deep-merge-with
@@ -228,3 +223,4 @@
     (if-let [running (find-ns namespace-symbol)]
       (if-let [action (ns-resolve running (symbol action-symbol))]
         (action)))))
+

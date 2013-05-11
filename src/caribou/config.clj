@@ -59,6 +59,7 @@
            :store (atom nil)}
    :models (atom {})
    :hooks (atom {})
+   :nrepl {:port nil :server (atom nil)}
    :query {:queries (atom {})
            :reverse-cache (atom {})}})
 
