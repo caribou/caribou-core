@@ -10,10 +10,14 @@
     (db/with-db full-config
       (model/invoke-models)
       (log/init (config/draw :logging :loggers))
-      (repl/repl-init)
       (config/draw))))
 
 (defmacro with-caribou
   [config & body]
   `(model/with-models ~config
+     ~@body))
+
+(defmacro run
+  [& body]
+  `(with-caribou (config/draw)
      ~@body))
