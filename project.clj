@@ -23,6 +23,7 @@
                  [leiningen-core "2.0.0-preview3"
                   :exclusions [org.clojure/clojure]]
                  [antler/clj-aws-s3 "0.3.4"]
+                 [org.clojure/tools.nrepl "0.2.2"]
                  [clucy "0.3.1"]
                  [fs "1.3.3"]
                  [org.mindrot/jbcrypt "0.3m"]]
