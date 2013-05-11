@@ -388,17 +388,13 @@
   (symbol (str base "." (name slug))))
 
 (defn add-app-model-hooks
-  "finds and loads every namespace under the hooks-ns that matches the
-  app's model names
-
-  we are only loading the namespaces for their side effects, it is
-  assumed that in each namespace hooks are set via add-hook as defined
-  below"
+  "finds and loads every namespace under [:app :hooks-ns] that matches
+   the name of a model and runs the function 'add-hooks in that namespace."
   []
   (if-let [hooks-ns (config/draw :app :hooks-ns)]
     (let [make-hook-ns (partial model-hooks-ns hooks-ns)]
-      (doseq [slug (model-slugs)]
-        (-> slug make-hook-ns util/sloppy-require)))))
+      (doseq [hook-namespace (map make-hook-ns (model-slugs))]
+        (util/run-namespace hook-namespace 'add-hooks)))))
 
 (defn add-parent-id
   [env]
@@ -800,9 +796,11 @@
     (assoc model :fields field-map)))
 
 (defn add-app-fields
+  "When {:app {:fields-ns $CONFIG}} is defined, run the function add-fields
+   in that namespace"
   []
   (when-let [fields-ns (config/draw :app :fields-ns)]
-    (util/sloppy-require (symbol fields-ns))))
+    (util/run-namespace fields-ns 'add-fields)))
 
 (defn invoke-fields
   []
