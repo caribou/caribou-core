@@ -171,7 +171,7 @@
 (defn query
   "make an arbitrary query, substituting in extra args as % parameters"
   [q & args]
-  (sql/with-query-results res
+  (sql/query (config/)
     [(clause q args)]
     (doall res)))
 

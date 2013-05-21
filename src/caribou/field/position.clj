@@ -4,13 +4,13 @@
             [caribou.util :as util]
             [caribou.field.integer :as int]))
 
-(defn update
-  [field content values row]
+(defn position-update-values
+  [field content values]
   (let [slug (-> field :row :slug)
         key (keyword slug)
         update (int/integer-update-values field content values)
         val (get update key)
-        model-id (:model-id row)
+        model-id (-> field :row :model-id)
         model (field/models model-id :slug)]
     (if val
       update
@@ -33,7 +33,7 @@
     (field/field-cleanup this))
   (target-for [this] nil)
   (update-values [this content values]
-    (update this content values row))
+    (position-update-values this content values))
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])

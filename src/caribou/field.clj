@@ -2,6 +2,7 @@
   (:require [caribou.db :as db]
             [caribou.util :as util]
             [caribou.config :as config]
+            [caribou.logger :as log]
             [caribou.db.adapter.protocol :as adapter]))
 
 (defprotocol Field
@@ -41,18 +42,30 @@
   (render [this content opts] "renders out a single field from this content item")
   (validate [this opts] "given a set of options and the models, verifies the options are appropriate and well formed for gathering"))
 
+(defn clarify-path
+  [path]
+  (map
+   (fn [p]
+     (if (integer? p)
+       p
+       (keyword p)))
+   path))
+
 (defn models
   [& path]
-  (get-in (deref (config/draw :models)) path))
+  (let [path (clarify-path path)]
+    (try 
+      (get-in (deref (config/draw :models)) path)
+      (catch Exception e (log/render-exception e)))))
 
 ;; functions for localized fields
 (defn build-locale-field
   [prefix slug locale]
-  (str (util/dbize prefix) "." (util/dbize locale) "_" (util/dbize slug)))
+  (str prefix "." locale "-" slug))
 
 (defn build-select-field
   [prefix slug]
-  (str (util/dbize prefix) "." (util/dbize slug)))
+  (str prefix "." slug))
 
 (defn build-coalesce
   [prefix slug locale results]
@@ -60,7 +73,8 @@
         local (build-locale-field prefix slug locale)]
     (if (and results (= :clean (keyword results)))
       local
-      (str "coalesce(" local ", " global ")"))))
+      {:coalesce [local global]})))
+      ;; ((((str "coalesce(" local ", " global ")"))))
 
 (defn coalesce-locale
   [model field prefix slug opts]
@@ -68,10 +82,8 @@
     (if (and
          locale
          (-> field :row :localized))
-         ;; (:localized model)
-         ;; (localized? field))
-      (build-coalesce prefix slug locale (:results opts))
-      (build-select-field prefix slug))))
+      (build-coalesce prefix (name slug) locale (:results opts))
+      (build-select-field prefix (name slug)))))
 
 ;; functions used throughout field definitions
 (defn where-operator
@@ -121,24 +133,31 @@
         model (db/find-model model-id (models))
         [operator value] (where-operator where)
         field-select (coalesce-locale model field prefix slug opts)]
-    (util/clause "%1 %2 %3" [field-select operator value])))
+    {:field field-select
+     :op operator
+     :value value}))
+    ;; (((util/clause "%1 %2 %3" [field-select operator value])))
 
 (defn pure-order
   [field prefix opts]
   (let [slug (-> field :row :slug)]
     (if-let [by (get (:order opts) (keyword slug))]
       (let [model-id (-> field :row :model-id)
-            model (db/find-model model-id (models))]
-        (str (coalesce-locale model field prefix slug opts) " "
-             (name by))))))
+            model (db/find-model model-id (models))
+            field-select (coalesce-locale model field prefix slug opts)]
+        {:by field-select
+         :direction by}))))
+        ;; (((((str (coalesce-locale model field prefix slug opts) " "
+        ;;      (name by))))))
 
 (defn string-where
   [field prefix slug opts where]
-  (let [model-id (-> field :row :model-id)
-        model (db/find-model model-id (models))
-        [operator value] (where-operator where)
-        field-select (coalesce-locale model field prefix slug opts)]
-    (util/clause "%1 %2 '%3'" [field-select operator value])))
+  (pure-where field prefix slug opts where))
+  ;; ((let [model-id (-> field :row :model-id)
+  ;;       model (db/find-model model-id (models))
+  ;;       [operator value] (where-operator where)
+  ;;       field-select (coalesce-locale model field prefix slug opts)]
+  ;;   (util/clause "%1 %2 '%3'" [field-select operator value])))
 
 (defn field-cleanup
   [field]

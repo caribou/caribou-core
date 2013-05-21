@@ -1,5 +1,6 @@
 (ns caribou.association
   (:require [clojure.string :as string]
+            [caribou.config :as config]
             [caribou.logger :as log]
             [caribou.util :as util]
             [caribou.field :as field]))
@@ -44,14 +45,15 @@
    nesting of the include option."
   [model prefix opts]
   (let [fields (:fields model)]
-    (filter
-     identity
-     (apply
-      concat
-      (map
-       (fn [field]
-         (field/join-conditions field (name prefix) opts))
-       (vals fields))))))
+    (doall
+     (filter
+      identity
+      (apply
+       concat
+       (map
+        (fn [field]
+          (field/join-conditions field (name prefix) opts))
+        (vals fields)))))))
 
 (defn assoc-field
   [content field opts]
@@ -77,16 +79,17 @@
   "Find all orderings between included associations that depend on the association position column
    of the given model."
   [model prefix opts]
-  (filter
-   identity
-   (flatten
-    (map
-     (fn [order-key]
-       (if-let [field (-> model :fields order-key)]
-         (field/natural-orderings
-          field (name prefix)
-          (assoc opts :include (-> opts :include order-key)))))
-     (keys (:include opts))))))
+  (doall
+   (filter
+    identity
+    (flatten
+     (map
+      (fn [order-key]
+        (if-let [field (-> model :fields order-key)]
+          (field/natural-orderings
+           field (name prefix)
+           (assoc opts :include (-> opts :include order-key)))))
+      (keys (:include opts)))))))
 
 (defn model-models-involved
   [model opts all]
@@ -112,7 +115,8 @@
           (fn [field]
             (field/build-where field prefix opts))
           (vals (:fields model))))]
-    (string/join " and " (flatten eyes))))
+    (doall (flatten eyes))))
+    ;; (((string/join " and " (flatten eyes))))
 
 ;; the next few functions are all really helpers for model-select-fields
 
@@ -120,13 +124,16 @@
   "This is part of the Field protocol that is the same for all fields.
   Returns the set of fields that could play a role in the select. "
   [field]
-  (concat (map first (field/table-additions field (-> field :row :slug)))
-          (field/subfield-names field (-> field :row :slug))))
+  (let [slug (-> field :row :slug)]
+    (concat
+     (map first (field/table-additions field slug))
+     (field/subfield-names field slug))))
 
 (defn build-alias
   [model field prefix slug opts]
   (let [select-field (field/coalesce-locale model field prefix slug opts)]
-    (str select-field " as " (util/dbize prefix) "$" (util/dbize slug))))
+    [select-field (str prefix "$" (name slug))]))
+    ;; (((str select-field " as " prefix "$" slug)))
 
 (defn select-fields
   "Find all necessary columns for the select query based on the given include nesting
@@ -151,13 +158,14 @@
   "Builds out the order component of the uberquery given whatever ordering map
    is found in opts."
   [model prefix opts]
-  (filter
-   identity
-   (flatten
-    (map
-     (fn [field]
-       (field/build-order field prefix opts))
-     (vals (:fields model))))))
+  (doall
+   (filter
+    identity
+    (flatten
+     (map
+      (fn [field]
+        (field/build-order field prefix opts))
+      (vals (:fields model)))))))
 
 (defn model-render
   "render a piece of content according to the fields contained in the model
@@ -276,7 +284,7 @@
           down {:include (slug include)}]
       (if-let [sub (slug content)]
         (update-in
-         content [slug] 
+         content [slug]
          (fn [part]
            (model-render target part down)))
         content))

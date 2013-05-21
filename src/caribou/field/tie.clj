@@ -59,11 +59,15 @@
               table-alias (str prefix "$" (:slug row))
               field-select (field/coalesce-locale target id-field prefix
                                                    (name id-slug) opts)
-              downstream (assoc/model-join-conditions target table-alias down)
-              params [(util/dbize (:slug target)) (util/dbize table-alias) field-select]]
-          (concat
-           [(util/clause "left outer join %1 %2 on (%3 = %2.id)" params)]
+              downstream (assoc/model-join-conditions target table-alias down)]
+          (cons
+           {:join [(:slug target) table-alias]
+            :on [field-select (str table-alias ".id")]}
            downstream)))))
+
+          ;; (concat
+          ;;  [(util/clause "left outer join %1 %2 on (%3 = %2.id)" params)]
+          ;;  downstream)))))
 
   (build-where
     [this prefix opts]

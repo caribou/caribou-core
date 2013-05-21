@@ -23,13 +23,19 @@
               table-alias (str prefix "$" slug)
               field-select (field/coalesce-locale model id-field table-alias
                                                    "id" opts)
-              subconditions (assoc/model-where-conditions target table-alias down)
-              params [(util/dbize part-select)
-                      (util/dbize field-select)
-                      (util/dbize (:slug target))
-                      (util/dbize table-alias)
-                      subconditions]]
-          (util/clause "%1 in (select %2 from %3 %4 where %5)" params))))))
+              subconditions (assoc/model-where-conditions target table-alias down)]
+          {:field part-select
+           :op "in"
+           :value {:select field-select
+                   :from [(:slug target) table-alias]
+                   :where subconditions}})))))
+              
+          ;;     params [(util/dbize part-select)
+          ;;             (util/dbize field-select)
+          ;;             (util/dbize (:slug target))
+          ;;             (util/dbize table-alias)
+          ;;             subconditions]]
+          ;; (util/clause "%1 in (select %2 from %3 %4 where %5)" params))))))
 
 (defrecord PartField [row env]
   field/Field
@@ -127,11 +133,16 @@
               table-alias (str prefix "$" (:slug row))
               field-select (field/coalesce-locale model id-field prefix
                                                    (name id-slug) opts)
-              downstream (assoc/model-join-conditions target table-alias down)
-              params [(util/dbize (:slug target)) (util/dbize table-alias) field-select]]
-          (concat
-           [(util/clause "left outer join %1 %2 on (%3 = %2.id)" params)]
+              downstream (assoc/model-join-conditions target table-alias down)]
+          (cons
+           {:join [(:slug target) table-alias]
+            :on [field-select (str table-alias ".id")]}
            downstream)))))
+
+          ;;     params [(util/dbize (:slug target)) (util/dbize table-alias) field-select]]
+          ;; (concat
+          ;;  [(util/clause "left outer join %1 %2 on (%3 = %2.id)" params)]
+          ;;  downstream)))))
 
   (build-where
     [this prefix opts]

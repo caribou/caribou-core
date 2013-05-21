@@ -9,6 +9,13 @@
 
 (import java.util.regex.Matcher)
 
+(defn query
+  "make an arbitrary query, substituting in extra args as % parameters"
+  [template & args]
+  (let [q (vec (cons template args))]
+    (println "QUERY" (str q))
+    (sql/query (config/draw :database) q)))
+
 (defn recursive-query [table fields base-where recur-where]
   (let [field-names (distinct (map name (concat [:id :parent-id] fields)))
         field-list (join "," field-names)]

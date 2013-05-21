@@ -71,34 +71,48 @@
         (let [{:keys [join-key join-alias join-select table-alias link-select]}
               (link-join-keys field prefix opts)
               target (field/models (-> field :row :target-id))
-              join-params (map util/dbize [join-key join-alias join-select prefix])
-              link-params (map util/dbize [(:slug target) table-alias link-select])
+              ;; join-params (map util/dbize [join-key join-alias join-select prefix])
+              ;; link-params (map util/dbize [(:slug target) table-alias link-select])
               downstream (assoc/model-join-conditions target table-alias down)]
           (concat
-           [(util/clause "left outer join %1 %2 on (%3 = %4.id)" join-params)
-            (util/clause "left outer join %1 %2 on (%2.id = %3)" link-params)]
+           [{:join [join-key join-alias]
+             :on [join-select (str prefix ".id")]}
+            {:join [(:slug target) table-alias]
+             :on [link-select (str table-alias ".id")]}]
            downstream))))))
+          ;; (concat
+          ;;  [(util/clause "left outer join %1 %2 on (%3 = %4.id)" join-params)
+          ;;   (util/clause "left outer join %1 %2 on (%2.id = %3)" link-params)]
+          ;;  downstream))))))
 
 (defn- link-where
   [field prefix opts]
-  (let [slug (-> field :row :slug)
-        join-clause "%1.id in (select %2 from %3 %4 inner join %5 %8 on (%6 = %8.id) where %7)"]
+  (let [slug (-> field :row :slug)]
     (assoc/with-propagation :where opts slug
       (fn [down]
         (let [{:keys [join-key join-alias join-select table-alias link-select]}
               (link-join-keys field prefix opts)
               model (field/models (-> field :row :model-id))
               target (field/models (-> field :row :target-id))
-              subconditions (assoc/model-where-conditions target table-alias down)
-              params [(util/dbize prefix)
-                      (util/dbize join-select)
-                      (util/dbize join-key)
-                      (util/dbize join-alias)
-                      (util/dbize (:slug target))
-                      (util/dbize link-select)
-                      subconditions
-                      (util/dbize table-alias)]] 
-          (util/clause join-clause params))))))
+              subconditions (assoc/model-where-conditions target table-alias down)]
+          {:field (str prefix ".id")
+           :op "in"
+           :value {:select join-select
+                   :from [join-key join-alias]
+                   :join [(:slug target) table-alias]
+                   :on [link-select (str table-alias ".id")]
+                   :where subconditions}})))))
+
+          ;;     params [(util/dbize prefix)
+          ;;             (util/dbize join-select)
+          ;;             (util/dbize join-key)
+          ;;             (util/dbize join-alias)
+          ;;             (util/dbize (:slug target))
+          ;;             (util/dbize link-select)
+          ;;             subconditions
+          ;;             (util/dbize table-alias)]] 
+          ;; (util/clause join-clause params))))))
+        ;; join-clause "%1.id in (select %2 from %3 %4 inner join %5 %8 on (%6 = %8.id) where %7)"]
 
 (defn- link-natural-orderings
   [field prefix opts]
@@ -116,7 +130,11 @@
                      join-model join-field join-alias
                      (name from-key) opts)
         downstream (assoc/model-natural-orderings target (str prefix "$" slug) opts)]
-    [(str join-select " asc") downstream]))
+    (cons
+     {:by join-select
+      :direction :asc}
+     downstream)))
+    ;; [(str join-select " asc") downstream]))
 
 (defn- link-render
   [this content opts]
@@ -200,9 +218,11 @@
         join-value-key (keyword (str slug "-" join-value))
         join-value-field (-> join-model :fields join-value-key)
         subprefix (str prefix "$" slug)
-        value-select (field/coalesce-locale join-model join-value-field join-alias join-value-key opts)
-        value-query (str value-select " as " (util/dbize subprefix) "$" (util/dbize join-value-key))]
-    value-query))
+        value-select (field/coalesce-locale join-model join-value-field join-alias join-value-key opts)]
+    [value-select (str subprefix "$" join-value-key)]))
+
+    ;;     value-query (str value-select " as " (util/dbize subprefix) "$" (util/dbize join-value-key))]
+    ;; value-query))
 
 (defn link-join-fields
   [field prefix opts]
