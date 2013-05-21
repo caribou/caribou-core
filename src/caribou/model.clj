@@ -75,16 +75,23 @@
   "Build the select query for this model by the given prefix based on the
    particular nesting of the include map."
   [model prefix opts]
-  (let [selects (string/join ", " (association/model-select-fields model prefix opts))
-        joins (string/join " " (association/model-join-conditions model prefix opts))]
-    (string/join " "
-                 ["select" selects "from" (util/dbize (:slug model)) (util/dbize prefix) joins])))
+  (let [selects (association/model-select-fields model prefix opts)
+        joins (association/model-join-conditions model prefix opts)]
+    {:select selects
+     :from [(:slug model) prefix]
+     :join joins}))
+
+  ;; ((let [selects (string/join ", " (association/model-select-fields model prefix opts))
+  ;;       joins (string/join " " (association/model-join-conditions model prefix opts))]
+  ;;   (string/join " "
+  ;;                ["select" selects "from" (util/dbize (:slug model)) (util/dbize prefix) joins])))
 
 (defn model-limit-offset
   "Determine the limit and offset component of the uberquery based on
   the given where condition."
   [limit offset]
-  (util/clause " limit %1 offset %2" [limit offset]))
+  {:limit limit :offset offset})
+  ;; ((util/clause " limit %1 offset %2" [limit offset]))
 
 (defn finalize-order-statement
   [orders]
@@ -112,18 +119,31 @@
   [model opts]
   (let [ordering (if (:order opts) opts (assoc opts :order {:position :asc}))
         order (association/model-build-order model (:slug model) ordering)]
-    (finalize-order-statement order)))
+    order))
+    ;; (((finalize-order-statement order)))
 
 (defn model-outer-condition
-  [model inner order limit opts]
-  (let [subcondition (if (not (empty? inner))
-                       (str " where " inner))
-        query-string (string/join " " [" where %1.id in"
-                                       "(select * from (select %1.id"
-                                       "from %1 %2%3%4) as _conditions_)"])]
-    (util/clause
-     query-string
-     [(util/dbize (:slug model)) subcondition order limit])))
+  [model inner order limit-offset opts]
+  (let [model-id (str (:slug model) ".id")]
+    {:field model-id
+     :op "in"
+     :value {:select :*
+             :from (merge
+                    {:select model-id
+                     :from (:slug model)
+                     :where inner
+                     :order order}
+                    limit-offset)
+             :as "_conditions_"}}))
+
+  ;; ((let [subcondition (if (not (empty? inner))
+  ;;                      (str " where " inner))
+  ;;       query-string (string/join " " [" where %1.id in"
+  ;;                                      "(select * from (select %1.id"
+  ;;                                      "from %1 %2%3%4) as _conditions_)"])]
+  ;;   (util/clause
+  ;;    query-string
+  ;;    [(util/dbize (:slug model)) subcondition order limit-offset])))
 
 (defn form-uberquery
   "Given the model and map of opts, construct the corresponding
@@ -138,14 +158,17 @@
         immediate-order (immediate-vals (:order opts))
         base-opts (if (empty? immediate-order) {} {:order immediate-order})
         base-order (model-order-statement model base-opts)
-        final-order (if (empty? order)
-                      (finalize-order-statement natural)
-                      (string/join ", " (cons order natural)))
+        final-order (if (empty? order) natural (concat order natural))
+        ;; final-order (if (empty? order)
+        ;;               (finalize-order-statement natural)
+        ;;               (string/join ", " (cons order natural)))
         limit-offset (when-let [limit (:limit opts)]
                        (model-limit-offset limit (or (:offset opts) 0)))
-        condition (model-outer-condition model where base-order limit-offset
-                                         opts)]
-    (str query condition final-order)))
+        condition (model-outer-condition model where base-order limit-offset opts)]
+    (assoc query
+      :where condition
+      :order final-order)))
+    ;; (((str query condition final-order)))
 
 (defn uberquery
   "The query to bind all queries.  Returns every facet of every row given an

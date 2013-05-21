@@ -4,9 +4,9 @@
             [caribou.util :as util]
             [caribou.logger :as log]
             [caribou.db :as db]
+            [caribou.config :as config]
             [caribou.validation :as validation]
             [caribou.association :as assoc]))
-
 
 (defn collection-join-conditions
   [field prefix opts]
@@ -22,14 +22,20 @@
               field-select (field/coalesce-locale
                             target id-field table-alias
                             (name link-id-slug) opts)
-              downstream (assoc/model-join-conditions target table-alias down)
-              params [(util/dbize (:slug target))
-                      (util/dbize table-alias)
-                      (util/dbize prefix)
-                      field-select]]
-          (concat
-           [(util/clause "left outer join %1 %2 on (%3.id = %4)" params)]
+              downstream (assoc/model-join-conditions target table-alias down)]
+          (cons
+           {:join [(:slug target) table-alias]
+            :on [field-select (str prefix ".id")]}
            downstream))))))
+
+
+              ;; [params [(util/dbize (:slug target))
+              ;;         (util/dbize table-alias)
+              ;;         (util/dbize prefix)
+              ;;         field-select]]
+          ;; ((((((concat
+          ;;  [(util/clause "left outer join %1 %2 on (%3.id = %4)" params)]
+          ;;  downstream))))))
 
 (defn collection-where
   [field prefix opts]
@@ -46,13 +52,21 @@
                             target id-field table-alias
                             (name link-id-slug) opts)
               subconditions (assoc/model-where-conditions
-                             target table-alias down)
-              params [(util/dbize prefix)
-                      field-select
-                      (util/dbize (:slug target))
-                      (util/dbize table-alias)
-                      subconditions]]
-          (util/clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
+                             target table-alias down)]
+          {:field (str prefix ".id")
+           :op "in"
+           :value {:select field-select
+                   :from [(:slug target) table-alias]
+                   :where subconditions}})))))
+
+          ;; ((((((util/clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
+
+          ;;     [params [(util/dbize prefix)
+          ;;             field-select
+          ;;             (util/dbize (:slug target))
+          ;;             (util/dbize table-alias)
+          ;;             subconditions]]
+          ;; ((((((util/clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
 
 (defn collection-render
   [field content opts]
@@ -100,6 +114,16 @@
                       ((resolve 'caribou.model/create) model-key part-opts)))]
       (assoc content (keyword (-> field :row :slug)) updated))
     content))
+
+(defn collection-build-order
+  [field prefix opts]
+  (log/debug (str "COLLECTION BUILD ORDER: " (:row field) prefix))
+  (log/debug (str "CONFIG KEYS *COLLECTION*: " (keys (config/draw))))
+  (let [target-id (-> field :row :target-id)
+        target-model (field/models target-id)]
+    (log/debug "TARGET ID" target-id (class target-id))
+    (log/debug "TARGET MODEL" target-id target-model)
+    (assoc/join-order field target-model prefix opts)))
 
 (defrecord CollectionField [row env]
   field/Field
@@ -195,10 +219,14 @@
                         target position-field table-alias
                         (name link-position-slug) opts)
           downstream (assoc/model-natural-orderings target table-alias opts)]
-      [(str field-select " asc") downstream]))
+      (cons
+       {:by field-select
+        :direction :asc}
+       downstream)))
+      ;; (([(str field-select " asc") downstream]))
 
   (build-order [this prefix opts]
-    (assoc/join-order this (field/models (row :target-id)) prefix opts))
+    (collection-build-order this prefix opts))
 
   (field-generator [this generators]
     generators)
