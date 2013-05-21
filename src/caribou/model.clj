@@ -769,7 +769,8 @@
       (bind-models (merge by-slug by-id) config/config)
       (add-app-model-hooks))
     (catch Exception e
-      (log/out :INVOKE_MODELS "No models table yet!"))))
+      (log/out :INVOKE_MODELS "No models table yet!")
+      (log/render-exception e))))
 
 (defn update-values-reduction
   [spec]
