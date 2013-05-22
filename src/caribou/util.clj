@@ -16,16 +16,24 @@
         (catch Exception e nil))
       (.intValue whatever))))
 
-(defn seq-to-map [f q]
+(defn seq-to-map
+  [f q]
   (reduce #(assoc %1 (f %2) %2) {} q))
 
-(defn slugify [s]
+(defn slugify
+  [s]
   (.toLowerCase (string/replace (string/join "-" (re-seq #"[a-zA-Z0-9]+" (name s))) #"^[0-9]" "-")))
 
-(defn url-slugify [s]
+(defn url-slugify
+  [s]
   (.toLowerCase (string/join "-" (re-seq #"[a-zA-Z0-9]+" (name s)))))
 
-(defn titleize [s]
+(defn underscore
+  [s]
+  (.replace s \- \_))
+
+(defn titleize
+  [s]
   (string/join " " (map string/capitalize (string/split (name s) #"[^a-zA-Z]+"))))
 
 (def file-separator

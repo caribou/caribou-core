@@ -153,11 +153,13 @@
 (defn string-where
   [field prefix slug opts where]
   (pure-where field prefix slug opts where))
-  ;; ((let [model-id (-> field :row :model-id)
+  ;; (let [model-id (-> field :row :model-id)
   ;;       model (db/find-model model-id (models))
   ;;       [operator value] (where-operator where)
   ;;       field-select (coalesce-locale model field prefix slug opts)]
-  ;;   (util/clause "%1 %2 '%3'" [field-select operator value])))
+  ;;   {:field field-select
+  ;;    :op operator
+  ;;    :value (str "'" value "'")}))
 
 (defn field-cleanup
   [field]
