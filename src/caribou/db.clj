@@ -11,7 +11,7 @@
 
 (defn query
   "make an arbitrary query, substituting in extra args as % parameters"
-  [template & args]
+  [template args]
   (let [q (vec (cons template args))]
     (println "QUERY" (str q))
     (sql/query (config/draw :database) q)))
@@ -104,7 +104,7 @@
   "create a table with the given columns, of the format
   [:column-name :type & :extra]"
   [table & fields]
-  (log/out :db (util/clause "create table %1 %2" [(util/dbize table) fields]))
+  (log/out :db (util/clause "create table! %1 %2" [(util/dbize table) fields]))
   (try
     (apply sql/create-table (cons table fields))
     (catch Exception e (log/render-exception e))))
@@ -252,105 +252,6 @@
   [config]
   (drop-database config)
   (create-database config))
-
-(def example-query
-  '{:select #{["model.ancestor-id" "model$ancestor-id"]
-              ["model$fields.status-id" "model$fields$status-id"]
-              ["model$fields.target-id" "model$fields$target-id"]
-              ["model$fields.map" "model$fields$map"]
-              ["model$fields$link.link-id" "model$fields$link$link-id"]
-              ["model$fields$link.immutable" "model$fields$link$immutable"]
-              ["model$fields.localized" "model$fields$localized"]
-              ["model$fields.default-value" "model$fields$default-value"]
-              ["model.description" "model$description"]
-              ["model.status-position" "model$status-position"]
-              ["model$fields$link.description" "model$fields$link$description"]
-              ["model$fields$link.status-position" "model$fields$link$status-position"]
-              ["model$fields.dependent" "model$fields$dependent"]
-              ["model$fields.immutable" "model$fields$immutable"]
-              ["model$fields.link-id" "model$fields$link-id"]
-              ["model$fields.description" "model$fields$description"]
-              ["model$fields.status-position" "model$fields$status-position"]
-              ["model.status-id" "model$status-id"]
-              ["model$fields$link.status-id" "model$fields$link$status-id"]
-              ["model$fields$link.target-id" "model$fields$link$target-id"]
-              ["model$fields$link.map" "model$fields$link$map"]
-              ["model.localized" "model$localized"]
-              ["model$fields$link.localized" "model$fields$link$localized"]
-              ["model$fields$link.default-value" "model$fields$link$default-value"]
-              ["model$fields$link.dependent" "model$fields$link$dependent"]
-              ["model$fields.updated-at" "model$fields$updated-at"]
-              ["model$fields$link.type" "model$fields$link$type"]
-              ["model$fields.disjoint" "model$fields$disjoint"]
-              ["model$fields.required" "model$fields$required"]
-              ["model$fields.id" "model$fields$id"]
-              ["model$fields.model-id" "model$fields$model-id"]
-              ["model$fields$link.locked" "model$fields$link$locked"]
-              ["model$fields$link.searchable" "model$fields$link$searchable"]
-              ["model$fields$link.singular" "model$fields$link$singular"]
-              ["model.locked" "model$locked"]
-              ["model.searchable" "model$searchable"]
-              ["model$fields.format" "model$fields$format"]
-              ["model$fields.name" "model$fields$name"]
-              ["model$fields.slug" "model$fields$slug"]
-              ["model$fields$link.updated-at" "model$fields$link$updated-at"]
-              ["model.updated-at" "model$updated-at"]
-              ["model$fields.editable" "model$fields$editable"]
-              ["model.join-model" "model$join-model"]
-              ["model$fields$link.disjoint" "model$fields$link$disjoint"]
-              ["model$fields$link.required" "model$fields$link$required"]
-              ["model$fields$link.id" "model$fields$link$id"]
-              ["model$fields.position" "model$fields$position"]
-              ["model$fields.model-position" "model$fields$model-position"]
-              ["model$fields$link.model-id" "model$fields$link$model-id"]
-              ["model.id" "model$id"]
-              ["model$fields.created-at" "model$fields$created-at"]
-              ["model$fields$link.name" "model$fields$link$name"]
-              ["model$fields$link.slug" "model$fields$link$slug"]
-              ["model$fields$link.format" "model$fields$link$format"]
-              ["model.abstract" "model$abstract"]
-              ["model.nested" "model$nested"]
-              ["model.name" "model$name"]
-              ["model.slug" "model$slug"]
-              ["model$fields$link.editable" "model$fields$link$editable"]
-              ["model$fields.type" "model$fields$type"]
-              ["model$fields$link.position" "model$fields$link$position"]
-              ["model$fields$link.model-position" "model$fields$link$model-position"]
-              ["model.position" "model$position"]
-              ["model$fields.searchable" "model$fields$searchable"]
-              ["model$fields.locked" "model$fields$locked"]
-              ["model$fields$link.created-at" "model$fields$link$created-at"]
-              ["model.created-at" "model$created-at"]
-              ["model$fields.singular" "model$fields$singular"]},
-    :from ["model" "model"],
-    :join ({:join ["field" "model$fields"],
-            :on ["model$fields.model-id" "model.id"]}
-           {:join ["field" "model$fields$link"],
-            :on ["model$fields.link-id" "model$fields$link.id"]})
-    :where {:field "model.id",
-            :op "in",
-            :value {:select :*,
-                    :from {:select "model.id",
-                           :from "model",
-                           :where ({:field "model.id",
-                                    :op "in",
-                                    :value {:select "model$fields.model-id",
-                                            :from ["field" "model$fields"],
-                                            :where ({:field "model$fields.slug",
-                                                     :op "=",
-                                                     :value "slug"})}}),
-                           :order ({:by "model.position", :direction :asc})},
-                    :as "_conditions_"}},
-    :order ({:by "model.position", :direction :asc}
-            {:by "model$fields.model-position", :direction :asc})})
-
-(defn construct-query
-  [query-map]
-  ())
-
-(defn execute-query
-  [query-map]
-  ())
 
 (defn call
   [f]

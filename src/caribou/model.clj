@@ -125,16 +125,17 @@
 (defn model-outer-condition
   [model inner order limit-offset opts]
   (let [model-id (str (:slug model) ".id")]
-    {:field model-id
-     :op "in"
-     :value {:select :*
-             :from (merge
-                    {:select model-id
-                     :from (:slug model)
-                     :where inner
-                     :order order}
-                    limit-offset)
-             :as "_conditions_"}}))
+    (list
+     {:field model-id
+      :op "in"
+      :value {:select "*"
+              :from (merge
+                     {:select model-id
+                      :from (:slug model)
+                      :where inner
+                      :order order}
+                     limit-offset)
+              :as "_conditions_"}})))
 
   ;; ((let [subcondition (if (not (empty? inner))
   ;;                      (str " where " inner))
@@ -170,12 +171,17 @@
       :order final-order)))
     ;; (((str query condition final-order)))
 
+(defn construct-uberquery
+  [model opts]
+  (let [form (form-uberquery model opts)]
+    (query/construct-query form)))
+
 (defn uberquery
   "The query to bind all queries.  Returns every facet of every row given an
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
   (let [query-mass (form-uberquery model opts)]
-    (util/query query-mass)))
+    (query/execute-query query-mass)))
 
 (defn beam-splitter
   "Splits the given options (:include, :where, :order) out into
@@ -769,8 +775,7 @@
       (bind-models (merge by-slug by-id) config/config)
       (add-app-model-hooks))
     (catch Exception e
-      (log/out :INVOKE_MODELS "No models table yet!")
-      (log/render-exception e))))
+      (log/out :INVOKE_MODELS "No models table yet!"))))
 
 (defn update-values-reduction
   [spec]
