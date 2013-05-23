@@ -76,8 +76,8 @@
           field-select (field/coalesce-locale model id-field prefix
                                               (name id-slug) opts)
           table-alias (str prefix "$" (:slug row))]
-      {:join ["location" table-alias]
-       :on [field-select (str table-alias ".id")]}))
+      [{:table ["location" table-alias]
+        :on [field-select (str table-alias ".id")]}]))
 
       ;; [(util/clause "left outer join location %2$%1 on (%3 = %2$%1.id)"
       ;;               [(util/dbize (:slug row)) (util/dbize prefix) field-select])]))

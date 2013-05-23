@@ -75,9 +75,9 @@
               ;; link-params (map util/dbize [(:slug target) table-alias link-select])
               downstream (assoc/model-join-conditions target table-alias down)]
           (concat
-           [{:join [join-key join-alias]
+           [{:table [join-key join-alias]
              :on [join-select (str prefix ".id")]}
-            {:join [(:slug target) table-alias]
+            {:table [(:slug target) table-alias]
              :on [link-select (str table-alias ".id")]}]
            downstream))))))
           ;; (concat
@@ -99,8 +99,8 @@
            :op "in"
            :value {:select join-select
                    :from [join-key join-alias]
-                   :join [(:slug target) table-alias]
-                   :on [link-select (str table-alias ".id")]
+                   :join [{:table [(:slug target) table-alias]
+                           :on [link-select (str table-alias ".id")]}]
                    :where subconditions}})))))
 
           ;;     params [(util/dbize prefix)
@@ -219,7 +219,7 @@
         join-value-field (-> join-model :fields join-value-key)
         subprefix (str prefix "$" slug)
         value-select (field/coalesce-locale join-model join-value-field join-alias join-value-key opts)]
-    [value-select (str subprefix "$" join-value-key)]))
+    [value-select (str subprefix "$" (name join-value-key))]))
 
     ;;     value-query (str value-select " as " (util/dbize subprefix) "$" (util/dbize join-value-key))]
     ;; value-query))
