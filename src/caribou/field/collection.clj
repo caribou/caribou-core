@@ -24,7 +24,7 @@
                             (name link-id-slug) opts)
               downstream (assoc/model-join-conditions target table-alias down)]
           (cons
-           {:join [(:slug target) table-alias]
+           {:table [(:slug target) table-alias]
             :on [field-select (str prefix ".id")]}
            downstream))))))
 
@@ -117,12 +117,8 @@
 
 (defn collection-build-order
   [field prefix opts]
-  (log/debug (str "COLLECTION BUILD ORDER: " (:row field) prefix))
-  (log/debug (str "CONFIG KEYS *COLLECTION*: " (keys (config/draw))))
   (let [target-id (-> field :row :target-id)
         target-model (field/models target-id)]
-    (log/debug "TARGET ID" target-id (class target-id))
-    (log/debug "TARGET MODEL" target-id target-model)
     (assoc/join-order field target-model prefix opts)))
 
 (defrecord CollectionField [row env]

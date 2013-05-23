@@ -1,12 +1,13 @@
 (ns caribou.query
   (:require [clojure.walk :as walk]
             [clojure.string :as string]
+            [caribou.logger :as log]
             [caribou.util :as util]
             [caribou.config :as config]
             [caribou.db :as db]))
 
 (def example-query
-  '{:select #{["model.ancestor-id" "model$ancestor-id"]
+  '{:select #{[{:coalesce ["model.ancestor-id" "model.ancestor-id"]} "model$ancestor-id"]
               ["model$fields.status-id" "model$fields$status-id"]
               ["model$fields.target-id" "model$fields$target-id"]
               ["model$fields.map" "model$fields$map"]
@@ -75,9 +76,9 @@
               ["model.created-at" "model$created-at"]
               ["model$fields.singular" "model$fields$singular"]},
     :from ["model" "model"],
-    :join ({:join ["field" "model$fields"],
-            :on ["model$fields.model-id" "model.id"]}
-           {:join ["field" "model$fields$link"],
+    :join ({:table ["field" "model$fields"],
+            :on [{:max ["model$fields.model-id" "model$fields.model-id"]} "model.id"]}
+           {:table ["field" "model$fields$link"],
             :on ["model$fields.link-id" "model$fields$link.id"]})
     :where ({:field "model.id",
              :op "in",
@@ -90,7 +91,14 @@
                                              :from ["field" "model$fields"],
                                              :where ({:field "model$fields.slug",
                                                       :op "=",
-                                                      :value "slug"})}}),
+                                                      :value "slug"})}}
+                                    {:field "model.id",
+                                     :op "in",
+                                     :value {:select "model$fields.model-id",
+                                             :from ["field" "model$fields"],
+                                             :where ({:field "model$fields.id",
+                                                      :op ">",
+                                                      :value 1})}}),
                             :order ({:by "model.position", :direction :asc}),
                             :limit 5,
                             :offset 3},
@@ -105,19 +113,35 @@
   (let [[subform params] (construct-query form params)]
     [(str "(" subform ")") params]))
 
+(defn construct-select-function
+  [field]
+  (if (map? field)
+    (let [function (first (keys field))
+          args (get field function)
+          arg-list (string/join ", " args)
+          call (str (name function) "(" arg-list ")")]
+      call)
+    field))
+
+(defn construct-select-alias
+  [[field alias]]
+  (let [field (construct-select-function field)]
+    (str field " as " alias)))
+
 (defn construct-select
   [select-form]
   (cond
-    (vector? select-form) (str (first select-form) " as " (last select-form))
+    (vector? select-form) (construct-select-alias select-form)
     (string? select-form) select-form))
 
 (defn construct-selects
   [select-forms]
-  (if (string? select-forms)
-    (str "select " select-forms)
-    (let [as (map construct-select select-forms)
-          joined (string/join ", " as)]
-      (str "select " joined))))
+  (let [select (cond
+                 (string? select-forms) select-forms
+                 (map? select-forms) (construct-select-function select-forms)
+                 :else (let [as (map construct-select select-forms)]
+                         (string/join ", " as)))]
+    (str "select " select)))
 
 (defn construct-from
   [from-form params]
@@ -129,10 +153,11 @@
 
 (defn construct-join
   [join-form]
-  (if-let [{:keys [join on]} join-form]
-    (let [[table alias] join
-          [rhs lhs] on]
-      (str "left outer join " table " as " alias " on (" rhs " = " lhs ")"))))
+  (if-let [{:keys [table on]} join-form]
+    (let [[join alias] table
+          [rhs lhs] on
+          select (construct-select-function rhs)]
+      (str "left outer join " join " as " alias " on (" select " = " lhs ")"))))
 
 (defn construct-joins
   [join-forms]
@@ -145,11 +170,11 @@
     (let [[subform params] (if (map? value)
                              (construct-subquery value params)
                              ["?" (conj params value)])]
-      [(str field " " op " " subform) params])))
+      [(str (construct-select-function field) " " op " " subform) params])))
 
 (defn construct-wheres
   [where-forms params]
-  (if where-forms
+  (if-not (empty? where-forms)
     (let [[wheres params] (reduce
                            (fn [[wheres params] where-form]
                              (let [[subform params] (construct-where where-form params)]
@@ -167,7 +192,7 @@
 
 (defn construct-order
   [{:keys [by direction]}]
-  (str by " " (name direction)))
+  (str (construct-select-function by) " " (name direction)))
 
 (defn construct-orders
   [order-forms]
@@ -183,8 +208,7 @@
 (defn construct-query
   ([query-map] (construct-query query-map []))
   ([{:keys [select from join where as order limit offset] :as query-map} params]
-     (let [params []
-           select-query (construct-selects select)
+     (let [select-query (construct-selects select)
            [from-query params] (construct-from from params)
            join-query (construct-joins join)
            [where-query params] (construct-wheres where params)

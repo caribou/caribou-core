@@ -135,7 +135,7 @@
                                                    (name id-slug) opts)
               downstream (assoc/model-join-conditions target table-alias down)]
           (cons
-           {:join [(:slug target) table-alias]
+           {:table [(:slug target) table-alias]
             :on [field-select (str table-alias ".id")]}
            downstream)))))
 

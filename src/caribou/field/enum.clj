@@ -75,8 +75,8 @@
                         model id-field prefix
                         (name id-slug) opts)
           table-alias (str prefix "$" (:slug row))]
-      {:join ["enumeration" table-alias]
-       :on [field-select (str table-alias ".id")]}))
+      [{:table ["enumeration" table-alias]
+        :on [field-select (str table-alias ".id")]}]))
 
   ;; [(util/clause "left outer join enumeration %2$%1 on (%3 = %2$%1.id)"
   ;;                     [(util/dbize (:slug row)) (util/dbize prefix) field-select])]))

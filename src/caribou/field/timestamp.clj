@@ -113,23 +113,41 @@
         model (field/models model-id)
         field-select (field/coalesce-locale model field prefix slug opts)]
     (if (map? where)
-      (let [where-keys (set (keys where))
-            extract-keys (set/intersection where-keys time-keys)
-            op-keys (set/intersection where-keys comparison-keys)]
-        (if (empty? op-keys)
-          (string/join
-           " and "
-           (map
-            (fn [[index value]]
-              (util/clause "extract(%1 from %2) = %3" [(name index) field-select value]))
-            (select-keys where extract-keys)))
-          (string/join
-           " and "
-           (map
-            (fn [[operator value]]
-              (util/clause "%1 %2 '%3'" [field-select operator value]))
-            (select-keys where op-keys)))))
-      (util/clause "%1 = '%2'" [field-select where]))))
+      (let [op (-> where keys first)
+            value (get where op)]
+        {:field field-select
+         :op (name op)
+         :value value})
+      {:field field-select
+       :op "="
+       :value where})))
+
+  ;; "To find something by a certain timestamp you must provide a map with keys into
+  ;;  the date or time.  Example:
+  ;;    (timestamp-where :created-at {:day 15 :month 7 :year 2020})
+  ;;  would find all rows who were created on July 15th, 2020."
+  ;; [field prefix slug opts where]
+  ;; (let [model-id (-> field :row :model-id)
+  ;;       model (field/models model-id)
+  ;;       field-select (field/coalesce-locale model field prefix slug opts)]
+  ;;   (if (map? where)
+  ;;     (let [where-keys (set (keys where))
+  ;;           extract-keys (set/intersection where-keys time-keys)
+  ;;           op-keys (set/intersection where-keys comparison-keys)]
+  ;;       (if (empty? op-keys)
+  ;;         (string/join
+  ;;          " and "
+  ;;          (map
+  ;;           (fn [[index value]]
+  ;;             (util/clause "extract(%1 from %2) = %3" [(name index) field-select value]))
+  ;;           (select-keys where extract-keys)))
+  ;;         (string/join
+  ;;          " and "
+  ;;          (map
+  ;;           (fn [[operator value]]
+  ;;             (util/clause "%1 %2 '%3'" [field-select operator value]))
+  ;;           (select-keys where op-keys)))))
+  ;;     (util/clause "%1 = '%2'" [field-select where]))))
 
 (defrecord TimestampField [row env]
   field/Field
