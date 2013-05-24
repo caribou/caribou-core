@@ -81,23 +81,11 @@
      :from [(:slug model) prefix]
      :join joins}))
 
-  ;; ((let [selects (string/join ", " (association/model-select-fields model prefix opts))
-  ;;       joins (string/join " " (association/model-join-conditions model prefix opts))]
-  ;;   (string/join " "
-  ;;                ["select" selects "from" (util/dbize (:slug model)) (util/dbize prefix) joins])))
-
 (defn model-limit-offset
   "Determine the limit and offset component of the uberquery based on
   the given where condition."
   [limit offset]
   {:limit limit :offset offset})
-  ;; ((util/clause " limit %1 offset %2" [limit offset]))
-
-(defn finalize-order-statement
-  [orders]
-  (let [statement (string/join ", " orders)]
-    (if-not (empty? statement)
-      (util/clause " order by %1" [statement]))))
 
 (defn immediate-vals
   [m]
@@ -120,7 +108,6 @@
   (let [ordering (if (:order opts) opts (assoc opts :order {:position :asc}))
         order (association/model-build-order model (:slug model) ordering)]
     order))
-    ;; (((finalize-order-statement order)))
 
 (defn model-outer-condition
   [model inner order limit-offset opts]
@@ -137,15 +124,6 @@
                      limit-offset)
               :as "_conditions_"}})))
 
-  ;; ((let [subcondition (if (not (empty? inner))
-  ;;                      (str " where " inner))
-  ;;       query-string (string/join " " [" where %1.id in"
-  ;;                                      "(select * from (select %1.id"
-  ;;                                      "from %1 %2%3%4) as _conditions_)"])]
-  ;;   (util/clause
-  ;;    query-string
-  ;;    [(util/dbize (:slug model)) subcondition order limit-offset])))
-
 (defn form-uberquery
   "Given the model and map of opts, construct the corresponding
   uberquery (but don't call it!)"
@@ -160,16 +138,12 @@
         base-opts (if (empty? immediate-order) {} {:order immediate-order})
         base-order (model-order-statement model base-opts)
         final-order (if (empty? order) natural (concat order natural))
-        ;; final-order (if (empty? order)
-        ;;               (finalize-order-statement natural)
-        ;;               (string/join ", " (cons order natural)))
         limit-offset (when-let [limit (:limit opts)]
                        (model-limit-offset limit (or (:offset opts) 0)))
         condition (model-outer-condition model where base-order limit-offset opts)]
     (assoc query
       :where condition
       :order final-order)))
-    ;; (((str query condition final-order)))
 
 (defn construct-uberquery
   [model opts]
@@ -890,7 +864,7 @@
            field (-> model :fields (get (keyword field-slug)))]
        (field/propagate-order field id orderings))))
 
-(defn progenitors
+(defn- progenitors
   "if the model given by slug is nested, return a list of the item
   given by this id along with all of its ancestors."
   ([slug id] (progenitors slug id {}))
@@ -905,7 +879,7 @@
            (doall (map #(association/from model % opts) before)))
          [(association/from model (db/choose slug id) opts)]))))
 
-(defn descendents
+(defn- descendents
   "pull up all the descendents of the item given by id in the nested
   model given by slug."
   ([slug id] (descendents slug id {}))

@@ -29,13 +29,6 @@
            :value {:select field-select
                    :from [(:slug target) table-alias]
                    :where subconditions}})))))
-              
-          ;;     params [(util/dbize part-select)
-          ;;             (util/dbize field-select)
-          ;;             (util/dbize (:slug target))
-          ;;             (util/dbize table-alias)
-          ;;             subconditions]]
-          ;; (util/clause "%1 in (select %2 from %3 %4 where %5)" params))))))
 
 (defrecord PartField [row env]
   field/Field
@@ -138,11 +131,6 @@
            {:table [(:slug target) table-alias]
             :on [field-select (str table-alias ".id")]}
            downstream)))))
-
-          ;;     params [(util/dbize (:slug target)) (util/dbize table-alias) field-select]]
-          ;; (concat
-          ;;  [(util/clause "left outer join %1 %2 on (%3 = %2.id)" params)]
-          ;;  downstream)))))
 
   (build-where
     [this prefix opts]

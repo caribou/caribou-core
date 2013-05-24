@@ -74,7 +74,6 @@
     (if (and results (= :clean (keyword results)))
       local
       {:coalesce [local global]})))
-      ;; ((((str "coalesce(" local ", " global ")"))))
 
 (defn coalesce-locale
   [model field prefix slug opts]
@@ -136,7 +135,6 @@
     {:field field-select
      :op operator
      :value value}))
-    ;; (((util/clause "%1 %2 %3" [field-select operator value])))
 
 (defn pure-order
   [field prefix opts]
@@ -147,19 +145,10 @@
             field-select (coalesce-locale model field prefix slug opts)]
         {:by field-select
          :direction by}))))
-        ;; (((((str (coalesce-locale model field prefix slug opts) " "
-        ;;      (name by))))))
 
 (defn string-where
   [field prefix slug opts where]
   (pure-where field prefix slug opts where))
-  ;; (let [model-id (-> field :row :model-id)
-  ;;       model (db/find-model model-id (models))
-  ;;       [operator value] (where-operator where)
-  ;;       field-select (coalesce-locale model field prefix slug opts)]
-  ;;   {:field field-select
-  ;;    :op operator
-  ;;    :value (str "'" value "'")}))
 
 (defn field-cleanup
   [field]
