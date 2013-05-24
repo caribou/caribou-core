@@ -28,15 +28,6 @@
             :on [field-select (str prefix ".id")]}
            downstream))))))
 
-
-              ;; [params [(util/dbize (:slug target))
-              ;;         (util/dbize table-alias)
-              ;;         (util/dbize prefix)
-              ;;         field-select]]
-          ;; ((((((concat
-          ;;  [(util/clause "left outer join %1 %2 on (%3.id = %4)" params)]
-          ;;  downstream))))))
-
 (defn collection-where
   [field prefix opts]
   (let [slug (-> field :row :slug)]
@@ -58,15 +49,6 @@
            :value {:select field-select
                    :from [(:slug target) table-alias]
                    :where subconditions}})))))
-
-          ;; ((((((util/clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
-
-          ;;     [params [(util/dbize prefix)
-          ;;             field-select
-          ;;             (util/dbize (:slug target))
-          ;;             (util/dbize table-alias)
-          ;;             subconditions]]
-          ;; ((((((util/clause "%1.id in (select %2 from %3 %4 where %5)" params))))))
 
 (defn collection-render
   [field content opts]
@@ -219,7 +201,6 @@
        {:by field-select
         :direction :asc}
        downstream)))
-      ;; (([(str field-select " asc") downstream]))
 
   (build-order [this prefix opts]
     (collection-build-order this prefix opts))
@@ -242,9 +223,8 @@
       (fn [down]
         (let [link (-> this :env :link :slug)
               parts (db/fetch (-> (field/target-for this) :slug)
-                              (str link "_id = %1 order by %2 asc")
-                              (content :id)
-                              (str link "_position"))]
+                              (str link "_id = ? order by " (str link "_position") " asc")
+                              (content :id))]
           (map #(assoc/from (field/target-for this) % down) parts)))))
 
   (propagate-order [this id orderings]

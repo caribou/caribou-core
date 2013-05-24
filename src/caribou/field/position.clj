@@ -1,5 +1,6 @@
 (ns caribou.field.position
   (:require [caribou.field :as field]
+            [caribou.db :as db]
             [caribou.validation :as validation]
             [caribou.util :as util]
             [caribou.field.integer :as int]))
@@ -16,9 +17,9 @@
       update
       (assoc update
         key (let [result
-                  (util/query
-                   (str "select max(" (util/dbize slug) ")+1 as max from "
-                        (util/dbize model)))]
+                  (db/query
+                   (str "select max(" (util/dbize slug)
+                        ")+1 as max from " (util/dbize model)))]
               (or (-> result first :max)
                   0))))))
                     

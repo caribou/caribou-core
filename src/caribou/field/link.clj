@@ -58,8 +58,12 @@
   ([field from-id to-id opts]
      (let [{from-key :from to-key :to join-key :join} (link-keys field)
            locale (if (:locale opts) (str (name (:locale opts)) "-") "")
-           params (map util/dbize [join-key from-key to-id to-key from-id locale])
-           preexisting (first (apply (partial util/query "select * from %1 where %6%2 = %3 and %6%4 = %5") params))]
+
+           [join-key from-key to-id to-key from-id locale]
+           (map util/dbize [join-key from-key to-id to-key from-id locale])
+
+           template (str "select * from " join-key " where " locale from-key " = ? and " locale to-key " = ?")
+           preexisting (first (db/query template [to-id from-id]))]
        (if preexisting
          ((resolve 'caribou.model/destroy) join-key (preexisting :id))))))
 
@@ -71,8 +75,6 @@
         (let [{:keys [join-key join-alias join-select table-alias link-select]}
               (link-join-keys field prefix opts)
               target (field/models (-> field :row :target-id))
-              ;; join-params (map util/dbize [join-key join-alias join-select prefix])
-              ;; link-params (map util/dbize [(:slug target) table-alias link-select])
               downstream (assoc/model-join-conditions target table-alias down)]
           (concat
            [{:table [join-key join-alias]
@@ -80,10 +82,6 @@
             {:table [(:slug target) table-alias]
              :on [link-select (str table-alias ".id")]}]
            downstream))))))
-          ;; (concat
-          ;;  [(util/clause "left outer join %1 %2 on (%3 = %4.id)" join-params)
-          ;;   (util/clause "left outer join %1 %2 on (%2.id = %3)" link-params)]
-          ;;  downstream))))))
 
 (defn- link-where
   [field prefix opts]
@@ -102,17 +100,6 @@
                    :join [{:table [(:slug target) table-alias]
                            :on [link-select (str table-alias ".id")]}]
                    :where subconditions}})))))
-
-          ;;     params [(util/dbize prefix)
-          ;;             (util/dbize join-select)
-          ;;             (util/dbize join-key)
-          ;;             (util/dbize join-alias)
-          ;;             (util/dbize (:slug target))
-          ;;             (util/dbize link-select)
-          ;;             subconditions
-          ;;             (util/dbize table-alias)]] 
-          ;; (util/clause join-clause params))))))
-        ;; join-clause "%1.id in (select %2 from %3 %4 inner join %5 %8 on (%6 = %8.id) where %7)"]
 
 (defn- link-natural-orderings
   [field prefix opts]
@@ -134,7 +121,6 @@
      {:by join-select
       :direction :asc}
      downstream)))
-    ;; [(str join-select " asc") downstream]))
 
 (defn- link-render
   [this content opts]
@@ -184,7 +170,7 @@
         reciprocal (-> field :env :link)
         reciprocal-slug (:slug reciprocal)
         join-name (join-table-name (name slug) reciprocal-slug)]
-    (loop [joins (db/fetch join-name (str reciprocal-slug "_id = " id " order by " slug "_id"))
+    (loop [joins (db/fetch join-name (str reciprocal-slug "_id = ? order by " slug "_id") id)
            orders (sort-by :id orderings)]
       (if (and (seq orders) (seq joins))
         (let [next-join (first joins)
@@ -221,9 +207,6 @@
         value-select (field/coalesce-locale join-model join-value-field join-alias join-value-key opts)]
     [value-select (str subprefix "$" (name join-value-key))]))
 
-    ;;     value-query (str value-select " as " (util/dbize subprefix) "$" (util/dbize join-value-key))]
-    ;; value-query))
-
 (defn link-join-fields
   [field prefix opts]
   (let [slug (-> field :row :slug)]
@@ -248,20 +231,27 @@
      (let [{from-key :from to-key :to join-key :join} (link-keys field)
            target-id (-> field :row :target-id)
            target (or (field/models target-id)
-                      (first (util/query "select * from model where id = %1" target-id)))
+                      (first (db/query "select * from model where id = ?" [target-id])))
            locale (if (and (-> field :row :localized) (:locale opts))
                     (str (name (:locale opts)) "_")
                     "")
            key-slug (keyword (str (-> field :row :slug) "-key"))
            key-value (get b key-slug)
            linkage ((resolve 'caribou.model/create) (:slug target) b opts)
-           params (map util/dbize [join-key from-key (:id linkage) to-key (:id a) locale])
-           query "select * from %1 where %6%2 = %3 and %6%4 = %5"
-           preexisting (apply (partial util/query query) params)
+
            key-miasma {from-key (:id linkage) to-key (:id a)}
            key-miasma (if (and key-value (-> field :row :map))
                         (assoc key-miasma key-slug (name key-value))
-                        key-miasma)]
+                        key-miasma)
+
+           [join-table from-key to-id to-key from-id locale]
+           (map util/dbize [join-key from-key (:id linkage) to-key (:id a) locale])
+           ;; params (map util/dbize [join-key from-key (:id linkage) to-key (:id a) locale])
+
+           template (str "select * from " join-table " where " locale from-key " = ? and " locale to-key " = ?")
+           preexisting (first (db/query template [to-id from-id]))]
+           ;; query "select * from %1 where %6%2 = %3 and %6%4 = %5"
+           ;; preexisting (apply (partial util/query query) params)
        (if preexisting
          preexisting
          ((resolve 'caribou.model/create) join-key key-miasma opts)))))
@@ -280,10 +270,19 @@
                         #(str target-slug "." %)
                         (assoc/table-columns target-slug))
            field-select (string/join "," field-names)
-           join-query "select %1 from %2 inner join %3 on (%2.id = %3.%7%4) where %3.%7%5 = %6"
-           params (map util/dbize [field-select target-slug join-key from-key to-key (content :id) locale])
+           ;; join-query "select %1 from %2 inner join %3 on (%2.id = %3.%7%4) where %3.%7%5 = %6"
+           [field-select target-slug join-key from-key to-key id locale]
+           (map util/dbize [field-select target-slug join-key from-key to-key (content :id) locale])
+
+           template (str "select " field-select
+                         " from " target-slug
+                         " inner join " join-key
+                         " on (" target-slug ".id = " join-key "." locale from-key
+                         ") where " join-key "." locale to-key " = ?")
+
            key-slug (-> field :row :slug (str "-key") keyword)
-           results (apply (partial util/query join-query) params)]
+           results (db/query template [id])]
+           ;; results (apply (partial util/query join-query) params)]
        (if (-> field :row :map)
          (assoc/seq->map results key-slug)
          results))))

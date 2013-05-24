@@ -181,7 +181,6 @@
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
   (let [query-mass (form-uberquery model opts)]
-    (log/out :UBERQUERY query-mass)
     (query/execute-query query-mass)))
 
 (defn beam-splitter
@@ -701,8 +700,10 @@
     (if (-> env :spec :link-slug)
       (let [model-id (-> env :spec :model-id)
             link-slug (-> env :spec :link-slug)
-            fetch (db/fetch :field "model_id = %1 and slug = '%2'"
-                            model-id link-slug)
+            fetch (db/fetch
+                   :field
+                   "model_id = ? and slug = ?"
+                   model-id link-slug)
             linked (first fetch)]
         (assoc (:values env) :link-id (:id linked)))
       (:values env))))
@@ -733,9 +734,9 @@
   references to its fields in a hash with keys being the field slugs
   and vals being the field invoked as a Field protocol record."
   [model]
-  (let [fields (util/query
-                "select * from field where model_id = %1"
-                (get model :id))
+  (let [fields (db/query
+                "select * from field where model_id = ?"
+                [(get model :id)])
         field-map (util/seq-to-map
                    #(keyword (-> % :row :slug))
                    (map make-field fields))]
@@ -767,7 +768,7 @@
   []
   (invoke-fields)
   (try 
-    (let [rows (util/query "select * from model")
+    (let [rows (db/query "select * from model")
           invoked (doall (map invoke-model rows))
           by-slug (util/seq-to-map #(-> % :slug keyword) invoked)
           by-id (util/seq-to-map :id invoked)]
@@ -874,7 +875,7 @@
         _before (hooks/run-hook slug :before-destroy env)
         pre (reduce #(field/pre-destroy %2 %1)
                     (_before :content) (-> model :fields vals))
-        deleted (db/delete slug "id = %1" id)
+        deleted (db/delete slug "id = ?" id)
         _ (index/delete model content)
         _after (hooks/run-hook slug :after-destroy (merge _before {:content pre}))]
     (query/clear-model-cache (list (:id model)))
@@ -942,27 +943,27 @@
          #(reconstruct by-parent %)
          roots))))))
 
-(defn- rally
-  "Pull a set of content up through the model system with the given
-  options.
+;; (defn- rally
+;;   "Pull a set of content up through the model system with the given
+;;   options.
 
-   Avoids the uberquery so is considered deprecated and inferior, left
-   here for historical reasons (and as a hedge in case the uberquery
-   really does explode someday!)"
-  ([slug] (rally slug {}))
-  ([slug opts]
-     (let [model (field/models (keyword slug))
-           order (or (opts :order) "asc")
-           order-by (or (opts :order-by) "position")
-           limit (str (or (opts :limit) 30))
-           offset (str (or (opts :offset) 0))
-           where (str (or (opts :where) "1=1"))
-           query-str (string/join " "
-                                  ["select * from %1 where %2 order by %3 %4"
-                                   "limit %5 offset %6"])]
-       (doall (map #(association/from model % opts)
-                   (util/query query-str slug
-                               where order-by order limit offset))))))
+;;    Avoids the uberquery so is considered deprecated and inferior, left
+;;    here for historical reasons (and as a hedge in case the uberquery
+;;    really does explode someday!)"
+;;   ([slug] (rally slug {}))
+;;   ([slug opts]
+;;      (let [model (field/models (keyword slug))
+;;            order (or (opts :order) "asc")
+;;            order-by (or (opts :order-by) "position")
+;;            limit (str (or (opts :limit) 30))
+;;            offset (str (or (opts :offset) 0))
+;;            where (str (or (opts :where) "1=1"))
+;;            query-str (string/join " "
+;;                                   ["select * from %1 where %2 order by %3 %4"
+;;                                    "limit %5 offset %6"])]
+;;        (doall (map #(association/from model % opts)
+;;                    (util/query query-str slug
+;;                                where order-by order limit offset))))))
 
 (gen-class
  :name caribou.model.Model

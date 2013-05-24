@@ -12,7 +12,7 @@
 (defn used-migrations
   []
   (try 
-    (map #(% :name) (util/query "select * from migration"))
+    (map #(% :name) (db/query "select * from migration"))
     (catch Exception e
       (log/error (.getMessage e)))))
 
@@ -94,7 +94,7 @@
           (caribou/with-caribou (caribou/init (config/draw))
             (rollback-symbol))
           (when (db/table? "migration")
-            (db/delete :migration "name = '%1'" rollback))
+            (db/delete :migration "name = ?" rollback))
           true)))))
 
 (defn run-rollbacks
