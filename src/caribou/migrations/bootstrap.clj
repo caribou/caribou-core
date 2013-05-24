@@ -423,10 +423,10 @@
       :model-id model-id})))
 
 (defn forge-link []
-  (let [model (first (db/fetch :model "slug = '%1'" "model"))
-        field (first (db/fetch :model "slug = '%1'" "field"))
-        collection (first (db/fetch :field "slug = '%1' and model_id = %2" "fields" (model :id)))
-        part (first (db/fetch :field "slug = '%1' and model_id = %2" "model" (field :id)))]
+  (let [model (first (db/fetch :model "slug = ?" "model"))
+        field (first (db/fetch :model "slug = ?" "field"))
+        collection (first (db/fetch :field "slug = ? and model_id = ?" "fields" (model :id)))
+        part (first (db/fetch :field "slug = ? and model_id = ?" "model" (field :id)))]
     (db/update :field ["id = ?" (part :id)] {:link-id (collection :id) :target-id (model :id)})
     (db/update :field ["id = ?" (collection :id)] {:link-id (part :id) :target-id (field :id)})))
 

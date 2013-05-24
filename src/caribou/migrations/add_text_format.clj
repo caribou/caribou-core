@@ -7,7 +7,7 @@
 
 (defn migrate [] 
   (db/add-column :field :format ["varchar(32)" "DEFAULT NULL"])
-  (let [model-id ((first (util/query "select id from model where slug = 'field'")) :id)]
+  (let [model-id (-> (db/query "select id from model where slug = ?" ["field"]) first :id)]
     (db/insert
        :field
        {:name "Format"
@@ -19,6 +19,6 @@
         :model-id model-id})))
 
 (defn rollback []
-  (let [model-id ((first (util/query "select id from model where slug = 'field'")) :id)]
-    (db/delete :field "model_id = %1 AND slug = '%2'" model-id "format"))
+  (let [model-id (-> (db/query "select id from model where slug = ?" ["field"]) first :id)]
+    (db/delete :field "model_id = ? AND slug = ?" model-id "format"))
   (db/drop-column :field :format))

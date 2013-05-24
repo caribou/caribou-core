@@ -11,15 +11,12 @@
 
 (defn query
   "make an arbitrary query, substituting in extra args as % parameters"
-  [template args]
-  (let [q (vec (cons template args))]
-    (sql/with-query-results res
-      q
-      (doall res))))
-
-  ;; (let [q (vec (cons template args))]
-  ;;   (println "QUERY" (str q))
-  ;;   (sql/query (config/draw :database) q)))
+  ([template] (query template []))
+  ([template args]
+     (let [q (vec (cons template args))]
+       (sql/with-query-results res
+         q
+         (doall res)))))
 
 (defn recursive-query [table fields base-where recur-where]
   (let [field-names (distinct (map name (concat [:id :parent-id] fields)))
@@ -67,27 +64,27 @@
   "delete out of the given table according to the supplied where clause"
   [table & where]
   (log/out :db (util/clause "delete from %1 values %2" [(util/dbize table) (util/clause (first where) (rest where))]))
-  (sql/delete-rows (util/dbize table) [(if (not (empty? where)) (util/clause (first where) (rest where)))]))
+  (sql/delete-rows
+   (util/dbize table)
+   where))
 
 (defn fetch
   "pull all items from a table according to the given conditions"
   [table & where]
-  (apply
-   util/query
-   (cons (str "select * from %" (count where) " where " (first where))
-         (concat (rest where) [(util/dbize table)]))))
+  (query (str "select * from " (util/dbize table)
+              " where " (first where))
+         (rest where)))
 
 (defn choose
   "pull just the record with the given id from the given table"
   [table id]
   (if id
-    (first (util/query "select * from %1 where id = %2" (util/dbize table) (util/dbize (str id))))
-    nil))
+    (first (query (str "select * from " (util/dbize table) " where id = ?") [id]))))
 
 (defn tally
   "return how many total records are in this table"
   [table]
-  (let [result (first (util/query "select count(id) from %1" (util/dbize table)))]
+  (let [result (first (query (str "select count(id) from " (util/dbize table))))]
     (result (first (keys result)))))
 
 (defn find-model
@@ -109,7 +106,7 @@
   "create a table with the given columns, of the format
   [:column-name :type & :extra]"
   [table & fields]
-  (log/out :db (util/clause "create table! %1 %2" [(util/dbize table) fields]))
+  (log/out :db (util/clause "create table %1 %2" [(util/dbize table) fields]))
   (try
     (apply sql/create-table (cons table fields))
     (catch Exception e (log/render-exception e))))

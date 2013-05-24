@@ -4,7 +4,7 @@
 
 (defn migrate
   []
-  (let [slug-fields (db/fetch :field "type = 'slug'")]
+  (let [slug-fields (db/fetch :field "type = ?" "slug")]
     (doseq [slug-field slug-fields]
       (let [model (db/choose :model (:model-id slug-field))
             model-slug (:slug model)

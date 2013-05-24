@@ -78,9 +78,6 @@
       [{:table ["enumeration" table-alias]
         :on [field-select (str table-alias ".id")]}]))
 
-  ;; [(util/clause "left outer join enumeration %2$%1 on (%3 = %2$%1.id)"
-  ;;                     [(util/dbize (:slug row)) (util/dbize prefix) field-select])]))
-
   (build-where
     [this prefix opts]
     (assoc/with-propagation :where opts (:slug row)
@@ -117,5 +114,5 @@
 
 (defn constructor
   [row]
-  (let [enumerations (util/query "select id,entry from enumeration where field_id = %1" (get row :id))]
+  (let [enumerations (db/query "select id, entry from enumeration where field_id = ?" [(get row :id)])]
     (EnumField. (assoc row :enumerations enumerations) {})))

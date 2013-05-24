@@ -176,15 +176,6 @@
           (rep retr i)
           (recur (inc i) (rep retr i)))))))
 
-;; (defn sql
-;;   "make an arbitrary query, substituting in extra args as % parameters"
-;;   [q & args]
-;;   (let [query (vec (cons q args))]
-;;     (println "QUERY" query)
-;;     (sql/with-query-results res
-;;       query
-;;       (doall res))))
-
 (defn query
   "make an arbitrary query, substituting in extra args as % parameters"
   [q & args]
