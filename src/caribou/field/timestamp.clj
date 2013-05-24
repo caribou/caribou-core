@@ -87,13 +87,6 @@
       timecore/in-days :>> #(ago-str "day" %)
       (constantly 1) (ago-str "hour" (timecore/in-hours interval)))))
 
-(defn build-extract
-  [field prefix slug opts [index value]]
-  (let [model-id (-> field :row :model-id)
-        model (field/models model-id)
-        field-select (field/coalesce-locale model field prefix slug opts)]
-    (util/clause "extract(%1 from %2) = %3" [(name index) field-select value])))
-
 (defn suffix-prefix
   [prefix]
   (if (or (nil? prefix) (empty? prefix))
@@ -104,10 +97,6 @@
 (def comparison-keys #{:> :>= := :< :<= :<>})
 
 (defn timestamp-where
-  "To find something by a certain timestamp you must provide a map with keys into
-   the date or time.  Example:
-     (timestamp-where :created-at {:day 15 :month 7 :year 2020})
-   would find all rows who were created on July 15th, 2020."
   [field prefix slug opts where]
   (let [model-id (-> field :row :model-id)
         model (field/models model-id)

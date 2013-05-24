@@ -65,10 +65,6 @@
             :on [field-select (str table-alias ".id")]}
            downstream)))))
 
-          ;; (concat
-          ;;  [(util/clause "left outer join %1 %2 on (%3 = %2.id)" params)]
-          ;;  downstream)))))
-
   (build-where
     [this prefix opts]
     (assoc/with-propagation :where opts (:slug row)

@@ -116,9 +116,6 @@
             (field/build-where field prefix opts))
           (vals (:fields model))))]
     (doall (flatten eyes))))
-    ;; (((string/join " and " (flatten eyes))))
-
-;; the next few functions are all really helpers for model-select-fields
 
 (defn table-fields
   "This is part of the Field protocol that is the same for all fields.
@@ -133,7 +130,6 @@
   [model field prefix slug opts]
   (let [select-field (field/coalesce-locale model field prefix slug opts)]
     [select-field (str prefix "$" (name slug))]))
-    ;; (((str select-field " as " prefix "$" slug)))
 
 (defn select-fields
   "Find all necessary columns for the select query based on the given include nesting

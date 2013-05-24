@@ -1,7 +1,7 @@
 (ns caribou.db.adapter.h2
-  (:use caribou.util)
   (:require [clojure.java.jdbc :as sql]
             [clojure.string :as string]
+            [caribou.util :as util]
             [caribou.logger :as log])
   (:use [caribou.db.adapter.protocol :only (DatabaseAdapter)]))
 
@@ -32,17 +32,17 @@
   "Determine if the given table exists in the database."
   [table]
   (let [tables (h2-tables)
-        table-name (dbize table)]
+        table-name (util/dbize table)]
     (some #(= % table-name) tables)))
 
 (defn h2-set-required
   [table column value]
   (sql/do-commands
-   (log/out :db (clause
+   (log/out :db (util/clause
                    (if value
                      "alter table %1 alter column %2 set not null"
                      "alter table %1 alter column %2 drop not null")
-                   [(dbize table) (dbize column)]))))
+                   [(util/dbize table) (util/dbize column)]))))
 
 (defn h2-rename-column
   [table column new-name]
@@ -50,7 +50,7 @@
     (let [alter-statement "alter table %1 alter column %2 rename to %3"
           rename (log/out
                   :db
-                  (clause alter-statement (map dbize [table column new-name])))]
+                  (util/clause alter-statement (map util/dbize [table column new-name])))]
       (sql/do-commands rename))
     (catch Exception e (log/render-exception e))))
 
@@ -58,8 +58,8 @@
   [table column]
   (try
     (sql/do-commands
-     (log/out :db (clause "drop index %1_%2_index"
-                            (map dbize [table column]))))
+     (log/out :db (util/clause "drop index %1_%2_index"
+                            (map util/dbize [table column]))))
     (catch Exception e (log/render-exception e))))
 
 (defn h2-text-value
@@ -68,7 +68,6 @@
     (let [len (.length text)]
       (.getSubString text 1 len))
     ""))
-  ;; (string/replace (string/replace (str text) #"^'" "") #"'$" "")))
 
 (defn h2-build-subname
   [{:keys [protocol path database] :as config}]
@@ -84,7 +83,7 @@
   (supports-constraints? [this] false)
   (insert-result [this table result]
     (sql/with-query-results res
-      [(str "select * from " (dbize table)
+      [(str "select * from " (util/dbize table)
             " where id = " (result (first (keys result))))]
       (first (doall res))))
   (rename-column [this table column new-name]

@@ -246,12 +246,9 @@
 
            [join-table from-key to-id to-key from-id locale]
            (map util/dbize [join-key from-key (:id linkage) to-key (:id a) locale])
-           ;; params (map util/dbize [join-key from-key (:id linkage) to-key (:id a) locale])
 
            template (str "select * from " join-table " where " locale from-key " = ? and " locale to-key " = ?")
            preexisting (first (db/query template [to-id from-id]))]
-           ;; query "select * from %1 where %6%2 = %3 and %6%4 = %5"
-           ;; preexisting (apply (partial util/query query) params)
        (if preexisting
          preexisting
          ((resolve 'caribou.model/create) join-key key-miasma opts)))))
@@ -270,7 +267,7 @@
                         #(str target-slug "." %)
                         (assoc/table-columns target-slug))
            field-select (string/join "," field-names)
-           ;; join-query "select %1 from %2 inner join %3 on (%2.id = %3.%7%4) where %3.%7%5 = %6"
+
            [field-select target-slug join-key from-key to-key id locale]
            (map util/dbize [field-select target-slug join-key from-key to-key (content :id) locale])
 
@@ -282,7 +279,6 @@
 
            key-slug (-> field :row :slug (str "-key") keyword)
            results (db/query template [id])]
-           ;; results (apply (partial util/query join-query) params)]
        (if (-> field :row :map)
          (assoc/seq->map results key-slug)
          results))))

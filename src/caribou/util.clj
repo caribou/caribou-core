@@ -1,5 +1,6 @@
 (ns caribou.util
   (:require [clojure.string :as string]
+            [clojure.logger :as log]
             [clojure.java.jdbc :as sql]
             [clojure.java.io :as io]))
 
@@ -94,8 +95,7 @@
       (.load props raw)
       (into {} (for [[k v] props] [(keyword k) (read-string v)])))
     ;; this is not actually an error
-    (catch Exception e (println (str "No properties file named "
-                                        props-name)))))
+    (catch Exception e nil)))
 
 (defn load-resource
   [resource-name]

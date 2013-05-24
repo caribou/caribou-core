@@ -55,14 +55,12 @@
           slug (:slug row)
           id-slug (keyword (str slug "-id"))
           id-field (-> model :fields id-slug)
-          field-select (field/coalesce-locale model id-field prefix
-                                               (name id-slug) opts)
+          field-select (field/coalesce-locale
+                        model id-field prefix
+                        (name id-slug) opts)
           table-alias (str prefix "$" (:slug row))]
       [{:table ["asset" table-alias]
         :on [field-select (str table-alias ".id")]}]))
-
-      ;; [(util/clause "left outer join asset %2$%1 on (%3 = %2$%1.id)"
-      ;;               [(util/dbize (:slug row)) (util/dbize prefix) field-select])]))
 
   (build-where
     [this prefix opts]
