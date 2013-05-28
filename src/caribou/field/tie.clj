@@ -57,8 +57,9 @@
               id-slug (keyword (str (:slug row) "-id"))
               id-field (-> target :fields id-slug)
               table-alias (str prefix "$" (:slug row))
-              field-select (field/coalesce-locale target id-field prefix
-                                                   (name id-slug) opts)
+              field-select (field/coalesce-locale
+                            target id-field prefix
+                            (name id-slug) opts)
               downstream (assoc/model-join-conditions target table-alias down)]
           (cons
            {:table [(:slug target) table-alias]
