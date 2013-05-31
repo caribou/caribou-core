@@ -1,4 +1,4 @@
-(defproject antler/caribou-core "0.11.0"
+(defproject antler/caribou-core "0.11.4"
   :description "Caribou is a dynamic web application generator with antlers."
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [org.clojure/java.jdbc "0.2.3"
@@ -23,6 +23,7 @@
                  [leiningen-core "2.0.0-preview3"
                   :exclusions [org.clojure/clojure]]
                  [clj-aws-s3 "0.3.6"]
+                 [org.clojure/tools.nrepl "0.2.2"]
                  [clucy "0.3.1"]
                  [fs "1.3.3"]
                  [org.mindrot/jbcrypt "0.3m"]]

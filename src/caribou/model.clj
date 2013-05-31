@@ -18,40 +18,11 @@
             [caribou.index :as index]
             [caribou.association :as association]))
 
-(defn db
-  "Calls f in the connect of the current configured database connection."
-  [f]
-  (db/call f))
-
-;; COMPATIBILITY ----------------
-;; stuff that is here because it is proably still being used by somebody
 (def current-timestamp timestamp/current-timestamp)
 (def retrieve-links link/retrieve-links)
 (def present? association/present?)
 (def from association/from)
 (def link link/link)
-
-(defn rally
-  "Pull a set of content up through the model system with the given
-  options.
-
-   Avoids the uberquery so is considered deprecated and inferior, left
-   here for historical reasons (and as a hedge in case the uberquery
-   really does explode someday!)"
-  ([slug] (rally slug {}))
-  ([slug opts]
-     (let [model (field/models (keyword slug))
-           order (or (opts :order) "asc")
-           order-by (or (opts :order-by) "position")
-           limit (str (or (opts :limit) 30))
-           offset (str (or (opts :offset) 0))
-           where (str (or (opts :where) "1=1"))
-           query-str (string/join " "
-                                  ["select * from %1 where %2 order by %3 %4"
-                                   "limit %5 offset %6"])]
-       (doall (map #(association/from model % opts)
-                   (util/query query-str slug
-                               where order-by order limit offset))))))
 
 ;; FIELD INTEGRATION -----------------
 
@@ -378,7 +349,6 @@
 (defn find-one
   "This is the same as find-all, but returns only a single item, not a vector."
   [slug opts]
-  ;; (let [oneify (assoc opts :limit 1)]
   (first (find-all slug opts)))
 
 ;; HOOKS ---------------------------------------------------------
@@ -388,17 +358,13 @@
   (symbol (str base "." (name slug))))
 
 (defn add-app-model-hooks
-  "finds and loads every namespace under the hooks-ns that matches the
-  app's model names
-
-  we are only loading the namespaces for their side effects, it is
-  assumed that in each namespace hooks are set via add-hook as defined
-  below"
+  "finds and loads every namespace under [:app :hooks-ns] that matches
+   the name of a model and runs the function 'add-hooks in that namespace."
   []
   (if-let [hooks-ns (config/draw :app :hooks-ns)]
     (let [make-hook-ns (partial model-hooks-ns hooks-ns)]
-      (doseq [slug (model-slugs)]
-        (-> slug make-hook-ns util/sloppy-require)))))
+      (doseq [hook-namespace (map make-hook-ns (model-slugs))]
+        (util/run-namespace hook-namespace 'add-hooks)))))
 
 (defn add-parent-id
   [env]
@@ -431,17 +397,6 @@
        values)
       values)))
 
-    ;; (if (and locale (:localized model))
-    ;;   (util/map-map
-    ;;    (fn [k v]
-    ;;      (let [kk (keyword k)
-    ;;            field (-> model :fields kk)]
-    ;;        (if (field/localized? field)
-    ;;          [(keyword (str locale "-" (name k))) v]
-    ;;          [k v])))
-    ;;    values)
-    ;;   values)))
-
 (defn localized-slug
   [code slug]
   (keyword (str code "-" (name slug))))
@@ -461,26 +416,16 @@
   [model]
   (doseq [field (filter #(-> % :row :localized) (-> model :fields vals))]
     (localize-field-for-all-locales (:slug model) field)))
-    ;; (doseq [locale (gather :locale)]
-    ;;   (localize-field (:slug model) field locale))))
-
-  ;; (doseq [field (filter field/localized? (-> model :fields vals))]
-  ;;   (doseq [locale (gather :locale)]
-  ;;     (localize-field (:slug model) field locale))))
 
 (defn local-models
   []
   (map last (filter (fn [[k v]] (keyword? k)) (models))))
-  ;; (filter :localized (map models (model-slugs))))
 
 (defn add-locale
   [locale]
   (doseq [model (local-models)]
     (doseq [field (filter #(-> % :row :localized) (-> model :fields vals))]
       (localize-field (:slug model) field locale))))
-
-    ;; (doseq [field (filter field/localized? (-> model :fields vals))]
-    ;;   (localize-field (:slug model) field locale))))
 
 (defn update-locale
   [old-code new-code]
@@ -490,12 +435,6 @@
             old-slug (localized-slug old-code field-slug)
             new-slug (localized-slug new-code field-slug)]
         (db/rename-column (:slug model) old-slug new-slug)))))
-
-    ;; (doseq [field (filter field/localized? (-> model :fields vals))]
-    ;;   (let [field-slug (-> field :row :slug)
-    ;;         old-slug (localized-slug old-code field-slug)
-    ;;         new-slug (localized-slug new-code field-slug)]
-    ;;     (db/rename-column (:slug model) old-slug new-slug)))))
 
 (defn add-status-to-model [model]
   (update :model (:id model) {:fields [{:name "Status"
@@ -565,18 +504,6 @@
   (hooks/add-hook
    :model :after-create :add-base-fields
    (fn [env] (add-base-fields env)))
-  ;; (assoc-in env [:spec :fields] (concat (-> env :spec :fields) base-fields))))
-
-  ;; (hooks/add-hook :model :before-save :write-migrations (fn [env]
-  ;;   (try                                                 
-  ;;     (if (and (not (-> env :spec :locked)) (not (= (-> env :opts :op) :migration)))
-  ;;       (let [now (.getTime (Date.))
-  ;;             code (str "(use 'caribou.model)\n\n(defn migrate []\n  ("
-  ;;                       (name (-> env :op)) " :model " (list 'quote (-> env :spec)) " {:op :migration}))\n(migrate)\n")]
-  ;;         (with-open [w (io/writer (str "app/migrations/migration-" now ".clj"))]
-  ;;           (.write w code))))
-  ;;     (catch Exception e env))
-  ;;   env))
 
   (hooks/add-hook
    :model :after-update :rename
@@ -593,14 +520,8 @@
   (hooks/add-hook
    :model :after-save :invoke-all
    (fn [env]
-     (model-after-save env) ;; (invoke-models)
+     (model-after-save env)
      env))
-
-  ;; (hooks/add-hook :model :before-destroy :cleanup-fields (fn [env]
-  ;;   (let [model (models (-> env :content :slug))]
-  ;;     (doseq [field (-> model :fields vals)]
-  ;;       (destroy :field (-> field :row :id))))
-  ;;   env))
 
   (hooks/add-hook
    :model :after-destroy :cleanup
@@ -611,14 +532,14 @@
 
   ;; enable indexing for all non-system models
   ;; TODO make locale-aware
-  ;(map (fn [m]
-        ;(when-not (:locked m)
-          ;(hooks/add-hook (:slug m) :after-save :index
-                    ;(fn [env]
-                      ;(log/info (str "Indexing " (:slug m) " " (-> env :content :slug)))
-                      ;(index/update (get models (:slug m)) (-> env :content))
-                      ;env))))
-                        ;(gather :model))
+  ;; (map (fn [m]
+  ;;       (when-not (:locked m)
+  ;;         (hooks/add-hook (:slug m) :after-save :index
+  ;;                   (fn [env]
+  ;;                     (log/info (str "Indexing " (:slug m) " " (-> env :content :slug)))
+  ;;                     (index/update (get models (:slug m)) (-> env :content))
+  ;;                     env))))
+  ;;                       (gather :model))
 
   (if (models :locale)
     (do
@@ -772,14 +693,6 @@
       (if-let [content (:content env)]
         (let [field (make-field content)]
           (field/cleanup-field field)))
-          ;; (doseq [addition (field/table-additions field (-> env :content :slug))]
-          ;;   (db/drop-column (:slug model) (first addition)))))
-      ;; (let [model (models (-> env :content :model-id))
-      ;;       fields (get model :fields)
-      ;;       field (fields (keyword (-> env :content :slug)))]
-      ;;   (field/cleanup-field field)
-      ;;   (doall (map #(db/drop-column ((models (-> field :row :model-id)) :slug) (first %)) (field/table-additions field (-> env :content :slug))))
-      ;;  env)
       (catch Exception e (log/render-exception e)))
     env)))
 
@@ -800,9 +713,11 @@
     (assoc model :fields field-map)))
 
 (defn add-app-fields
+  "When {:app {:fields-ns $CONFIG}} is defined, run the function add-fields
+   in that namespace"
   []
   (when-let [fields-ns (config/draw :app :fields-ns)]
-    (util/sloppy-require (symbol fields-ns))))
+    (util/run-namespace fields-ns 'add-fields)))
 
 (defn invoke-fields
   []
@@ -996,6 +911,28 @@
         (map
          #(reconstruct by-parent %)
          roots))))))
+
+(defn- rally
+  "Pull a set of content up through the model system with the given
+  options.
+
+   Avoids the uberquery so is considered deprecated and inferior, left
+   here for historical reasons (and as a hedge in case the uberquery
+   really does explode someday!)"
+  ([slug] (rally slug {}))
+  ([slug opts]
+     (let [model (field/models (keyword slug))
+           order (or (opts :order) "asc")
+           order-by (or (opts :order-by) "position")
+           limit (str (or (opts :limit) 30))
+           offset (str (or (opts :offset) 0))
+           where (str (or (opts :where) "1=1"))
+           query-str (string/join " "
+                                  ["select * from %1 where %2 order by %3 %4"
+                                   "limit %5 offset %6"])]
+       (doall (map #(association/from model % opts)
+                   (util/query query-str slug
+                               where order-by order limit offset))))))
 
 (gen-class
  :name caribou.model.Model

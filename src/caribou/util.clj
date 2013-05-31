@@ -171,14 +171,9 @@
 (defn query
   "make an arbitrary query, substituting in extra args as % parameters"
   [q & args]
-  ;; (try 
   (sql/with-query-results res
     [(clause q args)]
     (doall res)))
-    ;; (catch Exception e
-    ;;   (do
-    ;;     (render-exception e)
-    ;;     (println (str q args))))))
 
 ; by Chouser:
 (defn deep-merge-with
@@ -213,11 +208,19 @@
          (rand-nth pool))
        (repeat n nil)))))
 
-(defn sloppy-require
+(defn maybe-require
   "require the given ns, ignore file not found errors, but let others
   do their thing"
   [ns]
-  ;; this done for side effects, so we want to reload
-  ;; whenever applicable
-  (try (require ns :reload)
-       (catch java.io.FileNotFoundException e nil)))
+  (try
+    (require ns :reload)
+    (catch java.io.FileNotFoundException e nil)))
+
+(defn run-namespace
+  [namespace action-symbol]
+  (let [namespace-symbol (symbol namespace)]
+    (maybe-require namespace-symbol)
+    (if-let [running (find-ns namespace-symbol)]
+      (if-let [action (ns-resolve running (symbol action-symbol))]
+        (action)))))
+
