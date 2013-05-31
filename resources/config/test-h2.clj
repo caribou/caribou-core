@@ -5,7 +5,7 @@
  :database {:classname    "org.h2.Driver"
             :subprotocol  "h2"
             :protocol     "file"
-            :path         "/tmp/"
+            :path         "./"
             :database     "caribou_development"
             :user         "h2"
             :password     ""}}
