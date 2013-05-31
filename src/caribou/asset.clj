@@ -40,15 +40,28 @@
        (str prefix "/")
        "")))
 
+(defn s3-key
+  [asset]
+  (str (s3-prefix) (asset-location asset)))
+
 (defn asset-path
-  "Construct the path this asset will live in, or look it up."
+  "Where to look to find this asset."
   [asset]
   (if (config/draw :aws :bucket)
     (if (and asset (:filename asset))
       (str "https://" (config/draw :aws :bucket) ".s3.amazonaws.com/"
-           (s3-prefix) (asset-location asset))
+           (s3-key asset))
       "")
     (asset-location asset)))
+
+(defn asset-upload-path
+  "Where to send this asset to."
+  [asset]
+  (if (config/draw :aws :bucket)
+    (if (and asset (:filename asset))
+      (s3-key asset)
+      "")
+    (asset-path asset)))
 
 (defn ensure-s3-bucket
   [cred bucket]
@@ -58,15 +71,17 @@
       (s3/update-bucket-acl cred bucket (s3/grant :all-users :read)))))
 
 (defn upload-to-s3
-  ([key asset]
-     (upload-to-s3 (config/draw :aws :bucket) key asset))
-  ([bucket key asset]
+  ([key asset size]
+     (upload-to-s3 (config/draw :aws :bucket) key asset size))
+  ([bucket key asset size]
      (try
        (let [cred (config/draw :aws :credentials)
              mime (mime/mime-type-of key)]
          (ensure-s3-bucket cred bucket)
-         (s3/put-object cred bucket key asset {:content-type mime})
-         (s3/update-object-acl cred bucket key (s3/grant :all-users :read)))
+         (s3/put-object cred bucket key asset
+                        {:content-type mime
+                         :content-length size}
+                        (s3/grant :all-users :read)))
        (catch Exception e (do
                             (.printStackTrace e)
                             (println "KEY BAD" key))))))
