@@ -67,3 +67,10 @@
        (let [asset {:filename fname :tempfile stream}
              location (asset/asset-upload-path asset)]
          (asset/upload-to-s3 location stream (count payload)))))))
+
+(deftest caribou-asset-highlevel
+  (upload-download
+   (fn [prefix fname stream config]
+     (config/with-config config
+       (let [asset {:filename fname :size (count payload)}]
+         (asset/put-asset stream asset))))))
