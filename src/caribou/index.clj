@@ -20,7 +20,7 @@
       store)))
 
 (defn- searchable-fields [model]
-  (let [field-defs (map :row (vals (-> model :fields)))
+  (let [field-defs (map :row (-> model :fields vals))
         searchable (filter :searchable field-defs)
         unique (set searchable)]
     (seq unique)))
@@ -133,7 +133,8 @@
   ([model opts]
     (let [gather (resolve 'caribou.model/gather)]
       (when (searchable? model)
-        (map #(add model % opts) (gather (:slug model) opts))))))
+        (doseq [item (gather (:slug model) opts)]
+          (add model item opts))))))
 
 (defn update-all
   "Use this to reindex all content of a given model."
@@ -142,7 +143,8 @@
   ([model opts]
     (let [gather (resolve 'caribou.model/gather)]
       (when (searchable? model)
-        (map #(update model % opts) (gather (:slug model) opts))))))
+        (doseq [item (gather (:slug model) opts)]
+          (update model item opts))))))
 
 (defn purge
   "Deletes the index if it exists"
