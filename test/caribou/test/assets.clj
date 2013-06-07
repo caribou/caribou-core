@@ -2,6 +2,7 @@
   (:require [caribou.asset :as asset]
             [aws.sdk.s3 :as s3]
             [clojure.test :as test :refer [is testing deftest]]
+            [clojure.string :as string]
             [caribou.config :as config]
             [clojure.java.io :as io]))
 
@@ -12,7 +13,7 @@
 
 (defn to-stream [s] (io/input-stream (.getBytes s)))
 
-(defn get-config
+(defn get-aws-config
   []
   (config/read-config (io/resource "config/test-aws.clj")))
 
@@ -25,7 +26,7 @@
 
 (defn upload-download
   [upload]
-  (let [config (get-config)
+  (let [config (get-aws-config)
         aws (:aws config)
         creds (:credentials aws)
         existing (s3/list-objects creds (:bucket aws))
@@ -74,3 +75,19 @@
      (config/with-config config
        (let [asset {:filename fname :size (count payload)}]
          (asset/put-asset stream asset))))))
+
+(defn get-disk-config
+  []
+  (config/read-config (io/resource "config/test-disk.clj")))
+
+(deftest disk-ops
+  (config/with-config (get-disk-config)
+    (let [asset {:id 1 :filename (str "hello" (.getTime (java.util.Date.)))}
+          location (string/join "/" [(config/draw :assets :dir)
+                                     (asset/asset-dir asset)])
+          test-dir (io/file location)
+          _ (println "upload-path" (asset/asset-upload-path asset))
+          pre-count (count (.list test-dir))
+          _ (asset/put-asset (to-stream "HELLO WORLD") asset)
+          post-count (count (.list test-dir))]
+      (is (= post-count (inc pre-count))))))
