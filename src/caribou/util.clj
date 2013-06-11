@@ -1,6 +1,5 @@
 (ns caribou.util
   (:require [clojure.string :as string]
-            [clojure.logger :as log]
             [clojure.java.jdbc :as sql]
             [clojure.java.io :as io]))
 

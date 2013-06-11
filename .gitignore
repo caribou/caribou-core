@@ -16,3 +16,5 @@ pom.xml
 .lein-plugins
 .lein-repl-history
 test_h2.trace.db
+*.h2
+*.db
