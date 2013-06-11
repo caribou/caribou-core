@@ -89,14 +89,14 @@
 (defn persist-asset-on-disk
   [dir path file]
   (.mkdirs (io/file (util/pathify [(config/draw :assets :dir) dir])))
-  (io/copy file (io/file (util/pathify [(config/draw :assets :dir) path]))))
+  (io/copy file (io/file (util/pathify [(config/draw :assets :dir) dir path]))))
 
 (defn put-asset
   [stream asset]
   (if (config/draw :aws :bucket)
     (if (and asset (:filename asset))
       (upload-to-s3 (asset-upload-path asset) stream (:size asset)))
-    (persist-asset-on-disk (asset-upload-path asset) stream)))
+    (persist-asset-on-disk (asset-upload-path asset) (:filename asset) stream)))
 
 (defn migrate-dir-to-s3
   ([dir] (migrate-dir-to-s3 dir (config/draw :aws :bucket)))
