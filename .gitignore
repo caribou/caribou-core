@@ -8,7 +8,7 @@
 /autodoc/**
 /clucy-index
 /caribou-index
-pom.xml
+pom.xml*
 *.jar
 *.class
 .lein-deps-sum
