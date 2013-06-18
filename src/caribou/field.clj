@@ -143,7 +143,6 @@
 (defn process-where
   [field prefix opts process]
   (let [pure (field-where field prefix opts pure-where)]
-    (log/out :PUREWHERE pure)
     (if-not (nil? (:value pure))
       (update-in pure [:value] process)
       pure)))

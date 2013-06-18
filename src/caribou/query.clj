@@ -227,7 +227,6 @@
   [query-map]
   (let [[query params] (construct-query query-map)
         db-query (util/underscore query)]
-    (log/out :QUERY db-query)
     (db/query db-query params)))
 
 ;; QUERY CACHE ----------------------------
