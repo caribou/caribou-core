@@ -303,7 +303,6 @@
                         (:nightpurple-join ccmc))]
             (is (= (sort-by :id orders) (sort-by :id orderings)))))
 
-
         (let [chartreuse (models :chartreuse)
               coc (gather
                    :chartreuse
@@ -317,6 +316,8 @@
           (is (present? (models :chartreusii-nightpurple)))
 
           (let [falses (gather :chartreuse {:where {:kokok false}})]
+            (doseq [fal falses]
+              (log/out :FALSE fal))
             (is (= 3 (count falses)))))))))
 
 (defn parallel-include-test

@@ -84,12 +84,16 @@
       (build-coalesce prefix (name slug) locale (:results opts))
       (build-select-field prefix (name slug)))))
 
-;; functions used throughout field definitions
 (defn where-operator
   [where]
   (if (map? where)
     [(-> where keys first name) (-> where vals first)]
     ["=" where]))
+
+  ;; (cond
+  ;;  (nil? where) ["IS" nil]
+  ;;  (map? where) [(-> where keys first name) (-> where vals first)]
+  ;;  :else ["=" where]))
 
 (defn field-where
   [field prefix opts do-where]
@@ -139,8 +143,9 @@
 (defn process-where
   [field prefix opts process]
   (let [pure (field-where field prefix opts pure-where)]
-    (if (:value pure)
+    (if-not (nil? (:value pure))
       (update-in pure [:value] process))))
+      ;; pure)))
 
 (defn integer-where
   [field prefix opts]
