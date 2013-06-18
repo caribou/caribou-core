@@ -105,7 +105,9 @@
    map and constructs the order clause to ultimately be used in the
    uberquery."
   [model opts]
-  (let [ordering (if (:order opts) opts (assoc opts :order {:position :asc}))
+  (let [ordering (if-not (empty? (:order opts))
+                   opts 
+                   (assoc opts :order {:position :asc}))
         order (association/model-build-order model (:slug model) ordering)]
     order))
 

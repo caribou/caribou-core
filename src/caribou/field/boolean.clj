@@ -39,7 +39,7 @@
   (join-conditions [this prefix opts] [])
   (build-where
     [this prefix opts]
-    (field/field-where this prefix opts field/pure-where))
+    (field/boolean-where this prefix opts))
   (natural-orderings [this prefix opts])
   (build-order [this prefix opts]
     (field/pure-order this prefix opts))

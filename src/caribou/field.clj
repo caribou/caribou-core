@@ -136,6 +136,24 @@
      :op operator
      :value value}))
 
+(defn process-where
+  [field prefix opts process]
+  (let [pure (field-where field prefix opts pure-where)]
+    (if (:value pure)
+      (update-in pure [:value] process))))
+
+(defn integer-where
+  [field prefix opts]
+  (process-where field prefix opts #(Integer. %)))
+
+(defn double-where
+  [field prefix opts]
+  (process-where field prefix opts #(Double. %)))
+
+(defn boolean-where
+  [field prefix opts]
+  (process-where field prefix opts #(Boolean. %)))
+
 (defn pure-order
   [field prefix opts]
   (let [slug (-> field :row :slug)]
