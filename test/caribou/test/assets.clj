@@ -85,9 +85,11 @@
     (let [asset {:id 1 :filename (str "hello" (.getTime (java.util.Date.)))}
           location (string/join "/" [(config/draw :assets :dir)
                                      (asset/asset-dir asset)])
+          destination (str (config/draw :assets :dir) \/
+                           (asset/asset-path asset))
           test-dir (io/file location)
-          _ (println "upload-path" (asset/asset-upload-path asset))
           pre-count (count (.list test-dir))
           _ (asset/put-asset (to-stream "HELLO WORLD") asset)
           post-count (count (.list test-dir))]
-      (is (= post-count (inc pre-count))))))
+      (is (= post-count (inc pre-count)))
+      (is (= "HELLO WORLD" (slurp destination))))))
