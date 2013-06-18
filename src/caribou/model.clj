@@ -157,6 +157,7 @@
    arbitrary nesting of include relationships (also known as the uberjoin)."
   [model opts]
   (let [query-mass (form-uberquery model opts)]
+    (log/out :QUERYMASS query-mass)
     (query/execute-query query-mass)))
 
 (defn beam-splitter
