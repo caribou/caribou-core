@@ -86,20 +86,20 @@
 
 (defn where-operator
   [where]
-  (if (map? where)
-    [(-> where keys first name) (-> where vals first)]
-    ["=" where]))
+  (cond
+   (nil? where) ["IS" nil]
+   (map? where) [(-> where keys first name) (-> where vals first)]
+   :else ["=" where]))
 
-  ;; (cond
-  ;;  (nil? where) ["IS" nil]
-  ;;  (map? where) [(-> where keys first name) (-> where vals first)]
-  ;;  :else ["=" where]))
+  ;; (if (map? where)
+  ;;   [(-> where keys first name) (-> where vals first)]
+  ;;   ["=" where]))
 
 (defn field-where
   [field prefix opts do-where]
   (let [slug (keyword (-> field :row :slug))
         where (-> opts :where slug)]
-    (if-not (nil? where)
+    (if (contains? (:where opts) slug)
       (do-where field prefix slug opts where))))
 
 (defn pure-fusion
@@ -143,17 +143,32 @@
 (defn process-where
   [field prefix opts process]
   (let [pure (field-where field prefix opts pure-where)]
+    (log/out :PUREWHERE pure)
     (if-not (nil? (:value pure))
-      (update-in pure [:value] process))))
-      ;; pure)))
+      (update-in pure [:value] process)
+      pure)))
+
+(defn integer-conversion
+  [something]
+  (condp = (type something)
+   java.math.BigInteger (.longValue something)
+   java.math.BigDecimal (.longValue something)
+   (Integer. something)))
+
+(defn double-conversion
+  [something]
+  (condp = (type something)
+   java.math.BigInteger (.doubleValue something)
+   java.math.BigDecimal (.doubleValue something)
+   (Double. something)))
 
 (defn integer-where
   [field prefix opts]
-  (process-where field prefix opts #(Integer. %)))
+  (process-where field prefix opts integer-conversion))
 
 (defn double-where
   [field prefix opts]
-  (process-where field prefix opts #(Double. %)))
+  (process-where field prefix opts double-conversion))
 
 (defn boolean-where
   [field prefix opts]

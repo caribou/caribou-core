@@ -167,9 +167,14 @@
 (defn construct-where
   [where-form params]
   (if-let [{:keys [field op value]} where-form]
-    (let [[subform params] (if (map? value)
-                             (construct-subquery value params)
-                             ["?" (conj params value)])]
+    (let [[subform params] 
+          (cond
+           (nil? value) ["NULL" params]
+           (map? value) (construct-subquery value params)
+           :else ["?" (conj params value)])]
+          ;; (if (map? value)
+          ;;   (construct-subquery value params)
+          ;;   ["?" (conj params value)])]
       [(str (construct-select-function field) " " op " " subform) params])))
 
 (defn construct-wheres
@@ -222,6 +227,7 @@
   [query-map]
   (let [[query params] (construct-query query-map)
         db-query (util/underscore query)]
+    (log/out :QUERY db-query)
     (db/query db-query params)))
 
 ;; QUERY CACHE ----------------------------
