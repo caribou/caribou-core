@@ -13,14 +13,15 @@
 
 (defn db-fixture
   [f]
-  (core/with-caribou
-    (assoc-in (ctest/read-config "h2") [:logging :loggers 0 :level] :warn)
-    (model/invoke-models)
-    (query/clear-queries)
-    (f)
-    (doseq [slug [:yellow]]
-      (when (db/table? slug)
-        (model/destroy :model (model/models slug :id))))))
+  (doseq [db ["mysql" "postgres" "h2"]]
+    (core/with-caribou
+      (assoc-in (ctest/read-config db) [:logging :loggers 0 :level] :warn)
+      (model/invoke-models)
+      (query/clear-queries)
+      (f)
+      (doseq [slug [:yellow]]
+        (when (db/table? slug)
+          (model/destroy :model (model/models slug :id)))))))
 
 (test/use-fixtures :each db-fixture)
 

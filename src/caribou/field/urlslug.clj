@@ -14,7 +14,7 @@
   (cleanup-field [this]
     (field/field-cleanup this))
   (target-for [this] nil)
-  (update-values [this content values]
+  (update-values [this content values original]
     (let [key (keyword (:slug row))]
       (cond
        (env :link)

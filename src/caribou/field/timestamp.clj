@@ -149,7 +149,7 @@
     (field/field-cleanup this))
   (target-for [this] nil)
   (update-values
-    [this content values]
+    [this content values original]
     (let [key (keyword (:slug row))]
       (cond
        (contains? content key)

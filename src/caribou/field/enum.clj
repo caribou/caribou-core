@@ -14,7 +14,7 @@
        (get master :entry)))))
 
 (defn enum-update-values
-  [field content values]
+  [field content values original]
   (let [slug (-> field :row :slug)
         key (keyword slug)]
     (if (contains? content key)
@@ -55,8 +55,8 @@
       ((resolve 'caribou.model/destroy) :field (-> model :fields id-slug :row :id))))
 
   (target-for [this] nil)
-  (update-values [this content values]
-    (enum-update-values this content values))
+  (update-values [this content values original]
+    (enum-update-values this content values original))
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
 

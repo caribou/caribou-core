@@ -23,7 +23,7 @@
     (field/field-cleanup this))
   (target-for [this] nil)
 
-  (update-values [this content values]
+  (update-values [this content values original]
     (integer-update-values this content values))
 
   (post-update [this content opts] content)

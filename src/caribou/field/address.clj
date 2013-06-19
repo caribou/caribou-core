@@ -49,7 +49,7 @@
       ((resolve 'caribou.model/destroy) :field (-> model :fields id-slug :row :id))))
 
   (target-for [this] nil)
-  (update-values [this content values]
+  (update-values [this content values original]
     (let [posted (content (keyword (:slug row)))
           idkey (keyword (str (:slug row) "-id"))
           preexisting (content idkey)

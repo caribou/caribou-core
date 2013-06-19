@@ -37,7 +37,7 @@
 
   (target-for [this] this)
 
-  (update-values [this content values] values)
+  (update-values [this content values original] values)
 
   (post-update [this content opts] content)
 
