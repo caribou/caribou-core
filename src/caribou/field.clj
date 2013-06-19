@@ -147,19 +147,15 @@
       (update-in pure [:value] process)
       pure)))
 
-(defn integer-conversion
-  [something]
-  (condp = (type something)
-   java.math.BigInteger (.longValue something)
-   java.math.BigDecimal (.longValue something)
-   (Integer. something)))
+(def integer-conversion util/convert-int)
 
 (defn double-conversion
   [something]
   (condp = (type something)
-   java.math.BigInteger (.doubleValue something)
-   java.math.BigDecimal (.doubleValue something)
-   (Double. something)))
+    nil nil
+    java.math.BigInteger (.doubleValue something)
+    java.math.BigDecimal (.doubleValue something)
+    (Double. something)))
 
 (defn integer-where
   [field prefix opts]
