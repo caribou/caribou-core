@@ -7,10 +7,14 @@
 
 (defn position-update-values
   [field content values]
+  (println)
+  (clojure.pprint/pprint ["update position" :field field :content content
+                          :values values])
+  (println)
   (let [slug (-> field :row :slug)
         key (keyword slug)
         update (int/integer-update-values field content values)
-        val (get update key)
+        val (or (get update key) (get values key))
         model-id (-> field :row :model-id)
         model (field/models model-id :slug)]
     (if val
