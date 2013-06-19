@@ -79,7 +79,7 @@
   "pull just the record with the given id from the given table"
   [table id]
   (if id
-    (first (query (str "select * from " (util/dbize table) " where id = ?") [id]))))
+    (first (query (str "select * from " (util/dbize table) " where id = ?") [(util/convert-int id)]))))
 
 (defn tally
   "return how many total records are in this table"

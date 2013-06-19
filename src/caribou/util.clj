@@ -8,13 +8,12 @@
 (import java.io.File)
 
 (defn convert-int
-  [whatever]
-  (if whatever
-    (if (= (type whatever) java.lang.String)
-      (try
-        (Integer. whatever)
-        (catch Exception e nil))
-      (.intValue whatever))))
+  [something]
+  (condp = (type something)
+    nil nil
+    java.math.BigInteger (.longValue something)
+    java.math.BigDecimal (.longValue something)
+    (Integer. something)))
 
 (defn seq-to-map
   [f q]
