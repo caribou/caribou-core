@@ -851,7 +851,7 @@
         _before (hooks/run-hook slug :before-destroy env)
         pre (reduce #(field/pre-destroy %2 %1)
                     (_before :content) (-> model :fields vals))
-        deleted (db/delete slug "id = ?" id)
+        deleted (db/delete slug "id = ?" (field/integer-conversion id))
         _ (index/delete model content)
         _after (hooks/run-hook slug :after-destroy (merge _before {:content pre}))]
     (query/clear-model-cache (list (:id model)))
