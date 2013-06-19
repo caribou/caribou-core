@@ -12,7 +12,7 @@
   (rename-field [this old-slug new-slug] "further processing on creation of field")
   (cleanup-field [this] "further processing on removal of field")
   (target-for [this] "retrieves the model this field points to, if applicable")
-  (update-values [this content values]
+  (update-values [this content values original]
     "adds to the map of values that will be committed to the db for this row")
   (post-update [this content opts]
     "any processing that is required after the content is created/updated")

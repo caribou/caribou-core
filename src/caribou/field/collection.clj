@@ -141,7 +141,7 @@
     (field/models (:target-id row)))
 
   (update-values
-    [this content values]
+    [this content values original]
     (let [removed (keyword (str "removed-" (:slug row)))]
       (if (assoc/present? (content removed))
         (let [ex (map util/convert-int (string/split (content removed) #","))

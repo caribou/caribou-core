@@ -18,7 +18,7 @@
     (let [model (db/find-model (:model-id row) (field/models))]
       (db/drop-index (:slug model) (:slug row))))
   (target-for [this] nil)
-  (update-values [this content values] values)
+  (update-values [this content values original] values)
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
