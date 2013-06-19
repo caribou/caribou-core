@@ -9,11 +9,13 @@
 
 (defn convert-int
   [something]
-  (condp = (type something)
-    nil nil
-    java.math.BigInteger (.longValue something)
-    java.math.BigDecimal (.longValue something)
-    (Integer. something)))
+  (try 
+    (condp = (type something)
+      nil nil
+      java.math.BigInteger (.longValue something)
+      java.math.BigDecimal (.longValue something)
+      (Integer. something))
+    (catch java.lang.NumberFormatException e nil)))
 
 (defn seq-to-map
   [f q]
@@ -21,11 +23,23 @@
 
 (defn slugify
   [s]
-  (.toLowerCase (string/replace (string/join "-" (re-seq #"[a-zA-Z0-9]+" (name s))) #"^[0-9]" "-")))
+  (let [pared (string/replace (name s) #"'|\"" "")
+        islands (re-seq #"[a-zA-Z0-9]+" pared)
+        archipelago (string/join "-" islands)
+        shielded (string/replace archipelago #"^[0-9]" "-")]
+    (string/lower-case shielded)))
 
 (defn url-slugify
   [s]
-  (.toLowerCase (string/join "-" (re-seq #"[a-zA-Z0-9]+" (name s)))))
+  (string/lower-case 
+   (string/join 
+    "-" 
+    (re-seq 
+     #"[a-zA-Z0-9]+" 
+     (string/replace 
+      (name s)
+      #"'|\""
+      "")))))
 
 (defn underscore
   [s]

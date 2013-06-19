@@ -151,11 +151,13 @@
 
 (defn double-conversion
   [something]
-  (condp = (type something)
-    nil nil
-    java.math.BigInteger (.doubleValue something)
-    java.math.BigDecimal (.doubleValue something)
-    (Double. something)))
+  (try 
+    (condp = (type something)
+      nil nil
+      java.math.BigInteger (.doubleValue something)
+      java.math.BigDecimal (.doubleValue something)
+      (Double. something))
+    (catch java.lang.NumberFormatException e nil)))
 
 (defn integer-where
   [field prefix opts]
