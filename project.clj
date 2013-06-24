@@ -1,4 +1,4 @@
-(defproject antler/caribou-core "0.11.23-POSITIONS-STICKING"
+(defproject antler/caribou-core "0.11.24-POSITIONS-STICKING"
   :description "Caribou is a dynamic web application generator with antlers."
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [org.clojure/java.jdbc "0.2.3"

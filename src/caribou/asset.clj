@@ -49,7 +49,7 @@
   [asset]
   (if (config/draw :aws :bucket)
     (if (and asset (:filename asset))
-      (str "https://" (config/draw :aws :bucket) ".s3.amazonaws.com/"
+      (str "http://" (config/draw :aws :bucket) ".s3.amazonaws.com/"
            (s3-key asset))
       "")
     (asset-location asset)))
