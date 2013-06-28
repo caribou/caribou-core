@@ -7,6 +7,7 @@
             [caribou.field.text :as text-field]
             [caribou.field.slug :as slug-field]
             [caribou.field.urlslug :as urlslug-field]
+            [caribou.field.dbslug :as dbslug-field]
             [caribou.field.boolean :as boolean-field]
             [caribou.field.asset :as asset-field]
             [caribou.field.address :as address-field]
@@ -29,6 +30,7 @@
    :text text-field/constructor
    :slug slug-field/constructor
    :urlslug urlslug-field/constructor
+   :dbslug dbslug-field/constructor
    :boolean boolean-field/constructor
    :asset asset-field/constructor
    :address address-field/constructor

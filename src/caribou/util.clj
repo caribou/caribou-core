@@ -41,6 +41,33 @@
       #"'|\""
       "")))))
 
+(defn transform-string
+  "accepts a string and a map of transformations, where the key is a pattern to match and the value
+   is the replacement for each found instance of the pattern.  If an ordered set of replacements is 
+   desired, swap out the map with a vector of pairs."
+  [s transform]
+  (loop [trans (seq transform)
+         clean s]
+    (if (seq trans)
+      (let [[pattern replacement] (first trans)
+            wash (string/replace clean pattern replacement)]
+        (recur (rest trans) wash))
+      clean)))
+
+(defn slug-transform
+  [transform]
+  (fn [s]
+    (string/lower-case 
+     (transform-string 
+      (name s) 
+      transform))))
+
+(def dbslug-transform-map
+  [[#"['\"]+" ""]
+   [#"[_ \\/?%:#^\[\]<>@!|$&*+;,.()]+" "-"]
+   [#"^-+|-+$" ""]
+   [#"^[0-9]+" ""]])
+
 (defn underscore
   [s]
   (.replace s \- \_))

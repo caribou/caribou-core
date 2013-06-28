@@ -91,44 +91,12 @@
    (map? where) [(-> where keys first name) (-> where vals first)]
    :else ["=" where]))
 
-  ;; (if (map? where)
-  ;;   [(-> where keys first name) (-> where vals first)]
-  ;;   ["=" where]))
-
 (defn field-where
   [field prefix opts do-where]
   (let [slug (keyword (-> field :row :slug))
         where (-> opts :where slug)]
     (if (contains? (:where opts) slug)
       (do-where field prefix slug opts where))))
-
-(defn pure-fusion
-  [this prefix archetype skein opts]
-  (let [slug (keyword (-> this :row :slug))
-        bit (util/prefix-key prefix slug)
-        containing (drop-while #(nil? (get % bit)) skein)
-        value (get (first containing) bit)]
-    (assoc archetype slug value)))
-
-(defn text-fusion
-  [this prefix archetype skein opts]
-  (let [pure (pure-fusion this prefix archetype skein opts)
-        slug (keyword (-> this :row :slug))]
-    (update-in pure [slug] (partial adapter/text-value (config/draw :database :adapter)))))
-
-(defn structure-fusion
-  [this prefix archetype skein opts]
-  (let [pure (pure-fusion this prefix archetype skein opts)
-        slug (keyword (-> this :row :slug))]
-    (update-in
-     pure [slug]
-     #(let [value (adapter/text-value (config/draw :database :adapter) %)]
-        (if (and value (not (empty? value)))
-          (read-string value))))))
-
-(defn id-models-involved
-  [field opts all]
-  (conj all (-> field :row :model-id)))
 
 (defn pure-where
   [field prefix slug opts where]
@@ -171,6 +139,34 @@
   [field prefix opts]
   (process-where field prefix opts #(Boolean. %)))
 
+(defn pure-fusion
+  [this prefix archetype skein opts]
+  (let [slug (keyword (-> this :row :slug))
+        bit (util/prefix-key prefix slug)
+        containing (drop-while #(nil? (get % bit)) skein)
+        value (get (first containing) bit)]
+    (assoc archetype slug value)))
+
+(defn text-fusion
+  [this prefix archetype skein opts]
+  (let [pure (pure-fusion this prefix archetype skein opts)
+        slug (keyword (-> this :row :slug))]
+    (update-in pure [slug] (partial adapter/text-value (config/draw :database :adapter)))))
+
+(defn structure-fusion
+  [this prefix archetype skein opts]
+  (let [pure (pure-fusion this prefix archetype skein opts)
+        slug (keyword (-> this :row :slug))]
+    (update-in
+     pure [slug]
+     #(let [value (adapter/text-value (config/draw :database :adapter) %)]
+        (if (and value (not (empty? value)))
+          (read-string value))))))
+
+(defn id-models-involved
+  [field opts all]
+  (conj all (-> field :row :model-id)))
+
 (defn pure-order
   [field prefix opts]
   (let [slug (-> field :row :slug)]
@@ -184,6 +180,21 @@
 (defn string-where
   [field prefix slug opts where]
   (pure-where field prefix slug opts where))
+
+(defn slug-update-values
+  [field content values transform]
+  (let [key (keyword (-> field :row :slug))]
+    (cond
+     (-> field :env :link)
+     (let [icon (content (keyword (-> field :env :link :slug)))]
+       (if icon
+         (assoc values key (transform icon))
+         values))
+
+     (contains? content key) 
+     (assoc values key (transform (get content key)))
+
+     :else values)))
 
 (defn field-cleanup
   [field]

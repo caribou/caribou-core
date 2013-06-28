@@ -1,12 +1,11 @@
-(ns caribou.field.slug
-  (:require [clojure.string :as string]
-            [caribou.db :as db]
+(ns caribou.field.dbslug
+  (:require [caribou.db :as db]
             [caribou.util :as util]
             [caribou.field :as field]
             [caribou.config :as config]
             [caribou.validation :as validation]))
 
-(defrecord SlugField [row env]
+(defrecord DbSlugField [row env]
   field/Field
   (table-additions [this field] [[(keyword field) "varchar(255)"]])
   (subfield-names [this field] [])
@@ -17,9 +16,7 @@
     (field/field-cleanup this))
   (target-for [this] nil)
   (update-values [this content values]
-    (field/slug-update-values 
-     this content values 
-     (util/slug-transform (config/draw :field :slug-transform))))
+    (field/slug-update-values this content values (util/slug-transform util/dbslug-transform-map)))
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
@@ -52,4 +49,4 @@
 (defn constructor
   [row] 
   (let [link (db/choose :field (row :link-id))]
-    (SlugField. row {:link link})))
+    (DbSlugField. row {:link link})))

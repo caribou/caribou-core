@@ -10,7 +10,7 @@
 (defn join-table-name
   "construct a join table name out of two link names"
   [a b]
-  (string/join "-" (sort (map util/slugify [a b]))))
+  (string/join "-" (sort (map (util/slug-transform util/dbslug-transform-map) [a b]))))
 
 (defn link-join-name
   "Given a link field, return the join table name used by that link."

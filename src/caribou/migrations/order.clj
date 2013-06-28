@@ -8,5 +8,5 @@
    "field-map"
    "page-siphon"
    "field-localization"
-   "enumeration"])
-
+   "enumeration"
+   "model-field-dbslugs"])

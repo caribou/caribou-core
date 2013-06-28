@@ -52,7 +52,10 @@
               :database     "caribou_development"
               :user         "h2"
               :password     ""}
-   :field {:constructors (atom {})}
+   :field {:constructors (atom {})
+           :slug-transform [[#"['\"]+" ""]
+                            [#"[_ \\/?%:#^\[\]<>@!|$&*+;,.()]+" "-"]
+                            [#"^-+|-+$" ""]]}
    :logging {:loggers [{:type :stdout :level :debug}]}
    :index {:path "caribou-index"
            :default-limit 1000

@@ -503,7 +503,7 @@
   (hooks/add-hook
    :model :before-create :build-table
    (fn [env]
-     (create-model-table (util/slugify (-> env :spec :name)))
+     (create-model-table ((util/slug-transform util/dbslug-transform-map) (-> env :spec :name)))
      env))
   
   (hooks/add-hook
@@ -644,7 +644,7 @@
         (doseq [[old-name new-name] spawn]
           (let [field-id (-> (get model-fields (keyword old-name)) :row :id)]
             (update :field field-id {:name new-name
-                                     :slug (util/slugify new-name)})))
+                                     :slug ((util/slug-transform util/dbslug-transform-map) new-name)})))
 
         (doseq [[old-name new-name] transition]
           (db/rename-column model-slug old-name new-name)
