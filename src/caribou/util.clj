@@ -7,6 +7,11 @@
 (import java.sql.SQLException)
 (import java.io.File)
 
+(defn enquote
+  [s]
+  (str "\"" s "\""))
+  ;; (str "\"" (string/upper-case s) "\""))
+
 (defn convert-int
   [something]
   (try 
@@ -180,6 +185,7 @@
   {:entity
    (fn [k]
      (string/replace (name k) "-" "_"))
+     ;; (string/upper-case (string/replace (name k) "-" "_")))
    :keyword
    (fn [e]
      (keyword (string/lower-case (string/replace e "_" "-"))))})
@@ -195,7 +201,7 @@
 (defn dbize
   [s]
   (if (or (keyword? s) (string? s))
-    (sql/as-named-identifier naming-strategy (keyword (zap s)))
+    (enquote (sql/as-named-identifier naming-strategy (keyword (zap s))))
     s))
 
 (defn clause

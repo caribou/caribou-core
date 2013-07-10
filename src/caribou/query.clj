@@ -108,6 +108,12 @@
 
 (declare construct-query)
 
+(defn quote-field
+  [field]
+  (let [parts (string/split field #"\.")
+        quoted (map util/enquote parts)]
+    (string/join "." quoted)))
+
 (defn construct-subquery
   [form params]
   (let [[subform params] (construct-query form params)]
@@ -118,15 +124,15 @@
   (if (map? field)
     (let [function (first (keys field))
           args (get field function)
-          arg-list (string/join ", " args)
+          arg-list (string/join ", " (map quote-field args))
           call (str (name function) "(" arg-list ")")]
       call)
-    field))
+    (quote-field field)))
 
 (defn construct-select-alias
   [[field alias]]
   (let [field (construct-select-function field)]
-    (str field " as " alias)))
+    (str field " as " (quote-field alias))))
 
 (defn construct-select
   [select-form]
@@ -147,7 +153,7 @@
   [from-form params]
   (let [[subform params] (cond
                            (map? from-form) (construct-subquery from-form params)
-                           (vector? from-form) [(str (first from-form) " as " (last from-form)) params]
+                           (vector? from-form) [(str (quote-field (first from-form)) " as " (quote-field (last from-form))) params]
                            :else [from-form params])]
     [(str "from " subform) params]))
 
@@ -157,7 +163,7 @@
     (let [[join alias] table
           [rhs lhs] on
           select (construct-select-function rhs)]
-      (str "left outer join " join " as " alias " on (" select " = " lhs ")"))))
+      (str "left outer join " (quote-field join) " as " (quote-field alias) " on (" select " = " lhs ")"))))
 
 (defn construct-joins
   [join-forms]
@@ -193,7 +199,7 @@
 (defn construct-as
   [as-form]
   (if as-form
-    (str "as " as-form)))
+    (str "as " (quote-field as-form))))
 
 (defn construct-order
   [{:keys [by direction]}]
@@ -227,8 +233,9 @@
   [query-map]
   (let [[query params] (construct-query query-map)
         db-query (util/underscore query)
+        _ (println "EXECUTE QUERY" db-query)
         results (db/query db-query params)]
-    (println "EXECUTE QUERY" db-query)
+    ;; (println "EXECUTE QUERY" db-query)
     (println "EXECUTE RESULTS" results)
     results))
 

@@ -130,10 +130,10 @@
 (defn add-column
   "add the given column to the table."
   [table column opts]
-  (let [type (join " " (map util/dbize opts))]
+  (let [type (join " " (map name opts))] ;; (map util/dbize opts))]
     (try
       (sql/do-commands
-       (log/out :db (util/clause "alter table %1 add column %2 %3" (map util/dbize [table column type]))))
+       (log/out :db (util/clause "alter table %1 add column %2 %3" [(util/dbize table) (util/dbize column) type])))
       (catch Exception e (log/render-exception e)))))
 
 (defn rename-column
@@ -152,7 +152,8 @@
   (if (adapter/supports-constraints? (config/draw :database :adapter))
     (try
       (sql/do-commands
-       (log/out :db (util/clause "create index %1_%2_index on %1 (%2)" (map util/dbize [table column]))))
+       (log/out :db (util/clause "create index %1_%2_index on %1 (%2)" (map (:entity util/naming-strategy) [table column]))))
+       ;; (log/out :db (util/clause "create index %1_%2_index on %1 (%2)" (map util/dbize [table column]))))
       (catch Exception e (log/render-exception e)))))
 
 (defn drop-index
@@ -186,7 +187,7 @@
                      (if value
                        "alter table %1 add constraint %2_unique unique (%2)"
                        "alter table %1 drop constraint %2_unique")
-                     [(util/dbize table) (util/dbize column)])))))
+                     [(util/dbize table) ((:entity util/naming-strategy) column)])))))
 
 (defn add-primary-key
   [table column]
