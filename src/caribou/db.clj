@@ -152,8 +152,7 @@
   (if (adapter/supports-constraints? (config/draw :database :adapter))
     (try
       (sql/do-commands
-       (log/out :db (util/clause "create index %1_%2_index on %1 (%2)" (map (:entity util/naming-strategy) [table column]))))
-       ;; (log/out :db (util/clause "create index %1_%2_index on %1 (%2)" (map util/dbize [table column]))))
+       (log/out :db (util/clause "create index %1_%2_index on %1 (%2)" (map util/dbize [table column]))))
       (catch Exception e (log/render-exception e)))))
 
 (defn drop-index

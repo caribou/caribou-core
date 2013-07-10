@@ -9,8 +9,7 @@
 
 (defn enquote
   [s]
-  (str "\"" s "\""))
-  ;; (str "\"" (string/upper-case s) "\""))
+  (str "\"" (string/upper-case s) "\""))
 
 (defn convert-int
   [something]
@@ -184,8 +183,7 @@
 (def naming-strategy
   {:entity
    (fn [k]
-     (string/replace (name k) "-" "_"))
-     ;; (string/upper-case (string/replace (name k) "-" "_")))
+     (string/upper-case (string/replace (name k) "-" "_")))
    :keyword
    (fn [e]
      (keyword (string/lower-case (string/replace e "_" "-"))))})
