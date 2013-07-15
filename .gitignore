@@ -8,6 +8,7 @@
 /autodoc/**
 /clucy-index
 /caribou-index
+/app
 pom.xml*
 *.jar
 *.class

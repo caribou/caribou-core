@@ -6,20 +6,19 @@
             [caribou.field.integer :as int]))
 
 (defn position-update-values
-  [field content values]
+  [field content values original]
   (let [slug (-> field :row :slug)
         key (keyword slug)
         update (int/integer-update-values field content values)
-        val (get update key)
-        model-id (-> field :row :model-id)
-        model (field/models model-id :slug)]
-    (if val
+        exists (or (contains? update key) (contains? original key))]
+    (if exists
       update
       (assoc update
-        key (let [result
-                  (db/query
-                   (str "select max(" (util/dbize slug)
-                        ")+1 as max from " (util/dbize model)))]
+        key (let [model-id (-> field :row :model-id)
+                  model (field/models model-id :slug)
+                  result (db/query
+                          (str "select max(" (util/dbize slug)
+                               ")+1 as max from " (util/dbize model)))]
               (or (-> result first :max)
                   0))))))
                     
@@ -33,8 +32,8 @@
   (cleanup-field [this]
     (field/field-cleanup this))
   (target-for [this] nil)
-  (update-values [this content values]
-    (position-update-values this content values))
+  (update-values [this content values original]
+    (position-update-values this content values original))
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])

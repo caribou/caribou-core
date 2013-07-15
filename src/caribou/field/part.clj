@@ -103,7 +103,7 @@
 
   (target-for [this] (field/models (-> this :row :target-id)))
 
-  (update-values [this content values] values)
+  (update-values [this content values original] values)
 
   (post-update [this content opts] content)
 

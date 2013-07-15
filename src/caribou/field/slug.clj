@@ -16,7 +16,7 @@
   (cleanup-field [this]
     (field/field-cleanup this))
   (target-for [this] nil)
-  (update-values [this content values]
+  (update-values [this content values original]
     (field/slug-update-values 
      this content values 
      (util/slug-transform (config/draw :field :slug-transform))))

@@ -756,9 +756,9 @@
       (log/out :INVOKE_MODELS "No models table yet!"))))
 
 (defn update-values-reduction
-  [spec]
+  [spec original]
   (fn [values field]
-    (field/update-values field spec values)))
+    (field/update-values field spec values original)))
 
 (defn create
   "slug represents the model to be updated.  the spec contains all
@@ -776,7 +776,7 @@
        (update slug (:id spec) spec opts)
        (let [model (models (keyword slug))
              values (reduce
-                     (update-values-reduction spec)
+                     (update-values-reduction spec {})
                      {} (vals (dissoc (:fields model) :updated-at)))
              env {:model model :values values :spec spec :op :create :opts opts}
 
@@ -819,7 +819,7 @@
   ([slug id spec opts]
      (let [model (models (keyword slug))
            original (db/choose slug id)
-           values (reduce #(field/update-values %2 (assoc spec :id id) %1)
+           values (reduce #(field/update-values %2 (assoc spec :id id) %1 original)
                           {} (vals (model :fields)))
            env {:model model :values values :spec spec :original original
                 :op :update :opts opts}
