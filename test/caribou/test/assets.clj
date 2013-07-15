@@ -15,7 +15,13 @@
 
 (defn get-aws-config
   []
-  (config/read-config (io/resource "config/test-aws.clj")))
+  (try
+    (config/read-config (io/resource "config/test-aws.clj"))
+    (catch Exception e {:aws {:bucket "your.bucket"
+                              :credentials {:access-key "REPLACE ME"
+                                            :secret-key "ME TOO"}}
+                        :assets {:dir "app"
+                                 :prefix "caribou/test"}})))
 
 (def payload "HELLO WORLD!")
 
@@ -78,7 +84,7 @@
 
 (defn get-disk-config
   []
-  (config/read-config (io/resource "config/test-disk.clj")))
+  {:assets {:dir "app"}})
 
 (deftest disk-ops
   (config/with-config (get-disk-config)
