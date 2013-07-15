@@ -228,8 +228,6 @@
   (let [[query params] (construct-query query-map)
         db-query (util/underscore query)
         results (db/query db-query params)]
-    (println "EXECUTE QUERY" db-query)
-    (println "EXECUTE RESULTS" results)
     results))
 
 ;; QUERY CACHE ----------------------------

@@ -59,7 +59,7 @@
   (fn [s]
     (string/lower-case 
      (transform-string 
-      (name s) 
+      (name s)
       transform))))
 
 (def dbslug-transform-map

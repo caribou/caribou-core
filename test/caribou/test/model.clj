@@ -685,19 +685,19 @@
                    :limit 3
                    :locale "xo_ub"})))))
 
-(defn model-abuse
-  []
-  (let [pink (create 
-              :model 
-              {:name "1PinkƒPink1"
-               :fields [{:name "I1l0" :type "string"}
-                        {:name "555f∆" :type "integer"}
-                        {:name "555growth555" :type "decimal"}]})
-        aaa (create :pinkƒpink1 {:i1l0 "YELLL" :f∆ 55555 :growth555 1.333338882202})
-        results (gather :pinkƒpink1)]
-    (log/debug aaa :AAA)
-    (doseq [result results]
-      (log/debug result :RESULT))))
+;; (defn model-abuse
+;;   []
+;;   (let [pink (create 
+;;               :model 
+;;               {:name "1PinkƒPink1"
+;;                :fields [{:name "I1l0" :type "string"}
+;;                         {:name "555f∆" :type "integer"}
+;;                         {:name "555growth555" :type "decimal"}]})
+;;         aaa (create :pinkƒpink1 {:i1l0 "YELLL" :f∆ 55555 :growth555 1.333338882202})
+;;         results (gather :pinkƒpink1)]
+;;     (log/debug aaa :AAA)
+;;     (doseq [result results]
+;;       (log/debug result :RESULT))))
 
 (defn nested-model-test
   []
@@ -860,17 +860,17 @@
 
 (defn all-model-tests
   [config]
-  (db-fixture model-abuse config))
-  ;; (db-fixture invoke-model-test config)
-  ;; (db-fixture model-lifecycle-test config)
-  ;; (db-fixture model-interaction-test config)
-  ;; (db-fixture model-link-test config)
-  ;; (db-fixture parallel-include-test config)
-  ;; (db-fixture localized-model-test config)
-  ;; (db-fixture nested-model-test config)
-  ;; (db-fixture fields-types-test config)
-  ;; (db-fixture collection-map-test config)
-  ;; (db-fixture localized-map-field-test config))
+  ;; (db-fixture model-abuse config))
+  (db-fixture invoke-model-test config)
+  (db-fixture model-lifecycle-test config)
+  (db-fixture model-interaction-test config)
+  (db-fixture model-link-test config)
+  (db-fixture parallel-include-test config)
+  (db-fixture localized-model-test config)
+  (db-fixture nested-model-test config)
+  (db-fixture fields-types-test config)
+  (db-fixture collection-map-test config)
+  (db-fixture localized-map-field-test config))
 
 (deftest ^:mysql
   mysql-tests

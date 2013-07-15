@@ -15,8 +15,10 @@
   (cleanup-field [this]
     (field/field-cleanup this))
   (target-for [this] nil)
-  (update-values [this content values]
-    (field/slug-update-values this content values (util/slug-transform util/dbslug-transform-map)))
+  (update-values [this content values original]
+    (field/slug-update-values 
+     this content values 
+     (util/slug-transform util/dbslug-transform-map)))
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
   (join-fields [this prefix opts] [])
