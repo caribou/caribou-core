@@ -10,7 +10,8 @@
         config (caribou/init config)]
     (fn [{:keys [op transport] :as msg}]
       (caribou/with-caribou config
-        (doall (handler msg))))))
+        (let [caribou-msg (update-in msg [:code] #(str "(caribou.core/with-caribou caribou.config/config " % ")"))]
+          (handler caribou-msg))))))
 
 (defn repl-init
   []

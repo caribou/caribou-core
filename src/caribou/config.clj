@@ -173,5 +173,5 @@
 
 (defmacro with-config
   [new-config & body]
-  `(with-redefs [caribou.config/config ~new-config]
+  `(binding [caribou.config/config ~new-config]
      ~@body))
