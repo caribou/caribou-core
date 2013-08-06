@@ -30,13 +30,13 @@
 
 (defn hooks-for-model
   [slug]
-  (get (deref (config/draw :hooks)) (keyword slug)))
+  (get (deref (config/draw :hooks :lifecycle)) (keyword slug)))
 
 (defn make-lifecycle-hooks
   [slug]
   (if-not (hooks-for-model slug)
     (let [hooks (default-lifecycle-hooks)]
-      (swap! (config/draw :hooks) assoc-in [(keyword slug)] hooks))))
+      (swap! (config/draw :hooks :lifecycle) assoc-in [(keyword slug)] hooks))))
 
 (defn run-hook
   "run the hooks for the given model slug given by timing.  env
@@ -61,6 +61,6 @@
       (if-let [model-hooks (hooks-for-model slug)]
         (if-let [hook (get model-hooks (keyword timing))]
           (let [hook-name (keyword id)]
-            (swap! (config/draw :hooks) assoc-in [(keyword slug) (keyword timing) hook-name] func))
+            (swap! (config/draw :hooks :lifecycle) assoc-in [(keyword slug) (keyword timing) hook-name] func))
           (throw (Exception. (format "No model lifecycle hook called %s" timing))))
         (throw (Exception. (format "No model called %s" slug)))))))

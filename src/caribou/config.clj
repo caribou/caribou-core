@@ -33,12 +33,7 @@
 
 (defn default-config
   []
-  {:app {:debug               true
-         :use-database        true
-         :hooks-ns            "caribou.hooks"
-         :fields-ns           "caribou.fields"
-         :enable-query-cache  false
-         :query-defaults      {}}
+  {:app {:use-database true}
    :assets {:dir "app/"
             :prefix nil
             :root ""}
@@ -53,17 +48,21 @@
               :user         "h2"
               :password     ""}
    :field {:constructors (atom {})
+           :namespace "skel.fields"
            :slug-transform [[#"['\"]+" ""]
                             [#"[_ \\/?%:#^\[\]<>@!|$&*+;,.()]+" "-"]
                             [#"^-+|-+$" ""]]}
-   :logging {:loggers [{:type :stdout :level :debug}]}
+   :hooks {:namespace "skel.hooks"
+           :lifecycle (atom {})}
    :index {:path "caribou-index"
            :default-limit 1000
            :store (atom nil)}
+   :logging {:loggers [{:type :stdout :level :debug}]}
    :models (atom {})
-   :hooks (atom {})
    :nrepl {:port nil :server (atom nil)}
    :query {:queries (atom {})
+           :enable-query-cache  false
+           :query-defaults {}
            :reverse-cache (atom {})}})
 
 (def ^:dynamic config {})

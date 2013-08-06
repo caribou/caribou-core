@@ -220,11 +220,11 @@
          of 'name', ordered by the model slug and offset by 3."
   ([slug] (gather slug {}))
   ([slug opts]
-     (let [query-defaults (config/draw :app :query-defaults)
+     (let [query-defaults (config/draw :query :query-defaults)
            ;; defaulted (query/apply-query-defaults opts query-defaults)
            defaulted opts
            query-hash (query/hash-query slug defaulted)]
-       (if-let [cached (and (config/draw :app :enable-query-cache)
+       (if-let [cached (and (config/draw :query :enable-query-cache)
                             (query/retrieve-query query-hash))]
          cached
          (let [model (models (keyword slug))]
@@ -363,10 +363,10 @@
   (symbol (str base "." (name slug))))
 
 (defn add-app-model-hooks
-  "finds and loads every namespace under [:app :hooks-ns] that matches
+  "finds and loads every namespace under (config/draw :hooks :namespace) that matches
    the name of a model and runs the function 'add-hooks in that namespace."
   []
-  (if-let [hooks-ns (config/draw :app :hooks-ns)]
+  (if-let [hooks-ns (config/draw :hooks :namespace)]
     (let [make-hook-ns (partial model-hooks-ns hooks-ns)]
       (doseq [hook-namespace (map make-hook-ns (model-slugs))]
         (util/run-namespace hook-namespace 'add-hooks)))))
@@ -720,10 +720,10 @@
     (assoc model :fields field-map)))
 
 (defn add-app-fields
-  "When {:app {:fields-ns $CONFIG}} is defined, run the function add-fields
+  "When {:field {:namespace $CONFIG}} is defined, run the function add-fields
    in that namespace"
   []
-  (when-let [fields-ns (config/draw :app :fields-ns)]
+  (when-let [fields-ns (config/draw :field :namespace)]
     (util/run-namespace fields-ns 'add-fields)))
 
 (defn invoke-fields
