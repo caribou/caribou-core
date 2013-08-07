@@ -5,7 +5,14 @@
             [pantomime.mime :as mime]
             [caribou.util :as util]
             [caribou.config :as config])
-  (:import java.io.ByteArrayInputStream))
+  (:import [java.io ByteArrayInputStream]
+           [org.apache.tika.config TikaConfig]))
+
+(def tika-config (TikaConfig.))
+
+(defn find-extension
+  [content-type]
+  (-> tika-config .getMimeRepository (.forName content-type) .getExtension))
 
 (defn- pad-break-id [id]
   (let [root (str id)

@@ -14,6 +14,21 @@
      (if master
        (assoc master :path (asset/asset-path master))))))
 
+(defn commit-asset-source
+  [field content values original]
+  (let [row (:row field)
+        slug (:slug row)
+        posted (get content (keyword slug))
+        id-key (keyword (str slug "-id"))
+        preexisting (get original id-key)
+        posted (if preexisting 
+                 (assoc posted :id preexisting)
+                 posted)]
+    (if posted
+      (let [asset ((resolve 'caribou.model/create) :asset posted)]
+        (assoc values id-key (:id asset)))
+      values)))
+
 (defrecord AssetField [row env]
   field/Field
   (table-additions [this field] [])
@@ -41,7 +56,9 @@
       ((resolve 'caribou.model/destroy) :field (-> model :fields id-slug :row :id))))
 
   (target-for [this] nil)
-  (update-values [this content values original] values)
+  (update-values [this content values original] 
+    (commit-asset-source this content values original))
+
   (post-update [this content opts] content)
   (pre-destroy [this content] content)
 

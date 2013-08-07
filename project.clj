@@ -18,12 +18,13 @@
                                org.clojure/clojure slingshot]]
                  [org.clojure/tools.logging "0.2.3"
                   :exclusions [org.clojure/clojure]]
-                 [com.novemberain/pantomime "1.4.0"
+                 [com.novemberain/pantomime "2.0.0"
                   :exclusions [org.clojure/clojure]]
                  [leiningen-core "2.0.0-preview3"
                   :exclusions [org.clojure/clojure]]
                  [clj-aws-s3 "0.3.6"]
-                 [org.clojure/tools.nrepl "0.2.2"]
+                 [clojure-complete "0.2.2"]
+                 [org.clojure/tools.nrepl "0.2.3"]
                  [clucy "0.3.1"]
                  [fs "1.3.3"]
                  [org.mindrot/jbcrypt "0.3m"]]

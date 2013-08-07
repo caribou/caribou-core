@@ -1,5 +1,6 @@
 (ns caribou.repl
   (:require [clojure.tools.nrepl.server :as nrepl]
+            [complete.core :as complete]
             [caribou.logger :as log]
             [caribou.config :as config]
             [caribou.core :as caribou]))

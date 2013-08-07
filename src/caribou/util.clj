@@ -17,6 +17,13 @@
       (Integer. something))
     (catch java.lang.NumberFormatException e nil)))
 
+(defn find-methods 
+  "Return all java methods available on a given object!"
+  [x] 
+  (map 
+   #(.getName %) 
+   (.getDeclaredMethods (class x))))
+
 (defn seq-to-map
   [f q]
   (reduce #(assoc %1 (f %2) %2) {} q))
