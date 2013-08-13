@@ -18,11 +18,7 @@
     (drop-status m)))
 
 (defn update-db-for-status []
-  (config/init)
-  (model/init)
-  (model/db
-    (fn []
-      (remove-status-field)
-      (model/create :model bootstrap/status)
-      (bootstrap/create-default-status)
-      (doseq [m (model/gather :model)] (model/add-status-to-model m)))))
+  (remove-status-field)
+  (model/create :model bootstrap/status)
+  (bootstrap/create-default-status)
+  (doseq [m (model/gather :model)] (model/add-status-to-model m)))

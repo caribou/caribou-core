@@ -23,7 +23,7 @@
                  [leiningen-core "2.0.0-preview3"
                   :exclusions [org.clojure/clojure]]
                  [clj-aws-s3 "0.3.6"]
-                 [clojure-complete "0.2.2"]
+                 [clojure-complete "0.2.3"]
                  [org.clojure/tools.nrepl "0.2.3"]
                  [clucy "0.3.1"]
                  [fs "1.3.3"]
