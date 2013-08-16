@@ -117,3 +117,105 @@
                  prefixed (str (s3-prefix prefix) relative)]
              (println "uploading" prefixed (.length entry))
              (upload-to-s3 bucket prefixed (io/file path))))))))
+
+;; ASSET CREATION ----------------
+
+(def byte-class (Class/forName "[B"))
+
+(defn slugify-filename
+  [s]
+  (let [transform (util/slug-transform (config/draw :field :slug-transform))
+        parts (string/split s #"\.")
+        name-parts (take (dec (count parts)) parts)
+        extension (last parts)
+        filename (string/join "." name-parts)]
+    (str (transform filename) "." extension)))
+
+(defmulti scry-asset
+  (comp class :source))
+
+(defmethod scry-asset nil
+  [m]
+  m)
+
+(defmethod scry-asset byte-class
+  [m]
+  (let [source (:source m)
+        content-type (or (:content-type m) (mime/mime-type-of source))
+        size (or (:size m) (count source))
+        filename (or (:filename m) (str (gensym) (find-extension content-type)))
+        filename (slugify-filename filename)]
+    {:source source 
+     :content-type content-type 
+     :size size 
+     :filename filename}))
+
+(defmethod scry-asset java.io.File
+  [m]
+  (let [source (:source m)
+        content-type (or (:content-type m) (mime/mime-type-of source))
+        size (or (:size m) (.length source))
+        filename (or (:filename m) (.getName source))
+        filename (slugify-filename filename)]
+    {:source source 
+     :content-type content-type 
+     :size size 
+     :filename filename}))
+
+(defmethod scry-asset java.lang.String
+  [m]
+  (let [source (java.io.File. (:source m))
+        content-type (or (:content-type m) (mime/mime-type-of source))
+        size (or (:size m) (.length source))
+        filename (or (:filename m) (.getName source))
+        filename (slugify-filename filename)]
+    {:source source
+     :content-type content-type 
+     :size size 
+     :filename filename}))
+
+(defmethod scry-asset java.net.URL
+  [m]
+  (let [source (:source m)
+        connection (.openConnection source)
+        content-type (or (:content-type m) (.getContentType connection) (mime/mime-type-of source))
+        size (or (:size m) (.getContentLength connection))
+        filename (or (:filename m) 
+                     (-> source .getFile (string/replace-first #"^/" "")) 
+                     (str (gensym) (find-extension content-type)))
+        filename (slugify-filename filename)]
+    {:source (.openStream source)
+     :content-type content-type 
+     :size size 
+     :filename filename}))
+
+;; (defmethod scry-asset java.io.InputStream
+;;   [m]
+;;   (let [source (:source m)
+;;         content-type (or (:content-type m) (mime/mime-type-of source))
+;;         size (or (:size m) (.getContentLength connection))
+;;         filename (or (:filename m) (str (gensym) (find-extension content-type)))
+;;         filename (slugify-filename filename)]
+;;     {:source source
+;;      :content-type content-type 
+;;      :size size 
+;;      :filename filename}))
+
+(defn asset-scry-asset
+  [env]
+  (let [spec (:spec env)
+        values (:values env)
+        revealed (scry-asset spec)
+        complete (merge values revealed)
+        source (:source revealed)
+        rarified (dissoc complete :source :path)]
+    (assoc env 
+      :values rarified
+      :source source)))
+
+(defn asset-commit-asset
+  [env]
+  (if-let [source (-> env :source)]
+    (put-asset source (:content env)))
+  env)
+

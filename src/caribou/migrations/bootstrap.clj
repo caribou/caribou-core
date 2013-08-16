@@ -4,6 +4,7 @@
             [caribou.util :as util]
             [caribou.logger :as log]
             [caribou.auth :as auth]
+            [caribou.config :as config]
             [caribou.model :as model]))
 
 (defn create-migration-table []

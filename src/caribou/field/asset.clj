@@ -19,11 +19,11 @@
   (let [row (:row field)
         slug (:slug row)
         posted (get content (keyword slug))
-        id-key (keyword (str slug "-id"))
-        preexisting (get original id-key)
-        posted (if preexisting 
-                 (assoc posted :id preexisting)
-                 posted)]
+        id-key (keyword (str slug "-id"))]
+        ;; preexisting (get original id-key)
+        ;; posted (if preexisting 
+        ;;          (assoc posted :id preexisting)
+        ;;          posted)]
     (if posted
       (let [asset ((resolve 'caribou.model/create) :asset posted)]
         (assoc values id-key (:id asset)))

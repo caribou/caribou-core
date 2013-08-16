@@ -560,6 +560,15 @@
        (fn [env]
          (rename-updated-locale env)))))
 
+  (if (models :asset)
+    (do
+      (hooks/add-hook
+       :asset :before-save :scry-asset
+       (fn [env] (asset/asset-scry-asset env)))
+      (hooks/add-hook
+       :asset :after-save :commit-asset
+       (fn [env] (asset/asset-commit-asset env)))))
+
   (if (models :status)
     (hooks/add-hook
      :model :after-create :add-status-part
@@ -705,114 +714,6 @@
       (catch Exception e (log/render-exception e)))
     env)))
 
-;; ASSET CREATION ----------------
-
-(def byte-class (Class/forName "[B"))
-
-(defn slugify-filename
-  [s]
-  (let [transform (util/slug-transform (config/draw :field :slug-transform))
-        parts (string/split s #"\.")
-        name-parts (take (dec (count parts)) parts)
-        extension (last parts)
-        filename (string/join "." name-parts)]
-    (str (transform filename) "." extension)))
-
-(defmulti scry-asset
-  (comp class :source))
-
-(defmethod scry-asset nil
-  [m]
-  m)
-
-(defmethod scry-asset byte-class
-  [m]
-  (let [source (:source m)
-        content-type (or (:content-type m) (mime/mime-type-of source))
-        size (or (:size m) (count source))
-        filename (or (:filename m) (str (gensym) (asset/find-extension content-type)))
-        filename (slugify-filename filename)]
-    {:source source 
-     :content-type content-type 
-     :size size 
-     :filename filename}))
-
-(defmethod scry-asset java.io.File
-  [m]
-  (let [source (:source m)
-        content-type (or (:content-type m) (mime/mime-type-of source))
-        size (or (:size m) (.length source))
-        filename (or (:filename m) (.getName source))
-        filename (slugify-filename filename)]
-    {:source source 
-     :content-type content-type 
-     :size size 
-     :filename filename}))
-
-(defmethod scry-asset java.lang.String
-  [m]
-  (let [source (java.io.File. (:source m))
-        content-type (or (:content-type m) (mime/mime-type-of source))
-        size (or (:size m) (.length source))
-        filename (or (:filename m) (.getName source))
-        filename (slugify-filename filename)]
-    {:source source
-     :content-type content-type 
-     :size size 
-     :filename filename}))
-
-(defmethod scry-asset java.net.URL
-  [m]
-  (let [source (:source m)
-        connection (.openConnection source)
-        content-type (or (:content-type m) (.getContentType connection) (mime/mime-type-of source))
-        size (or (:size m) (.getContentLength connection))
-        filename (or (:filename m) 
-                     (-> source .getFile (string/replace-first #"^/" "")) 
-                     (str (gensym) (asset/find-extension content-type)))
-        filename (slugify-filename filename)]
-    {:source (.openStream source)
-     :content-type content-type 
-     :size size 
-     :filename filename}))
-
-;; (defmethod scry-asset java.io.InputStream
-;;   [m]
-;;   (let [source (:source m)
-;;         content-type (or (:content-type m) (mime/mime-type-of source))
-;;         size (or (:size m) (.getContentLength connection))
-;;         filename (or (:filename m) (str (gensym) (asset/find-extension content-type)))
-;;         filename (slugify-filename filename)]
-;;     {:source source
-;;      :content-type content-type 
-;;      :size size 
-;;      :filename filename}))
-
-(defn asset-scry-asset
-  [env]
-  (let [spec (:spec env)
-        values (:values env)
-        revealed (scry-asset spec)
-        complete (merge values revealed)
-        source (:source revealed)
-        rarified (dissoc complete :source)]
-    (assoc env 
-      :values rarified
-      :source source)))
-
-(defn asset-commit-asset
-  [env]
-  (if-let [source (-> env :source)]
-    (asset/put-asset source (:content env)))
-  env)
-
-(defn- add-asset-hooks []
-  (hooks/add-hook
-   :asset :before-save :scry-asset
-   (fn [env] (asset-scry-asset env)))
-  (hooks/add-hook
-   :asset :after-save :commit-asset
-   (fn [env] (asset-commit-asset env))))
 
 ;; MODELS --------------------------------------------------------------------
 
@@ -861,11 +762,11 @@
           by-id (util/seq-to-map :id invoked)]
       (add-model-hooks)
       (add-field-hooks)
-      (add-asset-hooks)
       (bind-models (merge by-slug by-id) config/config)
       (add-app-model-hooks))
     (catch Exception e
-      (log/out :INVOKE_MODELS "No models table yet!"))))
+      (log/out :INVOKE_MODELS "No models table yet!")
+      (log/print-exception e))))
 
 (defn update-values-reduction
   [spec original]
