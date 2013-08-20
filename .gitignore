@@ -20,3 +20,4 @@ test_h2.trace.db
 *.h2
 *.db
 resources/config/boot.clj
+resources/config/test-aws.clj
