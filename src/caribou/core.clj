@@ -14,7 +14,8 @@
   [init-config]
   (let [full-config (config/process-config init-config)]
     (db/with-db full-config
-      (model/invoke-models)
+      (if (config/draw :app :use-database)
+        (model/invoke-models))
       (log/init (config/draw :logging :loggers))
       (config/draw))))
 

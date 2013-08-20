@@ -270,7 +270,8 @@
 (defmacro with-db
   [config & body]
   `(config/with-config ~config
-     (sql/with-naming-strategy caribou.util/naming-strategy
-       (sql/with-connection (config/draw :database)
-         ~@body))))
-
+     (if (config/draw :app :use-database)
+       (sql/with-naming-strategy caribou.util/naming-strategy
+         (sql/with-connection (config/draw :database)
+           ~@body))
+       (do ~@body))))
