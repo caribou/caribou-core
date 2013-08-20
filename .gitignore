@@ -19,3 +19,4 @@ pom.xml*
 test_h2.trace.db
 *.h2
 *.db
+resources/config/boot.clj
