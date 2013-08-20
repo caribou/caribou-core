@@ -16,7 +16,13 @@
 
 (defn repl-init
   []
-  (if-let [port (config/draw :nrepl :port)]
-    (let [server (nrepl/start-server :port port :handler (caribou-repl (config/draw)))]
-      (log/info (str "Starting nrepl server on port :" port) :nrepl)
-      (reset! (config/draw :nrepl :server) server))))
+  (if (not (deref (config/draw :nrepl :server)))
+    (if-let [port (config/draw :nrepl :port)]
+      (try 
+        (let [server (nrepl/start-server :port port :handler (caribou-repl (config/draw)))]
+          (log/info (str "Starting nrepl server on port :" port) :nrepl)
+          (reset! (config/draw :nrepl :server) server))
+        (catch Exception e 
+          (log/error (format "Could not start nrepl server on port %s:" port))
+          (log/print-exception e))))
+    (log/warn (format "REPL already running on %s!" (config/draw :nrepl :port)))))
