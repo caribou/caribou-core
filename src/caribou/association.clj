@@ -111,7 +111,7 @@
   (let [clause (get where key)
         subopts (assoc opts :where clause)
         inner (model-where-conditions model prefix subopts)]
-      (list {:op "NOT" :value inner})))
+      (list {:op op :value inner})))
 
 (defn model-dyadic-condition
   [model prefix opts where key op]
@@ -133,6 +133,10 @@
       :! (model-monadic-condition model prefix opts where :! "NOT")
       :|| (model-dyadic-condition model prefix opts where :|| "OR")
       :&& (model-dyadic-condition model prefix opts where :&& "AND")
+
+      'not (model-monadic-condition model prefix opts where 'not "NOT")
+      'or (model-dyadic-condition model prefix opts where 'or "OR")
+      'and (model-dyadic-condition model prefix opts where 'and "AND")
 
       (let [eyes
             (filter
