@@ -164,6 +164,12 @@
   (let [joins (map construct-join join-forms)]
     (string/join " " joins)))
 
+(defn construct-list
+  [values params]
+  (let [params (concat params values)
+        inner (string/join "," (repeat (count values) "?"))]
+    [(str "(" inner ")") params]))
+
 (defn construct-where
   [where-form params]
   (if-let [{:keys [field op value]} where-form]
@@ -171,10 +177,8 @@
           (cond
            (nil? value) ["NULL" params]
            (map? value) (construct-subquery value params)
+           (sequential? value) (construct-list value params)
            :else ["?" (conj params value)])]
-          ;; (if (map? value)
-          ;;   (construct-subquery value params)
-          ;;   ["?" (conj params value)])]
       [(str (construct-select-function field) " " op " " subform) params])))
 
 (defn construct-wheres

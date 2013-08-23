@@ -89,6 +89,7 @@
   (cond
    (nil? where) ["IS" nil]
    (map? where) [(-> where keys first name) (-> where vals first)]
+   (sequential? where) ["IN" where]
    :else ["=" where]))
 
 (defn field-where
@@ -108,11 +109,18 @@
      :op operator
      :value value}))
 
+(defn process-potential-seq
+  [process]
+  (fn [value]
+    (if (sequential? value)
+      (map process value)
+      (process value))))
+
 (defn process-where
   [field prefix opts process]
   (let [pure (field-where field prefix opts pure-where)]
     (if-not (nil? (:value pure))
-      (update-in pure [:value] process)
+      (update-in pure [:value] (process-potential-seq process))
       pure)))
 
 (def integer-conversion util/convert-int)
@@ -138,6 +146,10 @@
 (defn boolean-where
   [field prefix opts]
   (process-where field prefix opts #(Boolean. %)))
+
+(defn string-where
+  [field prefix slug opts where]
+  (pure-where field prefix slug opts where))
 
 (defn pure-fusion
   [this prefix archetype skein opts]
@@ -176,10 +188,6 @@
             field-select (coalesce-locale model field prefix slug opts)]
         {:by field-select
          :direction by}))))
-
-(defn string-where
-  [field prefix slug opts where]
-  (pure-where field prefix slug opts where))
 
 (defn slug-update-values
   [field content values transform]

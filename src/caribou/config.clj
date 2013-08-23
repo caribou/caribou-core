@@ -152,14 +152,22 @@
                   (io/reader config-file))]
     (read fd)))
 
-(defn config-from-resource
-  "Loads the appropritate configuration file based on environment"
-  [default resource]
+(defn merge-config
+  [base over]
   (deep-merge-with
    (fn [& args]
      (last args))
-   default
-   (read-config (io/resource resource))))
+   base over))
+
+(defn config-from-resource
+  "Loads the appropritate configuration file based on environment"
+  [default resource]
+  (merge-config default (read-config (io/resource resource))))
+  ;; (deep-merge-with
+  ;;  (fn [& args]
+  ;;    (last args))
+  ;;  default
+  ;;  (read-config (io/resource resource))))
 
 (defn environment-config-resource
   []
