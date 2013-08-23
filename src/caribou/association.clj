@@ -104,18 +104,44 @@
     down
     all))
 
+(declare model-where-conditions)
+
+(defn model-monadic-condition
+  [model prefix opts where key op]
+  (let [clause (get where key)
+        subopts (assoc opts :where clause)
+        inner (model-where-conditions model prefix subopts)]
+      (list {:op "NOT" :value inner})))
+
+(defn model-dyadic-condition
+  [model prefix opts where key op]
+  (let [clauses (get where key)
+        subwheres (mapcat
+                   (fn [clause]
+                     (model-where-conditions 
+                      model prefix 
+                      (assoc opts :where clause))) 
+                   clauses)]
+    (list {:op op :value subwheres})))
+
 (defn model-where-conditions
   "Builds the where part of the uberquery given the model, prefix and
    given map of the where conditions."
   [model prefix opts]
-  (let [eyes
-        (filter
-         identity
-         (map
-          (fn [field]
-            (field/build-where field prefix opts))
-          (vals (:fields model))))]
-    (doall (flatten eyes))))
+  (let [where (:where opts)]
+    (condp = (-> where keys first)
+      :! (model-monadic-condition model prefix opts where :! "NOT")
+      :|| (model-dyadic-condition model prefix opts where :|| "OR")
+      :&& (model-dyadic-condition model prefix opts where :&& "AND")
+
+      (let [eyes
+            (filter
+             identity
+             (map
+              (fn [field]
+                (field/build-where field prefix opts))
+              (vals (:fields model))))]
+        (doall (flatten eyes))))))
 
 (defn table-fields
   "This is part of the Field protocol that is the same for all fields.

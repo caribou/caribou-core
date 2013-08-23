@@ -92,12 +92,48 @@
    (sequential? where) ["IN" where]
    :else ["=" where]))
 
-(defn field-where
+(defn single-where
   [field prefix opts do-where]
   (let [slug (keyword (-> field :row :slug))
         where (-> opts :where slug)]
     (if (contains? (:where opts) slug)
       (do-where field prefix slug opts where))))
+
+;; (defn not-where
+;;   [do-where]
+;;   (fn [field prefix slug opts where]
+;;     (let [inner-where (do-where field prefix slug opts where)]
+;;       (println "INNER NOT" inner-where)
+;;       {:op "NOT" :value inner-where})))
+
+;; (defn and-where
+;;   [do-where]
+;;   (fn [field prefix slug opts where]
+;;     (let [inner-where (do-where field prefix slug opts where)]
+;;       (println "INNER AND" inner-where)
+;;       {:op "AND" :value inner-where})))
+
+(defn field-where
+  [field prefix opts do-where]
+  (let [slug (keyword (-> field :row :slug))
+        where (:where opts)
+        where-map? (map? where)]
+    (cond
+     (nil? where) nil
+
+     ;; (and 
+     ;;  where-map? 
+     ;;  (= :! (-> where keys first)))
+     ;; (let [subopts (assoc opts :where (get where :!))]
+     ;;   (recur field prefix subopts (not-where do-where)))
+
+     ;; (and 
+     ;;  where-map? 
+     ;;  (= :&& (-> where keys first)))
+     ;; (let [subopts (assoc opts :where (get where :&&))]
+     ;;   (recur field prefix subopts (and-where do-where)))
+
+     where-map? (single-where field prefix opts do-where))))
 
 (defn pure-where
   [field prefix slug opts where]
