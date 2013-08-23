@@ -193,14 +193,6 @@
 
       "OR"  (construct-operator op value params)
       "AND" (construct-operator op value params)
-      ;; (let [[subforms params]
-      ;;       (reduce 
-      ;;        (fn [[subforms params] value]
-      ;;          (let [[subform params] (construct-where value params)]
-      ;;            [(conj subforms subform) params]))
-      ;;        [[] params]
-      ;;        value)]
-      ;;   [(string/join " OR " subforms) params])
 
       (let [[subform params]
             (cond
@@ -258,10 +250,8 @@
 
 (defn execute-query
   [query-map]
-  (println (:where query-map))
   (let [[query params] (construct-query query-map)
         db-query (util/underscore query)
-        _ (println query)
         results (db/query db-query params)]
     results))
 
