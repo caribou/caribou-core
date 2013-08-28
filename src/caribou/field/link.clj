@@ -309,6 +309,7 @@
               :target-id (:model-id row)
               :link-id (:id row)
               :localized localized
+              :locked (:locked row)
               :map false
               :dependent (:dependent row)})
 
@@ -323,6 +324,7 @@
                 :map map?
                 :dependent true
                 :localized localized
+                :locked (:locked row)
                 :reciprocal-name (str reciprocal-name " Join")
                 :target-id (:target-id row)}
                {:name reciprocal-name
@@ -330,6 +332,7 @@
                 :map false
                 :dependent true
                 :localized localized
+                :locked (:locked row)
                 :reciprocal-name (str (:name spec) " Join")
                 :target-id (:model-id row)}]} {:op :migration})]
 

@@ -6,6 +6,11 @@
 (import java.util.regex.Matcher)
 (import java.sql.SQLException)
 (import java.io.File)
+(import java.util.UUID)
+
+(defn random-uuid
+  []
+  (String/valueOf (java.util.UUID/randomUUID)))
 
 (defn convert-int
   [something]

@@ -9,4 +9,5 @@
    "page-siphon"
    "field-localization"
    "enumeration"
-   "model-field-dbslugs"])
+   "model-field-dbslugs"
+   "uuid"])

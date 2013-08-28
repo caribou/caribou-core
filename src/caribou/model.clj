@@ -42,6 +42,7 @@
 (def base-fields
   [{:name "Id" :slug "id" :type "id" :locked true :immutable true
     :editable false}
+   {:name "UUID" :slug "uuid" :type "string" :locked true :immutable true :editable false}
    {:name "Position" :slug "position" :type "position" :locked true}
    {:name "Env Id" :slug "env-id" :type "integer" :locked true :editable false}
    {:name "Locked" :slug "locked" :type "boolean" :locked true :immutable true
@@ -61,6 +62,7 @@
      (merge
       field
       {:model-id (-> env :content :id)
+       :uuid (util/random-uuid)
        :updated-at (current-timestamp)})))
   env)
 
@@ -446,6 +448,7 @@
 (defn add-status-to-model [model]
   (update :model (:id model) {:fields [{:name "Status"
                                         :type "part"
+                                        :locked true
                                         :target-id (models :status :id)
                                         :reciprocal-name (:name model)}]})
   (let [status-id-field (pick :field {:where {:name "Status Id"
@@ -494,12 +497,14 @@
   (db/create-table
    (keyword model-name)
    [:id "SERIAL" "PRIMARY KEY"]
+   [:uuid "varchar(255)"]
    [:position :integer "DEFAULT 0"]
    [:env-id :integer "DEFAULT 1"]
    [:locked :boolean "DEFAULT false"]
    [:created-at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
    [:updated-at "timestamp" "NOT NULL"])
-  (db/create-index model-name "id"))
+  (db/create-index model-name "id")
+  (db/create-index model-name "uuid"))
 
 (defn- add-model-hooks []
   (hooks/add-hook
@@ -799,8 +804,8 @@
              local-values (localize-values model (:values _create) opts)
 
              fresh (db/insert slug (assoc local-values
-                                     :updated-at
-                                     (current-timestamp)))
+                                     :updated-at (current-timestamp)
+                                     :uuid (util/random-uuid)))
              content (pick slug (merge {:where {:id (:id fresh)}}
                                        (if (contains? opts :locale) {:locale (:locale opts)} {})))
              indexed (index/add model content {:locale (:locale opts)})
@@ -838,7 +843,8 @@
                 :op :update :opts opts}
            _save (hooks/run-hook slug :before-save env)
            _update (hooks/run-hook slug :before-update _save)
-           local-values (localize-values model (:values _update) opts)
+           protect-uuid (dissoc (:values _update) :uuid)
+           local-values (localize-values model protect-uuid opts)
            success (db/update
                     slug ["id = ?" (util/convert-int id)]
                     (assoc local-values

@@ -50,11 +50,13 @@
           base-fields [{:name (util/titleize id-slug)
                         :type "integer"
                         :editable false
+                        :locked (:locked row)
                         :localized localized
                         :reference (:slug target)
                         :dependent (:dependent spec)}
                        {:name (util/titleize (str (:slug row) "-position"))
                         :type "position"
+                        :locked (:locked row)
                         :localized localized
                         :editable false}]
 
@@ -63,6 +65,7 @@
                          base-fields
                          {:name (util/titleize (str (:slug row) "-key"))
                           :localized localized
+                          :locked (:locked row)
                           :type "string"
                           :editable false})
                         base-fields)]
@@ -70,6 +73,7 @@
         (let [collection ((resolve 'caribou.model/create) :field
                            {:name reciprocal-name
                             :type "collection"
+                            :locked (:locked row)
                             :localized localized
                             :model-id (:target-id row)
                             :target-id model-id

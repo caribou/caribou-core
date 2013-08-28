@@ -122,6 +122,7 @@
                     :localized (-> this :row :localized)
                     :model-id (:target-id row)
                     :target-id (:model-id row)
+                    :locked (:locked row)
                     :link-id (:id row)
                     :dependent (:dependent row)})]
         (db/update :field ["id = ?" (util/convert-int (:id row))]
