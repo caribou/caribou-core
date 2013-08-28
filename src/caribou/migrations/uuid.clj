@@ -18,7 +18,7 @@
                   :editable false}]})
       (db/create-index (:slug model) "uuid"))
     (doseq [model-slug (map (comp keyword :slug) models)]
-      (let [content (model/gather slug)]
+      (let [content (model/gather model-slug)]
         (doseq [item-id (map :id content)]
           (model/update
            model-slug

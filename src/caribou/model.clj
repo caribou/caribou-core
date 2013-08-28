@@ -62,7 +62,7 @@
      (merge
       field
       {:model-id (-> env :content :id)
-       :uuid (util/random-uuid)
+       ;; :uuid (util/random-uuid)
        :updated-at (current-timestamp)})))
   env)
 
