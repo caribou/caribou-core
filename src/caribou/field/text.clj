@@ -21,7 +21,11 @@
         (assoc values key (content key))
         values)))
   (post-update [this content opts] content)
-  (pre-destroy [this content] content)
+  (pre-destroy [this content] 
+    (let [key (keyword (:slug row))]
+      (if (contains? content key)
+        (assoc content key (adapter/text-value (config/draw :database :adapter) (content key)))
+        content)))
   (join-fields [this prefix opts] [])
   (join-conditions [this prefix opts] [])
   (build-where

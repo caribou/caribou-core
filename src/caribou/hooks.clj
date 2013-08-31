@@ -64,3 +64,4 @@
             (swap! (config/draw :hooks :lifecycle) assoc-in [(keyword slug) (keyword timing) hook-name] func))
           (throw (Exception. (format "No model lifecycle hook called %s" timing))))
         (throw (Exception. (format "No model called %s" slug)))))))
+

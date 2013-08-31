@@ -54,18 +54,17 @@
     :editable false}])
 
 (defn add-base-fields
-  [env]
-  (log/debug (str "Adding base fields to model with id" (-> env :content :id)))
+  [content]
+  (log/debug (str "Adding base fields to model with id" (:id content)))
   (doseq [field base-fields]
     (db/insert
      :field
      (merge
       field
-      {:model-id (-> env :content :id)
-       ;; :uuid (util/random-uuid)
-       :updated-at (current-timestamp)})))
-  env)
-
+      {:model-id (:id content)
+       :updated-at (current-timestamp)}
+      (if (contains? (:fields (models :field)) :uuid)
+        {:uuid (util/random-uuid)} {})))))
 
 ;; UBERQUERY ---------------------------------------------
 
@@ -384,7 +383,6 @@
   env)
 
 ;; LOCALIZATION --------------------------
-;; could be in its own ns?
 
 (defn localized?
   [field]
@@ -506,16 +504,24 @@
   (db/create-index model-name "id")
   (db/create-index model-name "uuid"))
 
+(defn create-model-table-from-name
+  [model-name]
+  (create-model-table 
+   ((util/slug-transform util/dbslug-transform-map) model-name)))
+
 (defn- add-model-hooks []
   (hooks/add-hook
    :model :before-create :build-table
    (fn [env]
-     (create-model-table ((util/slug-transform util/dbslug-transform-map) (-> env :spec :name)))
+     (create-model-table-from-name (-> env :spec :name))
+     ;; (create-model-table ((util/slug-transform util/dbslug-transform-map) (-> env :spec :name)))
      env))
-  
+
   (hooks/add-hook
    :model :after-create :add-base-fields
-   (fn [env] (add-base-fields env)))
+   (fn [env] 
+     (add-base-fields (:content env))
+     env))
 
   (hooks/add-hook
    :model :after-update :rename
@@ -588,6 +594,34 @@
     (= "true" default)
     default))
 
+(defn add-db-columns-for-field
+  [field model-slug slug]
+  (doseq [addition (field/table-additions field slug)]
+    (if-not (= slug "id")
+      (db/add-column
+       model-slug
+       (name (first addition))
+       (rest addition)))))
+
+(defn prepare-db-field
+  [field model-slug slug content]
+  (let [default (process-default (:type content) (:default-value content))]
+    (if (:localized content)
+      (localize-field-for-all-locales model-slug field))
+    (if (present? default)
+      (db/set-default model-slug slug default))
+    (if (present? (:reference content))
+      (do
+        (db/create-index model-slug slug)
+        (db/add-reference model-slug slug (:reference content)
+                          (if (:dependent content)
+                            :destroy
+                            :default))))
+    (if (:required content)
+      (db/set-required model-slug slug true))
+    (if (:disjoint content)
+      (db/set-unique model-slug slug true))))
+
 (defn- field-add-columns
   [env]
   (let [field (make-field (:content env))
@@ -599,29 +633,9 @@
                                  (-> env :spec :default-value))
         reference (-> env :spec :reference)]
 
-    (doseq [addition (field/table-additions field slug)]
-      (if-not (= slug "id")
-        (db/add-column
-         model-slug
-         (name (first addition))
-         (rest addition))))
+    (add-db-columns-for-field field model-slug slug)
     (field/setup-field field (env :spec))
-
-    (if (-> env :content :localized)
-      (localize-field-for-all-locales model-slug field))
-    (if (present? default)
-      (db/set-default model-slug slug default))
-    (if (present? reference)
-      (do
-        (db/create-index model-slug slug)
-        (db/add-reference model-slug slug reference
-                          (if (-> env :content :dependent)
-                            :destroy
-                            :default))))
-    (if (-> env :spec :required)
-      (db/set-required model-slug slug true))
-    (if (-> env :spec :disjoint)
-      (db/set-unique model-slug slug true))
+    (prepare-db-field field model-slug slug (:content env))
 
     env))
 
@@ -712,12 +726,12 @@
    (fn [env] (field-reify-column env)))
   (hooks/add-hook
    :field :after-destroy :drop-columns (fn [env]
-    (try                                                  
-      (if-let [content (:content env)]
-        (let [field (make-field content)]
-          (field/cleanup-field field)))
-      (catch Exception e (log/render-exception e)))
-    env)))
+                                         (try                                                  
+                                           (if-let [content (:content env)]
+                                             (let [field (make-field content)]
+                                               (field/cleanup-field field)))
+                                           (catch Exception e (log/render-exception e)))
+                                         env)))
 
 
 ;; MODELS --------------------------------------------------------------------
@@ -803,11 +817,21 @@
 
              local-values (localize-values model (:values _create) opts)
 
-             fresh (db/insert slug (assoc local-values
-                                     :updated-at (current-timestamp)
-                                     :uuid (util/random-uuid)))
-             content (pick slug (merge {:where {:id (:id fresh)}}
-                                       (if (contains? opts :locale) {:locale (:locale opts)} {})))
+             uuid-values (if (and
+                              (contains? (:fields model) :uuid)
+                              (not (contains? local-values :uuid)))
+                           (assoc local-values :uuid (util/random-uuid))
+                           local-values)
+
+             fresh (db/insert slug (assoc uuid-values
+                                     :updated-at (current-timestamp)))
+             content (pick 
+                      slug 
+                      (merge 
+                       {:where {:id (:id fresh)}}
+                       (if (contains? opts :locale) 
+                         {:locale (:locale opts)} {})))
+
              indexed (index/add model content {:locale (:locale opts)})
 
              merged (merge (:spec _create) content)
@@ -854,7 +878,7 @@
            indexed (index/update model content {:locale (:locale opts)})
            merged (merge (_update :spec) content)
            _after (hooks/run-hook slug :after-update
-                            (merge _update {:content merged}))
+                                  (merge _update {:content merged}))
            post (reduce #(field/post-update %2 %1 opts)
                         (_after :content) (vals (model :fields)))
            _final (hooks/run-hook slug :after-save (merge _after {:content post}))]

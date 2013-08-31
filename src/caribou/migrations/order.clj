@@ -10,4 +10,5 @@
    "field-localization"
    "enumeration"
    "model-field-dbslugs"
-   "uuid"])
+   "uuid"
+   "field-unique-constraint"])

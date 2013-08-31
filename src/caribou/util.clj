@@ -29,6 +29,11 @@
    #(.getName %) 
    (.getDeclaredMethods (class x))))
 
+(defn dups [seq]
+  (for [[id freq] (frequencies seq)
+        :when (> freq 1)]
+   id))
+
 (defn seq-to-map
   [f q]
   (reduce #(assoc %1 (f %2) %2) {} q))
@@ -266,6 +271,21 @@
        (fn [_]
          (rand-nth pool))
        (repeat n nil)))))
+
+(defn purge-key
+  "remove all instances of the given key from every nested sequence in item"
+  [item key]
+  (let [non (dissoc item key)
+        seq-keys (map 
+                  first 
+                  (filter 
+                   (fn [[k v]] 
+                     (sequential? v)) 
+                   non))]
+    (reduce 
+     (fn [i k]
+       (update-in i [k] #(map (fn [item] purge-key item key) %)))
+     non seq-keys)))
 
 (defn maybe-require
   "require the given ns, ignore file not found errors, but let others

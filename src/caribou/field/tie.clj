@@ -14,13 +14,15 @@
   (setup-field [this spec]
     (let [model-id (:model-id row)
           model (field/models model-id)
-          id-slug (str (:slug row) "-id")]
+          id-slug (str (:slug row) "-id")
+          tie-id (util/convert-int (:id row))]
       ((resolve 'caribou.model/update) :model model-id
         {:fields
          [{:name (util/titleize id-slug)
            :type "integer"
            :editable false
-           :reference (:slug model)}]} {:op :migration})))
+           :reference (:slug model)}]} {:op :migration})
+      (db/update :field ["id = ?" tie-id] {:target-id model-id})))
 
   (rename-model [this old-slug new-slug]
     (field/rename-model-index old-slug new-slug (str (-> this :row :slug) "-id")))

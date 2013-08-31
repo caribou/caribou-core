@@ -205,12 +205,25 @@
       (sql/do-commands
        (log/out :db (util/clause
                        (condp = deletion
-                         :destroy "alter table %1 add foreign key(%2) references %3 on delete cascade"
-                         :default "alter table %1 add foreign key(%2) references %3 on delete set default"
-                         "alter table %1 add foreign key(%2) references %3 on delete set null")
+                         :destroy "alter table %1 add constraint %1_%2_%3_fk foreign key(%2) references %3 on delete cascade"
+                         :default "alter table %1 add constraint %1_%2_%3_fk foreign key(%2) references %3 on delete set default"
+                         "alter table %1 add constraint %1_%2_%3_fk foreign key(%2) references %3 on delete set null")
                        [(util/dbize table) (util/dbize column) (util/dbize reference)])))
       (catch Exception e
         (log/error (str "UNABLE TO ADD REFERENCE FOR" table column reference deletion e))))))
+
+(defn drop-reference
+  [table column reference]
+  (if (adapter/supports-constraints? (config/draw :database :adapter))
+    (try
+      (sql/do-commands
+       (log/out 
+        :db 
+        (util/clause
+         "alter table %1 drop constraint %1_%2_%3_fk"
+         [(util/dbize table) (util/dbize column) (util/dbize reference)])))
+      (catch Exception e
+        (log/error (str "UNABLE TO DROP REFERENCE FOR" table column reference e))))))
 
 (defn do-sql
   "execute arbitrary sql.  direct proxy to sql/do-commands."

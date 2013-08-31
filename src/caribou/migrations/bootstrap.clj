@@ -41,7 +41,7 @@
    [:type "varchar(256)" "NOT NULL"]
    [:default-value "varchar(256)"]
    [:link-id :integer "DEFAULT NULL"]
-   [:model-id :integer "NOT NULL" "REFERENCES model ON DELETE CASCADE"]
+   [:model-id :integer "NOT NULL"] ;;  "REFERENCES model ON DELETE CASCADE"]
    [:model-position :integer "DEFAULT 0"]
    [:target-id :integer "DEFAULT NULL"]
    [:target-type "varchar(55)" "DEFAULT NULL"]
@@ -56,7 +56,8 @@
    [:searchable :boolean "DEFAULT false"]
    [:dependent :boolean "DEFAULT false"]
    [:created-at "timestamp" "NOT NULL" "DEFAULT current_timestamp"]
-   [:updated-at "timestamp" "NOT NULL"])) ;; "DEFAULT current_timestamp"]))
+   [:updated-at "timestamp" "NOT NULL"])
+  (db/add-reference :field :model-id :model :destroy)) ;; "DEFAULT current_timestamp"]))
 
 (defn create-model-model []
   (db/insert

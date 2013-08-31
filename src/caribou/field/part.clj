@@ -74,6 +74,7 @@
                            {:name reciprocal-name
                             :type "collection"
                             :locked (:locked row)
+                            :editable (:editable row)
                             :localized localized
                             :model-id (:target-id row)
                             :target-id model-id
