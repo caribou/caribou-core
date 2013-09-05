@@ -65,6 +65,18 @@
       (is (not (db/table? :yellow)))
       (is (not (models :yellow))))))
 
+(defn model-logic-test
+  []
+  (let [site-or-field (gather 
+                       :model
+                       {:where {'or [{:fields {:slug "asset"}} {:slug "field"}]}})
+        id-or-slug-not-in (gather
+                           :model
+                           :where {'not {'or [{:id [2 3 4]} {:slug ["asset" "location"]}]}})]
+    (is (some #{"site" "field"} (map :slug site-or-field)))
+    (is (not (some #{2 3 4} (map :id id-or-slug-not-in))))
+    (is (not (some #{"asset" "location"} (map :slug id-or-slug-not-in))))))
+
 (defn model-interaction-test
   []
   (let [yellow-row (create :model
