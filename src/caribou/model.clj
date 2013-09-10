@@ -613,10 +613,11 @@
     (if (present? (:reference content))
       (do
         (db/create-index model-slug slug)
-        (db/add-reference model-slug slug (:reference content)
-                          (if (:dependent content)
-                            :destroy
-                            :default))))
+        ;; (db/add-reference model-slug slug (:reference content)
+        ;;                   (if (:dependent content)
+        ;;                     :destroy
+        ;;                     :default))))
+        ))
     (if (:required content)
       (db/set-required model-slug slug true))
     (if (:disjoint content)

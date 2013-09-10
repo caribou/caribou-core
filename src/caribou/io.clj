@@ -44,10 +44,11 @@
   ([target]
      (let [built-in-models (map :id (model/gather :model {:where {:locked true}}))
            opts {:model {:where {:locked false}}
-                 :field {:where {'not {:model-id built-in-models}}}
+                 :field {:where {'or [{'not {:model-id built-in-models}} {'not {:target-id built-in-models}}]}}
                  :status {:where {'not {:slug ["draft" "published"]}}}}
            schema (compound-models schema-models opts)]
-       (export-map schema target))))
+       (export-models schema-models opts target))))
+       ;; (export-map schema target))))
 
 (defn user-model-keys
   []
@@ -56,13 +57,19 @@
 
 (defn non-schema-keys
   []
-  (let [all-models (map (comp keyword :slug) (model/models))]
+  (let [all-models (map (comp keyword :slug) (model/gather :model))]
     (remove (set schema-models) all-models)))
 
 (defn export-content
   ([] (export-content "export/content.clj"))
   ([target] 
-     (export-models (non-schema-keys) {} target)))
+     (let [models (non-schema-keys)
+           opts {:site {:where {'not {:id 1}}}
+                 :account {:where {'not {:id 1}}}
+                 :role {:where {'not {:id 1}}}
+                 :permission {:where {'not {:role-id 1}}}
+                 :page {:where {'not {:id 1}}}}]
+     (export-models models opts target))))
        
 (defn generate-id-map
   [model-key items]
@@ -85,9 +92,9 @@
          (fn [item]
            (if-let [pointer (get item remote-key)]
              (let [new-id (get-in remote-ids [pointer :id])]
-               (println "SYNCING REMOTE KEY" model-key remote-key (get item remote-key) new-id)
+               (println "SYNCING REMOTE KEY" model-key remote-key (get item remote-key) new-id (str (keys remote-ids)))
                (assoc item 
-                 remote-key new-id
+                 remote-key (or new-id pointer)
                  :_synced true))
              item))))
       model-map (keys model-map)))))
@@ -172,6 +179,11 @@
                              (assoc models-by-id (:id model) model))
                            {} (model/gather :model))
 
+             ;; old-model-id-map (:model id-map)
+
+             ;; ;; merge in the current model id map
+             ;; id-map (update-in id-map [:model] #(merge models-by-id %))
+
              ;; point all the old remote ids to the new ids for those same items
              id-map (reduce 
                      (fn [id-map model-key]
@@ -185,7 +197,7 @@
                      (model/update model-key (:id item) (dissoc item :_synced)))))]
 
          ;; now do all necessary hooks for :model, :field and :locale!
-         (doseq [model (vals (:model id-map))]
+         (doseq [model (vals (:model id-map))] ;; old-model-id-map)]
            (db/create-table 
             (keyword (:slug model)) 
             [:id "SERIAL" "PRIMARY KEY"]))
@@ -196,7 +208,7 @@
              (model/add-db-columns-for-field field-field model-slug (:slug field))
              (model/prepare-db-field field-field model-slug (:slug field) field)))
 
-         (doseq [model (vals (:model id-map))]
+         (doseq [model (vals (:model id-map))] ;; old-model-id-map)]
            (db/create-index (:slug model) "id")
            (db/create-index (:slug model) "uuid"))
 
@@ -208,3 +220,40 @@
 
          ;; finally, invoke new models!
          (model/invoke-models)))))
+
+
+(defn import-content
+  ([] (import-schema "export/content.clj"))
+  ([target]
+     (with-open [in (java.io.PushbackReader. (io/reader target))]
+       (let [all (read in)
+
+             ;; save hooks for later and neutralize to isolate side 
+             ;; effects while importing
+             hooks (deref (config/draw :hooks :lifecycle))
+             _ (swap! (config/draw :hooks :lifecycle) (constantly {}))
+
+             ;; build map of old ids to new items for each model
+             id-map (reduce 
+                     (fn [id-map [model-key items]]
+                       (let [model-map (generate-id-map model-key items)]
+                         (assoc id-map model-key model-map)))
+                     {} all)
+
+             ;; get all currently existing models by id
+             models-by-id (reduce
+                           (fn [models-by-id model]
+                             (assoc models-by-id (:id model) model))
+                           {} (model/gather :model))
+
+             ;; point all the old remote ids to the new ids for those same items
+             id-map (reduce 
+                     (fn [id-map model-key]
+                       (sync-remote-associations id-map model-key models-by-id))
+                     id-map (keys id-map))]
+
+         ;; perform db updates on all items who have updated remote ids
+         (doseq [[model-key model-map] id-map]
+           (doseq [item (vals model-map)]
+             (if (:_synced item)
+               (model/update model-key (:id item) (dissoc item :_synced)))))))))
