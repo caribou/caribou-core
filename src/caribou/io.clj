@@ -92,7 +92,7 @@
          (fn [item]
            (if-let [pointer (get item remote-key)]
              (let [new-id (get-in remote-ids [pointer :id])]
-               (println "SYNCING REMOTE KEY" model-key remote-key (get item remote-key) new-id (str (keys remote-ids)))
+               (println "SYNCING REMOTE KEY" model-key remote-key (get item remote-key) new-id)
                (assoc item 
                  remote-key (or new-id pointer)
                  :_synced true))
@@ -160,7 +160,8 @@
 
              ;; temporarily disable field foreign key constraint
              _ (db/drop-reference :field :model-id :model)
-
+             _ (db/do-sql "alter table field drop constraint \"model_id_slug_unique\"")
+             
              ;; build map of old ids to new items for each model
              id-map (reduce 
                      (fn [id-map [model-key items]]
@@ -204,11 +205,14 @@
 
          (doseq [field (vals (:field id-map))]
            (let [field-field (model/make-field field)
+                 field-slug (:slug field)
                  model-slug (get-in models-by-id [(:model-id field) :slug])]
-             (model/add-db-columns-for-field field-field model-slug (:slug field))
-             (model/prepare-db-field field-field model-slug (:slug field) field)))
+             (model/add-db-columns-for-field field-field model-slug field-slug)
+             (model/prepare-db-field field-field model-slug field-slug field)
+             (if (= "created-at" field-slug)
+               (db/set-default model-slug field-slug 'current_timestamp))))
 
-         (doseq [model (vals (:model id-map))] ;; old-model-id-map)]
+         (doseq [model (vals (:model id-map))];;old-model-id-map)]
            (db/create-index (:slug model) "id")
            (db/create-index (:slug model) "uuid"))
 

@@ -47,9 +47,8 @@
    {:name "Env Id" :slug "env-id" :type "integer" :locked true :editable false}
    {:name "Locked" :slug "locked" :type "boolean" :locked true :immutable true
     :editable false :default-value false}
-   {:name "Created At" :slug "created-at" :type "timestamp"
-    :default-value "current_timestamp" :locked true :immutable true
-    :editable false}
+   {:name "Created At" :slug "created-at" :type "timestamp" 
+    :locked true :immutable true :editable false}
    {:name "Updated At" :slug "updated-at" :type "timestamp" :locked true
     :editable false}])
 

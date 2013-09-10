@@ -252,6 +252,8 @@
   [query-map]
   (let [[query params] (construct-query query-map)
         db-query (util/underscore query)
+        ;; _ (println "QUERY MAP" query-map)
+        ;; _ (println "QUERY" db-query params)
         results (db/query db-query params)]
     results))
 

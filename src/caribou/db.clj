@@ -34,6 +34,7 @@
   (cond
     (number? value) value
     (isa? (type value) Boolean) value
+    (symbol? value) (str value)
     (keyword? value) (util/dbize value)
     (string? value) (str "'" (util/zap value) "'")
     :else (str "'" (util/zap (str value)) "'")))
@@ -168,10 +169,12 @@
 (defn set-default
   "sets the default for a column"
   [table column default]
-  (if (adapter/supports-constraints? (config/draw :database :adapter))
-    (let [value (sqlize default)]
-      (sql/do-commands
-       (log/out :db (util/clause "alter table %1 alter column %2 set default %3" [(util/dbize table) (util/dbize column) value]))))))
+  (try
+    (if (adapter/supports-constraints? (config/draw :database :adapter))
+      (let [value (sqlize default)]
+        (sql/do-commands
+         (log/out :db (util/clause "alter table %1 alter column %2 set default %3" [(util/dbize table) (util/dbize column) value])))))
+    (catch Exception e (log/render-exception e))))
 
 (defn set-required
   [table column value]

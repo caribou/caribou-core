@@ -9,6 +9,7 @@
             [caribou.validation :as validation]))
 
 (import java.util.Date)
+(import java.sql.Timestamp)
 (import java.text.SimpleDateFormat)
 
 (defn current-timestamp
@@ -154,7 +155,10 @@
       (cond
        (contains? content key)
        (let [value (content key)
-             timestamp (if (string? value) (read-date value) value)]
+             timestamp (cond 
+                        (string? value) (read-date value) 
+                        (= (type value) java.util.Date) (java.sql.Timestamp. (.getTime value))
+                        :else value)]
          (if timestamp
            (assoc values key timestamp)
            values))
