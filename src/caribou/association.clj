@@ -288,6 +288,7 @@
 
 (defn join-order
   [field target prefix opts]
+  (println "JOIN ORDER" (-> field :row :slug) (:slug target) prefix opts)
   (let [slug (keyword (-> field :row :slug))]
     (with-propagation :order opts slug
       (fn [down]

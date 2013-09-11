@@ -6,9 +6,9 @@
             [caribou.association :as assoc]))
 
 (defn enum-fusion
-  [this prefix archetype skein opts]
+  [field prefix archetype skein opts]
   (assoc/join-fusion
-   this (field/models :enumeration) prefix archetype skein opts
+   field (field/models :enumeration) prefix archetype skein opts
    (fn [master]
      (if master
        (get master :entry)))))
@@ -27,6 +27,25 @@
         (assoc values
           (keyword (str slug "-id")) found))
       values)))
+
+(defn enum-build-order
+  [field prefix opts]
+  (println "ENUM BUILD ORDER" prefix opts)
+  (let [slug (-> field :row :slug keyword)]
+    (if (contains? (:order opts) slug)
+      (let [opts (update-in opts [:order slug] (fn [order] {:entry order}))]
+        (assoc/join-order field (field/models :enumeration) prefix opts)))))
+
+(defn enum-build-where
+  [field prefix opts]
+  (let [slug (-> field :row :slug)]
+    (assoc/with-propagation :where opts slug
+      (fn [down]
+        (println "ENUM WHERE" prefix slug)
+        (assoc/model-where-conditions
+         (field/models :enumeration)
+         (str prefix "$" slug)
+         (update-in down [:where] (fn [v] {:entry v})))))))
 
 (defrecord EnumField [row env]
   field/Field
@@ -80,17 +99,12 @@
 
   (build-where
     [this prefix opts]
-    (assoc/with-propagation :where opts (:slug row)
-      (fn [down]
-        (assoc/model-where-conditions
-         (field/models :enumeration)
-         (str prefix "$" (:slug row))
-         down))))
+    (enum-build-where this prefix opts))
 
   (natural-orderings [this prefix opts])
 
   (build-order [this prefix opts]
-    (assoc/join-order this (field/models :enumeration) prefix opts))
+    (enum-build-order this prefix opts))
 
   (field-generator [this generators]
     generators)

@@ -59,7 +59,7 @@
       (str "http://" (config/draw :aws :bucket) ".s3.amazonaws.com/"
            (s3-key asset))
       "")
-    (asset-location asset)))
+    (str "/" (asset-location asset))))
 
 (defn asset-upload-path
   "Where to send this asset to."
