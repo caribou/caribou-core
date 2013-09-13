@@ -107,25 +107,67 @@
    map and constructs the order clause to ultimately be used in the
    uberquery."
   [model opts]
-  (let [ordering (if-not (empty? (:order opts))
-                   opts 
-                   (assoc opts :order {:position :asc}))
+  (let [ordering (if (empty? (:order opts)) 
+                   (assoc-in opts [:order :position] :asc)
+                   opts)
         order (association/model-build-order model (:slug model) ordering)]
     order))
 
+(defn table-for
+  [column]
+  (let [column (if (map? column) (first (first (vals column))) column)]
+    (first (string/split column #"\."))))
+
+(defn find-order-tables
+  [orders]
+  (reduce
+   (fn [tables order]
+     (let [table (table-for (:by order))]
+       (assoc tables table order)))
+   {} orders))
+
+(defn from-table
+  [from]
+  (if (sequential? from)
+    (last from) from))
+
+(declare merge-select-tree)
+
+(defn merge-where-tree
+  [order-tables where]
+  (let [value (:value where)]
+    (if (and (map? value) (contains? value :from))
+      (update-in where [:value] (partial merge-select-tree order-tables))
+      where)))
+
+(defn merge-select-tree
+  [order-tables select]
+  (let [select-table (from-table (:from select))
+        order-for-table (get order-tables select-table)
+        merged-wheres (update-in select [:where] #(map (partial merge-where-tree order-tables) %))]
+    (if order-for-table
+      (update-in merged-wheres [:order] #(concat % (list order-for-table)))
+      merged-wheres)))
+
+(defn merge-order-inner
+  [order inner]
+  (let [order-tables (find-order-tables order)]
+    (merge-select-tree order-tables inner)))
+
 (defn model-outer-condition
-  [model inner order limit-offset opts]
-  (let [model-id (str (:slug model) ".id")]
+  [model where order limit-offset opts]
+  (let [model-id (str (:slug model) ".id")
+        inner (merge
+               {:select model-id
+                :from (:slug model)
+                :where where}
+               limit-offset)
+        merged (merge-order-inner order inner)]
     (list
      {:field model-id
       :op "in"
       :value {:select "*"
-              :from (merge
-                     {:select model-id
-                      :from (:slug model)
-                      :where inner
-                      :order order}
-                     limit-offset)
+              :from merged
               :as "_conditions_"}})))
 
 (defn form-uberquery
@@ -134,17 +176,16 @@
   [model opts]
   (let [query (model-select-query model (:slug model) opts)
         where (association/model-where-conditions model (:slug model) opts)
-
         order (model-order-statement model opts)
         
         natural (association/model-natural-orderings model (:slug model) opts)
-        immediate-order (immediate-vals (:order opts))
-        base-opts (if (empty? immediate-order) {} {:order immediate-order})
-        base-order (model-order-statement model base-opts)
-        final-order (if (empty? order) natural (concat order natural))
+        ;; immediate-order (immediate-vals (:order opts))
+        ;; base-opts (if (empty? immediate-order) {} {:order immediate-order})
+        ;; base-order (model-order-statement model base-opts)
+        final-order (concat order natural)
         limit-offset (when-let [limit (:limit opts)]
                        (model-limit-offset limit (or (:offset opts) 0)))
-        condition (model-outer-condition model where base-order limit-offset opts)]
+        condition (model-outer-condition model where final-order limit-offset opts)]
     (assoc query
       :where condition
       :order final-order)))

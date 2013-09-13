@@ -30,7 +30,6 @@
 
 (defn enum-build-order
   [field prefix opts]
-  (println "ENUM BUILD ORDER" prefix opts)
   (let [slug (-> field :row :slug keyword)]
     (if (contains? (:order opts) slug)
       (let [opts (update-in opts [:order slug] (fn [order] {:entry order}))]
