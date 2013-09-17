@@ -41,10 +41,14 @@
     (assoc/with-propagation :where opts slug
       (fn [down]
         (println "ENUM WHERE" prefix slug)
-        (assoc/model-where-conditions
-         (field/models :enumeration)
-         (str prefix "$" slug)
-         (update-in down [:where] (fn [v] {:entry v})))))))
+        (let [table-alias (str prefix "$" slug)]
+          {:field (str prefix "." slug "-id")
+           :op "in"
+           :value {:select (str table-alias ".id")
+                   :from ["enumeration" table-alias]
+                   :where [{:field (str table-alias ".entry")
+                            :op "="
+                            :value (get-in opts [:where (keyword slug)])}]}})))))
 
 (defrecord EnumField [row env]
   field/Field

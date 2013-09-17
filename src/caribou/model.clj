@@ -176,13 +176,11 @@
   [model opts]
   (let [query (model-select-query model (:slug model) opts)
         where (association/model-where-conditions model (:slug model) opts)
+
         order (model-order-statement model opts)
-        
         natural (association/model-natural-orderings model (:slug model) opts)
-        ;; immediate-order (immediate-vals (:order opts))
-        ;; base-opts (if (empty? immediate-order) {} {:order immediate-order})
-        ;; base-order (model-order-statement model base-opts)
         final-order (concat order natural)
+
         limit-offset (when-let [limit (:limit opts)]
                        (model-limit-offset limit (or (:offset opts) 0)))
         condition (model-outer-condition model where final-order limit-offset opts)]

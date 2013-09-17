@@ -17,12 +17,11 @@
               part (-> field :row :slug)
               part-id-slug (keyword (str part "-id"))
               part-id-field (-> model :fields part-id-slug)
-              part-select (field/coalesce-locale model part-id-field prefix
-                                                  (name part-id-slug) opts)
+              part-select (field/coalesce-locale 
+                           model part-id-field prefix (name part-id-slug) opts)
               id-field (-> target :fields :id)
               table-alias (str prefix "$" slug)
-              field-select (field/coalesce-locale model id-field table-alias
-                                                   "id" opts)
+              field-select (field/coalesce-locale model id-field table-alias "id" opts)
               subconditions (assoc/model-where-conditions target table-alias down)]
           {:field part-select
            :op "in"
