@@ -147,6 +147,17 @@
               (vals (:fields model))))]
         (doall (flatten eyes))))))
 
+(defn foreign-where
+  [table prefix slug column value]
+  (let [table-alias (str prefix "$" slug)]
+    {:field (str prefix "." slug "-id")
+     :op "in"
+     :value {:select (str table-alias ".id")
+             :from [table table-alias]
+             :where [{:field (str table-alias "." column)
+                      :op "="
+                      :value value}]}}))
+
 (defn table-fields
   "This is part of the Field protocol that is the same for all fields.
   Returns the set of fields that could play a role in the select. "

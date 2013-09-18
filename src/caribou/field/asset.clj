@@ -83,9 +83,10 @@
     [this prefix opts]
     (assoc/with-propagation :where opts (:slug row)
       (fn [down]
-        (assoc/model-where-conditions (field/models :asset)
-                                            (str prefix "$" (:slug row))
-                                            down))))
+        (assoc/model-where-conditions 
+         (field/models :asset)
+         (str prefix "$" (:slug row))
+         down))))
 
   (natural-orderings [this prefix opts])
 
