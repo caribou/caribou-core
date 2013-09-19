@@ -37,8 +37,10 @@
 
 (defn enum-build-where
   [field prefix opts]
-  (let [entered (update-in opts [:where (-> field :row :slug keyword)] (fn [value] {:entry value}))]
-    (assoc/part-where field (field/models :enumeration) prefix entered)))
+  (let [slug (-> field :row :slug keyword)]
+    (if (-> opts :where slug)
+      (let [entered (update-in opts [:where slug] (fn [value] {:entry value}))]
+        (assoc/part-where field (field/models :enumeration) prefix entered)))))
 
 (defrecord EnumField [row env]
   field/Field

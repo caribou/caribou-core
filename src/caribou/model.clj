@@ -105,6 +105,13 @@
            (set? v))))
     m)))
 
+(defn splinter-order
+  [opts]
+  (map 
+   (fn [order]
+     (assoc opts :order order))
+   (:order opts)))
+
 (defn model-order-statement
   "Joins the natural orderings and the given orderings from the opts
    map and constructs the order clause to ultimately be used in the
@@ -112,9 +119,10 @@
   [model opts]
   (let [ordering (if (empty? (:order opts)) 
                    (assoc-in opts [:order :position] :asc)
-                   opts)
-        order (association/model-build-order model (:slug model) ordering)]
-    order))
+                   opts)]
+    (if (map? (:order ordering))
+      (association/model-build-order model (:slug model) ordering)
+      (mapcat (partial association/model-build-order model (:slug model)) (splinter-order ordering)))))
 
 (defn table-for
   [column]
@@ -282,8 +290,9 @@
            ;;     (validation/beams slug opts)
            ;;     (catch Exception e
            ;;       (.printStackTrace e))))
-           (if-let [aggregate (-> opts :aggregate keyword)]
-             (-> (uberquery model opts) first (get aggregate))
+           (if (-> opts :aggregate keyword)
+             (uberquery model opts)
+             ;; (-> (uberquery model opts) first (get aggregate))
              (let [beams (beam-splitter defaulted)
                    resurrected (mapcat (partial uberquery model) beams)
                    fused (association/fusion model (name slug) resurrected defaulted)
@@ -299,6 +308,11 @@
   ([slug] (pick slug {}))
   ([slug opts]
      (first (gather slug (assoc opts :limit 1)))))
+
+(defn aggregate
+  [slug opts]
+  (if-let [aggregate (-> opts :aggregate keyword)]
+    (-> (gather slug opts) first (get aggregate))))
 
 (defn impose
   "impose is identical to pick except that if the record with the given
