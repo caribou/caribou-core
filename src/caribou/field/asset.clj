@@ -14,16 +14,16 @@
      (if master
        (assoc master :path (asset/asset-path master))))))
 
+(defn asset-build-where
+  [field prefix opts]
+  (assoc/part-where field (field/models :asset) prefix opts))
+
 (defn commit-asset-source
   [field content values original]
   (let [row (:row field)
         slug (:slug row)
         posted (get content (keyword slug))
         id-key (keyword (str slug "-id"))]
-        ;; preexisting (get original id-key)
-        ;; posted (if preexisting 
-        ;;          (assoc posted :id preexisting)
-        ;;          posted)]
     (if posted
       (let [asset ((resolve 'caribou.model/create) :asset posted)]
         (assoc values id-key (:id asset)))
@@ -81,12 +81,7 @@
 
   (build-where
     [this prefix opts]
-    (assoc/with-propagation :where opts (:slug row)
-      (fn [down]
-        (assoc/model-where-conditions 
-         (field/models :asset)
-         (str prefix "$" (:slug row))
-         down))))
+    (asset-build-where this prefix opts))
 
   (natural-orderings [this prefix opts])
 

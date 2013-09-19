@@ -15,6 +15,10 @@
              (address :postal-code)
              (address :country)]))
 
+(defn address-build-where
+  [field prefix opts]
+  (assoc/part-where field (field/models :location) prefix opts))
+
 (defn geocode-address [address]
  (let [code (geo/geocode-address (full-address address))]
    (if (empty? code)
@@ -82,11 +86,12 @@
 
   (build-where
     [this prefix opts]
-    (assoc/with-propagation :where opts (:slug row)
-      (fn [down]
-        (assoc/model-where-conditions
-         (field/models :location)
-         (str prefix "$" (:slug row)) down))))
+    (address-build-where this prefix opts))
+    ;; (assoc/with-propagation :where opts (:slug row)
+    ;;   (fn [down]
+    ;;     (assoc/model-where-conditions
+    ;;      (field/models :location)
+    ;;      (str prefix "$" (:slug row)) down))))
 
   (natural-orderings [this prefix opts])
 

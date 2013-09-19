@@ -77,11 +77,14 @@
   "Build the select query for this model by the given prefix based on the
    particular nesting of the include map."
   [model prefix opts]
-  (let [selects (association/model-select-fields model prefix opts)
-        joins (association/model-join-conditions model prefix opts)]
-    {:select selects
-     :from [(:slug model) prefix]
-     :join joins}))
+  (if-let [aggregate (:aggregate opts)]
+    {:select aggregate
+     :from [(:slug model) prefix]}
+    (let [selects (association/model-select-fields model prefix opts)
+          joins (association/model-join-conditions model prefix opts)]
+      {:select selects
+       :from [(:slug model) prefix]
+       :join joins})))
 
 (defn model-limit-offset
   "Determine the limit and offset component of the uberquery based on
@@ -170,23 +173,25 @@
               :from merged
               :as "_conditions_"}})))
 
+(defn final-order-clause
+  [model opts]
+  (when-not (:aggregate opts)
+    (let [order (model-order-statement model opts)
+          natural (association/model-natural-orderings model (:slug model) opts)]
+      (concat order natural))))
+
 (defn form-uberquery
   "Given the model and map of opts, construct the corresponding
   uberquery (but don't call it!)"
   [model opts]
   (let [query (model-select-query model (:slug model) opts)
         where (association/model-where-conditions model (:slug model) opts)
-
-        order (model-order-statement model opts)
-        natural (association/model-natural-orderings model (:slug model) opts)
-        final-order (concat order natural)
-
-        limit-offset (when-let [limit (:limit opts)]
-                       (model-limit-offset limit (or (:offset opts) 0)))
-        condition (model-outer-condition model where final-order limit-offset opts)]
+        order (final-order-clause model opts)
+        limit-offset (when-let [limit (:limit opts)] (model-limit-offset limit (or (:offset opts) 0)))
+        condition (model-outer-condition model where order limit-offset opts)]
     (assoc query
       :where condition
-      :order final-order)))
+      :order order)))
 
 (defn construct-uberquery
   [model opts]
@@ -277,14 +282,16 @@
            ;;     (validation/beams slug opts)
            ;;     (catch Exception e
            ;;       (.printStackTrace e))))
-           (let [beams (beam-splitter defaulted)
-                 resurrected (mapcat (partial uberquery model) beams)
-                 fused (association/fusion model (name slug) resurrected defaulted)
-                 involved (association/model-models-involved model defaulted #{})]
-             (query/cache-query query-hash fused)
-             (doseq [m involved]
-               (query/reverse-cache-add m query-hash))
-             fused))))))
+           (if-let [aggregate (-> opts :aggregate keyword)]
+             (-> (uberquery model opts) first (get aggregate))
+             (let [beams (beam-splitter defaulted)
+                   resurrected (mapcat (partial uberquery model) beams)
+                   fused (association/fusion model (name slug) resurrected defaulted)
+                   involved (association/model-models-involved model defaulted #{})]
+               (query/cache-query query-hash fused)
+               (doseq [m involved]
+                 (query/reverse-cache-add m query-hash))
+               fused)))))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is

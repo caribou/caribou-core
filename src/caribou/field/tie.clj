@@ -5,6 +5,10 @@
             [caribou.validation :as validation]
             [caribou.association :as assoc]))
 
+(defn tie-build-where
+  [field prefix opts]
+  (assoc/part-where field (field/models (-> field :row :model-id)) prefix opts))
+
 (defrecord TieField [row env]
   field/Field
 
@@ -70,10 +74,7 @@
 
   (build-where
     [this prefix opts]
-    (assoc/with-propagation :where opts (:slug row)
-      (fn [down]
-        (let [target (field/models (:model-id row))]
-          (assoc/model-where-conditions target (str prefix "$" (:slug row)) down)))))
+    (tie-build-where this prefix opts))
 
   (natural-orderings [this prefix opts]
     (assoc/with-propagation :where opts (:slug row)

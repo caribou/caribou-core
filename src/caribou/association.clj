@@ -147,16 +147,25 @@
               (vals (:fields model))))]
         (doall (flatten eyes))))))
 
-(defn foreign-where
-  [table prefix slug column value]
-  (let [table-alias (str prefix "$" slug)]
-    {:field (str prefix "." slug "-id")
-     :op "in"
-     :value {:select (str table-alias ".id")
-             :from [table table-alias]
-             :where [{:field (str table-alias "." column)
-                      :op "="
-                      :value value}]}}))
+(defn part-where
+  [field target prefix opts]
+  (let [slug (-> field :row :slug)]
+    (with-propagation :where opts slug
+      (fn [down]
+        (let [model (field/models (-> field :row :model-id))
+              part-id-slug (keyword (str slug "-id"))
+              part-id-field (-> model :fields part-id-slug)
+              part-select (field/coalesce-locale 
+                           model part-id-field prefix (name part-id-slug) opts)
+              id-field (-> target :fields :id)
+              table-alias (str prefix "$" slug)
+              field-select (field/coalesce-locale model id-field table-alias "id" opts)
+              subconditions (model-where-conditions target table-alias down)]
+          {:field part-select
+           :op "in"
+           :value {:select field-select
+                   :from [(:slug target) table-alias]
+                   :where subconditions}})))))
 
 (defn table-fields
   "This is part of the Field protocol that is the same for all fields.
