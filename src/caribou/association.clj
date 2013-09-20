@@ -213,7 +213,6 @@
   [model prefix opts]
   (let [fields (-> model :fields vals)
         shearing (find-shearing opts)
-        _ (println shearing)
         model-fields (map #(select-fields model % (name prefix) opts shearing) fields)]
     (set (apply concat model-fields))))
 
