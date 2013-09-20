@@ -250,12 +250,12 @@
 
 (defn execute-query
   [query-map]
-  ;; (println "QUERY MAP" query-map)
+  (println "QUERY MAP" query-map)
   (let [[query params] (construct-query query-map)
         db-query (util/underscore query)
-        ;; _ (println "QUERY" db-query params)
+        _ (println "QUERY" db-query params)
         results (db/query db-query params)]
-    ;; (println "RESULTS" results)
+    (println "RESULTS" results)
     results))
 
 ;; QUERY CACHE ----------------------------

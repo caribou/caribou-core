@@ -194,25 +194,34 @@
    and fashion them into sql form."
   [model field prefix opts shearing]
   (let [columns (table-fields field)
+        slug (-> field :row :slug keyword)
         sheared (if shearing (filter shearing columns) columns)
         next-prefix (str prefix (:slug field))
         model-fields (map #(build-alias model field prefix % opts) sheared)
         subfields (find-subfields field opts)
-        join-model-fields (field/join-fields field next-prefix subfields)]
+        join-model-fields (when-not (and shearing (not (shearing slug)))
+                            (field/join-fields field next-prefix subfields))]
     (concat model-fields join-model-fields)))
+
+(defn extract-field-key
+  [fields-item]
+  (if (map? fields-item)
+    (keys fields-item)
+    fields-item))
 
 (defn find-shearing
   "finds the subset of fields that should be selected based on the :fields key of the
   opts map"
   [opts]
-  (when-let [retaining (:fields opts)] 
-    (set (filter keyword? retaining))))
+  (when-let [retaining (:fields opts)]
+    (set (flatten (map extract-field-key retaining)))))
 
 (defn model-select-fields
   "Build a set of select fields based on the given model."
   [model prefix opts]
   (let [fields (-> model :fields vals)
         shearing (find-shearing opts)
+        shearing (if shearing (conj shearing :id))
         model-fields (map #(select-fields model % (name prefix) opts shearing) fields)]
     (set (apply concat model-fields))))
 
