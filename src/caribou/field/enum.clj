@@ -28,6 +28,16 @@
           (keyword (str slug "-id")) found))
       values)))
 
+(defn enum-join-fields
+  [field prefix opts]
+  (assoc/model-select-fields
+   (field/models :enumeration)
+   (str prefix "$" (-> field :row :slug))
+   (update-in
+    (dissoc opts :include)
+    [:fields]
+    #(concat % [:id :entry]))))
+
 (defn enum-build-order
   [field prefix opts]
   (let [slug (-> field :row :slug keyword)]
@@ -75,10 +85,7 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (assoc/model-select-fields
-     (field/models :enumeration)
-     (str prefix "$" (:slug row))
-     (dissoc opts :include)))
+    (enum-join-fields this prefix opts))
 
   (join-conditions [this prefix opts]
     (let [model (field/models (:model-id row))

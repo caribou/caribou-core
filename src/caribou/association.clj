@@ -181,23 +181,40 @@
   (let [select-field (field/coalesce-locale model field prefix slug opts)]
     [select-field (str prefix "$" (name slug))]))
 
+(defn find-subfields
+  "Given a field and an options map, find any fields specified under the :fields key
+  that belong to this field."
+  [field opts]
+  (let [slug (-> field :row :slug keyword)
+        subfields (filter identity (map #(get % slug) (:fields opts)))]
+    (assoc opts :fields (first subfields))))
+
 (defn select-fields
   "Find all necessary columns for the select query based on the given include nesting
    and fashion them into sql form."
-  [model field prefix opts]
+  [model field prefix opts shearing]
   (let [columns (table-fields field)
+        sheared (if shearing (filter shearing columns) columns)
         next-prefix (str prefix (:slug field))
-        model-fields (map #(build-alias model field prefix % opts) columns)
-        join-model-fields (field/join-fields field next-prefix opts)]
+        model-fields (map #(build-alias model field prefix % opts) sheared)
+        subfields (find-subfields field opts)
+        join-model-fields (field/join-fields field next-prefix subfields)]
     (concat model-fields join-model-fields)))
+
+(defn find-shearing
+  "finds the subset of fields that should be selected based on the :fields key of the
+  opts map"
+  [opts]
+  (when-let [retaining (:fields opts)] 
+    (set (filter keyword? retaining))))
 
 (defn model-select-fields
   "Build a set of select fields based on the given model."
   [model prefix opts]
-  (let [fields (vals (:fields model))
-        sf (fn [field]
-             (select-fields model field (name prefix) opts))
-        model-fields (map sf fields)]
+  (let [fields (-> model :fields vals)
+        shearing (find-shearing opts)
+        _ (println shearing)
+        model-fields (map #(select-fields model % (name prefix) opts shearing) fields)]
     (set (apply concat model-fields))))
 
 (defn model-build-order
@@ -223,15 +240,26 @@
        (field/render field content opts))
      content fields)))
 
+(defn shear-fields
+  [fields shearing]
+  (if shearing 
+    (filter 
+     (fn [field] 
+       (shearing (-> field :row :slug keyword)))
+     fields)
+    fields))
+
 (defn subfusion
   [model prefix skein opts]
-  (let [fields (-> model :fields vals)
-        extra-fields (:extra-fields opts)
+  (let [shearing (find-shearing opts)
+        fields (shear-fields (-> model :fields vals) shearing)
+        extra-fields (shear-fields (:extra-fields opts) shearing)
         opts (dissoc opts :extra-fields)
         archetype
         (reduce
          (fn [archetype field]
-           (field/fuse-field field prefix archetype skein opts))
+           (let [subfields (find-subfields field opts)]
+             (field/fuse-field field prefix archetype skein subfields)))
          {} fields)]
     (reduce
      #(field/pure-fusion %2 prefix %1 skein opts)
