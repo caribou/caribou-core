@@ -253,7 +253,7 @@
   (if shearing 
     (filter 
      (fn [field] 
-       (shearing (-> field :row :slug keyword)))
+       ((conj shearing :id) (-> field :row :slug keyword)))
      fields)
     fields))
 

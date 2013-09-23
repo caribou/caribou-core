@@ -18,6 +18,16 @@
   [field prefix opts]
   (assoc/part-where field (field/models :asset) prefix opts))
 
+(defn asset-join-fields
+  [field prefix opts]
+  (assoc/model-select-fields 
+   (field/models :asset)
+   (str prefix "$" (-> field :row :slug))
+   (update-in
+    (dissoc opts :include)
+    [:fields]
+    #(concat % [:id :filename :size :content-type]))))
+
 (defn commit-asset-source
   [field content values original]
   (let [row (:row field)
@@ -63,10 +73,7 @@
   (pre-destroy [this content] content)
 
   (join-fields [this prefix opts]
-    (assoc/model-select-fields 
-     (field/models :asset)
-     (str prefix "$" (:slug row))
-     (dissoc opts :include)))
+    (asset-join-fields this prefix opts))
 
   (join-conditions [this prefix opts]
     (let [model (field/models (:model-id row))
