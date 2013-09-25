@@ -213,33 +213,30 @@
   (let [query-mass (form-uberquery model opts)]
     (query/execute-query query-mass)))
 
+(defn split-beams
+  [opts include-keys include-key]
+  (let [include (select-keys (:include opts) [include-key])
+        extraneous-keys (remove #(= include-key %) include-keys)
+        order (if (map? (:order opts))
+                (apply (partial dissoc (:order opts)) extraneous-keys)
+                (remove 
+                 (fn [opt] 
+                   (some #(get opt %) extraneous-keys)) 
+                 (:order opts)))]
+    (assoc opts 
+      :include include
+      :order order)))
+
 (defn beam-splitter
-  "Splits the given options (:include, :where, :order) out into
+  "Splits the given options (:include, :order) out into
    parallel paths to avoid übercombinatoric explosion!  Returns a list
    of options each of which correspond to an independent set of
    includes."
   [opts]
   (if-let [include-keys (-> opts :include keys)]
-    (let [keys-difference (fn [a b]
-                            (set/difference (-> a keys set) (-> b keys set)))
-          split-keys [:include :order]
-          unsplit (apply (partial dissoc opts) split-keys)
-          reduce-split
-          (fn [include-key split key]
-            (let [split-opts (if-let [inner (-> opts key include-key)]
-                               (assoc split key {include-key inner})
-                               split)
-                  subopts (get opts key)
-                  other-keys (keys-difference subopts (:include opts))
-                  merge-subopts-other
-                  (fn [a]
-                    (merge a (select-keys subopts other-keys)))
-                  ultimate (update-in split-opts [key] merge-subopts-other)]
-              (merge ultimate unsplit)))]
-      (map (fn [include-key]
-             (reduce (partial reduce-split include-key)
-                     {} split-keys))
-           include-keys))
+    (map 
+     (partial split-beams opts include-keys)
+     include-keys)
     [opts]))
 
 (defn gather
