@@ -1,7 +1,7 @@
 (ns caribou.index
   (:require [clucy.core :as clucy]
             [caribou.logger :as log]
-            [fs.core :as fs]
+            [me.raynes.fs :as fs]
             [caribou.config :as config]))
 
 (defn index-store

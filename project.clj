@@ -25,7 +25,8 @@
                  [clojure-complete "0.2.3"]
                  [org.clojure/tools.nrepl "0.2.3"]
                  [clucy "0.3.1"]
-                 [fs "1.3.3"]
+                 ;[fs "1.3.3"]
+                 [me.raynes/fs "1.4.5"]
                  [org.mindrot/jbcrypt "0.3m"]]
   :dev-dependencies [[lein-autodoc "0.9.0"]]
   :repositories [["releases" {:url "https://clojars.org/repo" :creds :gpg}]]
@@ -44,7 +45,7 @@
 
            <p>Also, this provides the basis for the other Caribou libraries,
            <a href=\"http://antler.github.com/caribou-frontend\">Caribou Frontend</a>
-           <a href=\"http://antler.github.com/caribou-api\">Caribou API</a> and 
+           <a href=\"http://antler.github.com/caribou-api\">Caribou API</a> and
            <a href=\"http://antler.github.com/caribou-admin\">Caribou Admin</a>,
            each of which build in their own way upon this data model as a basis."}
   :aot [caribou.model]
