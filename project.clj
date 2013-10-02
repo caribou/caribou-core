@@ -26,7 +26,6 @@
                  [clojure-complete "0.2.3"]
                  [org.clojure/tools.nrepl "0.2.3"]
                  [clucy "0.3.1"]
-                 ;[fs "1.3.3"]
                  [me.raynes/fs "1.4.5"]
                  [org.mindrot/jbcrypt "0.3m"]]
   :dev-dependencies [[lein-autodoc "0.9.0"]]
