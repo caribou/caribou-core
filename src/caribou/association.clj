@@ -377,7 +377,7 @@
 (defrecord ModelDisplay [template])
 
 (defn model-display
-  [model content]
+  [model content opts]
   (if-let [display (:display-tree model)]
     (map
      (fn [item]
@@ -386,7 +386,7 @@
          (util/postwalk
           (fn [form]
             (if (= (type form) ModelDisplay)
-              (antlers/render (:template form) item)
+              (antlers/render (:template form) (merge opts item))
               form))
           display)))
      content)

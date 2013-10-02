@@ -296,7 +296,9 @@
              (let [beams (beam-splitter defaulted)
                    resurrected (mapcat (partial uberquery model) beams)
                    fused (association/fusion model (name slug) resurrected defaulted)
-                   displayed (if (:display opts) (association/model-display model fused) fused)
+                   displayed (if-let [display (:display opts)] 
+                               (association/model-display model fused display)
+                               fused)
                    involved (association/model-models-involved model defaulted #{})]
                (query/cache-query query-hash displayed)
                (doseq [m involved]
