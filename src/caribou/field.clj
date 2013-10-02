@@ -173,15 +173,22 @@
         slug (keyword (-> this :row :slug))]
     (update-in pure [slug] (partial adapter/text-value (config/draw :database :adapter)))))
 
+(defn structure-read
+  [structure]
+  (let [value (adapter/text-value (config/draw :database :adapter) structure)]
+    (if (and value (not (empty? value)))
+      (read-string value))))
+
 (defn structure-fusion
   [this prefix archetype skein opts]
   (let [pure (pure-fusion this prefix archetype skein opts)
         slug (keyword (-> this :row :slug))]
     (update-in
      pure [slug]
-     #(let [value (adapter/text-value (config/draw :database :adapter) %)]
-        (if (and value (not (empty? value)))
-          (read-string value))))))
+     structure-read)))
+     ;; #(let [value (adapter/text-value (config/draw :database :adapter) %)]
+     ;;    (if (and value (not (empty? value)))
+     ;;      (read-string value))))))
 
 (defn id-models-involved
   [field opts all]

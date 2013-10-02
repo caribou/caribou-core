@@ -5,6 +5,7 @@
             [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
             [pantomime.mime :as mime]
+            [antlers.parser :as parser]
             [caribou.util :as util]
             [caribou.config :as config]
             [caribou.logger :as log]
@@ -19,6 +20,8 @@
             [caribou.validation :as validation]
             [caribou.index :as index]
             [caribou.association :as association]))
+
+(import caribou.association.ModelDisplay)
 
 (def current-timestamp timestamp/current-timestamp)
 (def retrieve-links link/retrieve-links)
@@ -293,11 +296,12 @@
              (let [beams (beam-splitter defaulted)
                    resurrected (mapcat (partial uberquery model) beams)
                    fused (association/fusion model (name slug) resurrected defaulted)
+                   displayed (association/model-display model fused)
                    involved (association/model-models-involved model defaulted #{})]
-               (query/cache-query query-hash fused)
+               (query/cache-query query-hash displayed)
                (doseq [m involved]
                  (query/reverse-cache-add m query-hash))
-               fused)))))))
+               displayed)))))))
 
 (defn pick
   "pick is the same as gather, but returns only the first result, so is
@@ -793,6 +797,20 @@
 
 ;; MODELS --------------------------------------------------------------------
 
+(defn build-display-templates
+  [model]
+  (if-let [display (:display model)]
+    (assoc model
+      :display-tree
+      (util/postwalk
+       (fn [form]
+         (if (string? form)
+           (if-let [parse (parser/parse form)]
+             (ModelDisplay. parse))
+           form))
+       display))
+    model))
+
 (defn invoke-model
   "translates a row from the model table into a nested hash with
   references to its fields in a hash with keys being the field slugs
@@ -803,9 +821,11 @@
                 [(get model :id)])
         field-map (util/seq-to-map
                    #(keyword (-> % :row :slug))
-                   (map make-field fields))]
+                   (map make-field fields))
+        displayed (update-in model [:display] field/structure-read)
+        built (build-display-templates displayed)]
     (hooks/make-lifecycle-hooks (:slug model))
-    (assoc model :fields field-map)))
+    (assoc built :fields field-map)))
 
 (defn add-app-fields
   "When {:field {:namespace $CONFIG}} is defined, run the function add-fields

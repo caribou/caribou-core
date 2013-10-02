@@ -11,4 +11,5 @@
    "enumeration"
    "model-field-dbslugs"
    "uuid"
-   "field-unique-constraint"])
+   "field-unique-constraint"
+   "model-display"])

@@ -1,5 +1,7 @@
 (ns caribou.association
   (:require [clojure.string :as string]
+            [clojure.walk :as walk]
+            [antlers.core :as antlers]
             [caribou.config :as config]
             [caribou.logger :as log]
             [caribou.util :as util]
@@ -370,4 +372,22 @@
          (fn [part]
            (model-render target part down)))
         content))
+    content))
+
+(defrecord ModelDisplay [template])
+
+(defn model-display
+  [model content]
+  (if-let [display (:display-tree model)]
+    (map
+     (fn [item]
+       (assoc item
+         :model-display
+         (util/postwalk
+          (fn [form]
+            (if (= (type form) ModelDisplay)
+              (antlers/render (:template form) item)
+              form))
+          display)))
+     content)
     content))
