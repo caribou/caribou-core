@@ -276,7 +276,7 @@
 
 (defn walk-sort-map
   [m]
-  (walk/postwalk sort-map m))
+  (util/postwalk sort-map m))
 
 (defn hash-query
   [model-key opts]
