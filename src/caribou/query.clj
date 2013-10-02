@@ -271,7 +271,7 @@
 (defn sort-map
   [m]
   (if (map? m)
-    (sort m)
+    (sort #(compare (keyword (key %1)) (keyword (key %2))) m)
     m))
 
 (defn walk-sort-map
