@@ -21,9 +21,11 @@
 
 (defn format-date
   "given a date object, return a string representing the canonical format for that date"
-  [date]
-  (if date
-    (.format simple-date-format date)))
+  ([date]
+     (if date
+       (.format simple-date-format date)))
+  ([date date-format]
+     (format/unparse (format/formatter date-format) (coerce/from-date date))))
 
 (def custom-formatters
   (map #(format/formatter %)
