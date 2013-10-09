@@ -1,4 +1,4 @@
-(defproject caribou/caribou-core "0.12.18-S3-HOTFIX"
+(defproject caribou/caribou-core "0.12.18-S3-HOTFIX-2"
   :description "Caribou is a dynamic web application generator with antlers."
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/java.jdbc "0.2.3"
@@ -22,7 +22,7 @@
                   :exclusions [org.clojure/clojure]]
                  [leiningen-core "2.0.0-preview3"
                   :exclusions [org.clojure/clojure]]
-                 [clj-aws-s3 "0.3.7"]
+                 [caribou/clj-aws-s3 "0.3.7"]
                  [clojure-complete "0.2.3"]
                  [org.clojure/tools.nrepl "0.2.3"]
                  [clucy "0.3.1"]
