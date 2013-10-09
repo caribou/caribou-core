@@ -114,9 +114,11 @@
          (if-not (.isDirectory entry)
            (let [path (.getPath entry)
                  relative (string/replace-first path dir-pattern "")
-                 prefixed (str (s3-prefix prefix) relative)]
+                 prefixed (str (s3-prefix prefix) relative)
+                 file (io/file path)
+                 file-size (.length file)]
              (println "uploading" prefixed (.length entry))
-             (upload-to-s3 bucket prefixed (io/file path))))))))
+             (upload-to-s3 bucket prefixed file file-size)))))))
 
 ;; ASSET CREATION ----------------
 
