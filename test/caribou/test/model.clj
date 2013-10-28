@@ -870,6 +870,40 @@
                   (update :agent bond-id (into {} [update-spec]))))))
     (run-field-tests)))
 
+
+(defn gather-test
+  []
+  (create :model
+          {:name "Yellow"
+           :description "yellowness yellow yellow"
+           :position 3
+           :fields [{:name "Gogon" :type "string"}
+                    {:name "Wibib" :type "boolean"}]})
+  (create :yellow {:gogon "Nibbleflack" :wibib true})
+  (create :yellow {:gogon "Numberwang" :wibib false})
+
+  (testing "One-argument form of gather"
+    (let [one (gather {:model :yellow :where {:gogon {:LIKE "N%"}}})
+          two (gather :yellow {:where {:gogon {:LIKE "N%"}}})]
+      (is one two)
+      (is (count one) 2)))
+
+  (testing "One-argument form of pick"
+    (let [one (pick {:model :yellow :where {:gogon {:LIKE "N%"}}})
+          two (pick :yellow {:where {:gogon {:LIKE "N%"}}})]
+      (is one two)
+      (is (count one) 1)))
+
+  (testing "Old one-argument keyword form of gather still works"
+    (let [one (gather :yellow)
+          two (gather {:model :yellow})]
+      (is (count one) 2)
+      (is one two))))
+
+
+  ;;(testing "One-argument form of pick"
+  ;;  (is ()))
+
 (defn all-model-tests
   [config]
   ;; (db-fixture model-abuse config))
@@ -882,7 +916,8 @@
   (db-fixture nested-model-test config)
   (db-fixture fields-types-test config)
   (db-fixture collection-map-test config)
-  (db-fixture localized-map-field-test config))
+  (db-fixture localized-map-field-test config)
+  (db-fixture gather-test config))
 
 (deftest ^:mysql
   mysql-tests
