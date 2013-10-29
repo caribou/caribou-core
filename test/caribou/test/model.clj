@@ -67,7 +67,7 @@
 
 (defn model-logic-test
   []
-  (let [site-or-field (gather 
+  (let [site-or-field (gather
                        :model
                        {:where {'or [{:fields {:slug "asset"}} {:slug "field"}]}})
         id-or-slug-not-in (gather
@@ -699,8 +699,8 @@
 
 ;; (defn model-abuse
 ;;   []
-;;   (let [pink (create 
-;;               :model 
+;;   (let [pink (create
+;;               :model
 ;;               {:name "1PinkƒPink1"
 ;;                :fields [{:name "I1l0" :type "string"}
 ;;                         {:name "555f∆" :type "integer"}
