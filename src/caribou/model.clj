@@ -271,8 +271,15 @@
 
      --> returns 10 models and all their associated fields (and those
          fields' links if they exist) who have a field with the slug
-         of 'name', ordered by the model slug and offset by 3."
-  ([slug] (gather slug {}))
+         of 'name', ordered by the model slug and offset by 3.
+
+   There is also a one-argument form of gather that takes the opts map,
+   but that map must contain a :model key too.
+  "
+  ([argument]
+    (if (keyword? argument)
+      (gather argument {})
+      (gather (:model argument) (dissoc argument :model))))
   ([slug opts]
      (let [query-defaults (config/draw :query :query-defaults)
            ;; defaulted (query/apply-query-defaults opts query-defaults)
@@ -308,7 +315,10 @@
 (defn pick
   "pick is the same as gather, but returns only the first result, so is
   not a list of maps but a single map result."
-  ([slug] (pick slug {}))
+  ([argument]
+     (if (keyword? argument)
+       (pick argument {})
+       (pick (:model argument) (dissoc argument :model))))
   ([slug opts]
      (first (gather slug (assoc opts :limit 1)))))
 
