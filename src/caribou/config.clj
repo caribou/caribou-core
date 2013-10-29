@@ -160,14 +160,9 @@
    base over))
 
 (defn config-from-resource
-  "Loads the appropritate configuration file based on environment"
+  "Loads the appropriate configuration file based on environment"
   [default resource]
   (merge-config default (read-config (io/resource resource))))
-  ;; (deep-merge-with
-  ;;  (fn [& args]
-  ;;    (last args))
-  ;;  default
-  ;;  (read-config (io/resource resource))))
 
 (defn environment-config-resource
   []
