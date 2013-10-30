@@ -299,7 +299,6 @@
            ;;       (.printStackTrace e))))
            (if (-> opts :aggregate keyword)
              (uberquery model opts)
-             ;; (-> (uberquery model opts) first (get aggregate))
              (let [beams (beam-splitter defaulted)
                    resurrected (mapcat (partial uberquery model) beams)
                    fused (association/fusion model (name slug) resurrected defaulted)
