@@ -9,6 +9,7 @@
 /clucy-index
 /caribou-index
 /app
+/doc
 pom.xml*
 *.jar
 *.class

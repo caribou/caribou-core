@@ -28,7 +28,7 @@
                  [clucy "0.3.1"]
                  [me.raynes/fs "1.4.5"]
                  [org.mindrot/jbcrypt "0.3m"]]
-  :dev-dependencies [[lein-autodoc "0.9.0"]]
+  :plugins [[lein-marginalia "0.7.1"]]
   :repositories [["releases" {:url "https://clojars.org/repo" :creds :gpg}]]
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n" "-Xmx2g"]
   :autodoc {:name "Caribou Core"
@@ -48,7 +48,7 @@
            <a href=\"http://antler.github.com/caribou-api\">Caribou API</a> and
            <a href=\"http://antler.github.com/caribou-admin\">Caribou Admin</a>,
            each of which build in their own way upon this data model as a basis."}
-  :aot [caribou.model]
+  ;; :aot [caribou.model]
   :test-selectors {:default (constantly true)
                    :mysql :mysql
                    :postgres :postgres

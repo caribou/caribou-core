@@ -263,7 +263,8 @@
 
      :offset - how many records into the result set are returned.
 
-   Example: (gather :model {:include {:fields {:link {}}}
+   Example: 
+     (gather :model {:include {:fields {:link {}}}
                             :where {:fields {:slug \"name\"}}
                             :order {:slug :asc}
                             :limit 10
@@ -1072,24 +1073,24 @@
 ;;                    (util/query query-str slug
 ;;                                where order-by order limit offset))))))
 
-(gen-class
- :name caribou.model.Model
- :prefix model-
- :state state
- :init init
- :constructors {[String] []}
- :methods [[slug [] String]
-           [create [clojure.lang.APersistentMap] clojure.lang.APersistentMap]])
+;; (gen-class
+;;  :name caribou.model.Model
+;;  :prefix model-
+;;  :state state
+;;  :init init
+;;  :constructors {[String] []}
+;;  :methods [[slug [] String]
+;;            [create [clojure.lang.APersistentMap] clojure.lang.APersistentMap]])
 
-(defn model-init [slug]
-  [[] slug])
+;; (defn model-init [slug]
+;;   [[] slug])
 
-(defn model-create [this spec]
-  (sql/with-connection (config/draw :database)
-    (create (.state this) spec)))
+;; (defn model-create [this spec]
+;;   (sql/with-connection (config/draw :database)
+;;     (create (.state this) spec)))
 
-(defn model-slug [this]
-  (.state this))
+;; (defn model-slug [this]
+;;   (.state this))
 
 (defn init
   []
