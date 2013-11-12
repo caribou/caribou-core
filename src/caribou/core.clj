@@ -19,6 +19,12 @@
       (log/init (config/draw :logging :loggers))
       (config/draw))))
 
+(defn init-from-environment
+  []
+  (let [resource (config/environment-config-resource)
+        config (config/config-from-resource config/default-config resource)]
+    (init config)))
+
 (defmacro with-caribou
   [config & body]
   `(model/with-models ~config
