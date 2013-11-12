@@ -29,7 +29,7 @@
                  [me.raynes/fs "1.4.5"]
                  [org.mindrot/jbcrypt "0.3m"]]
   :plugins [[lein-marginalia "0.7.1"]
-            [caribou/lein-caribou "2.4.30"]]
+            [caribou/lein-caribou "2.13.0"]]
   :repositories [["releases" {:url "https://clojars.org/repo" :creds :gpg}]]
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n" "-Xmx2g"]
   :test-selectors {:default (constantly true)
