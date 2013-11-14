@@ -94,7 +94,8 @@
   (string/join " " (map string/capitalize (string/split (name s) #"[^a-zA-Z]+"))))
 
 (def file-separator
-  (str (.get (java.lang.System/getProperties) "file.separator")))
+  ;(str (.get (java.lang.System/getProperties) "file.separator"))
+  "/")
 
 (defn pathify
   [paths]
