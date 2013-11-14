@@ -99,6 +99,7 @@
 
 (defn pathify
   [paths]
+  (println "pathifying" (pr-str paths))
   (string/join file-separator paths))
 
 (defn file-exists?
