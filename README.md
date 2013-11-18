@@ -52,7 +52,6 @@ reciprocal relationship going in the other direction.
 ```clj
 (caribou/with-caribou config
   (let [tree-id (model/models :tree :id)
-        _ (println "TREE ID" tree-id)
         bird-model (model/create :model {:name "Bird" 
                                          :fields [{:name "Species" :type "string"} 
                                                   {:name "Portrait" :type "asset"}
