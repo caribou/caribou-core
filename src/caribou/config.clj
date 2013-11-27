@@ -10,11 +10,11 @@
 (import java.net.URI)
 (declare config-path)
 
-(defprotocol state-coordinator
+(defprotocol StateCoordinator
   (reset [this replacement])
   (swap [this update]))
 
-(extend-protocol state-coordinator
+(extend-protocol StateCoordinator
   java.lang.Object
   (reset [this value] value)
   (swap [this f] (f this))
