@@ -10,6 +10,18 @@
 (import java.net.URI)
 (declare config-path)
 
+(defprotocol state-coordinator
+  (reset [this replacement])
+  (swap [this update]))
+
+(extend-protocol state-coordinator
+  java.lang.Object
+  (reset [this value] value)
+  (swap [this f] (f this))
+  clojure.lang.Atom
+  (reset [this value] (reset! this value) this)
+  (swap [this f] (swap! this f) this))
+
 (defn set-properties
   [props]
   (doseq [prop-key (keys props)]
@@ -72,13 +84,8 @@
   (get-in config path))
 
 (defn update-config
-  [config path value]
-  (let [at (get-in config path)]
-    (if (= clojure.lang.Atom (class at))
-      (do
-        (reset! at value)
-        config)
-      (update-in config path value))))
+  [config path transform]
+  (update-in config path #(swap % transform)))
 
 (defn assoc-subname
   [db-config]

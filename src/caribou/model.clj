@@ -854,7 +854,7 @@
 
 (defn bind-models
   [resurrected config]
-  (reset! (:models config) resurrected))
+  (config/reset (:models config) resurrected))
 
 (defn invoke-models
   "call to populate the application model cache in model/models.
