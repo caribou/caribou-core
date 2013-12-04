@@ -51,7 +51,7 @@
   (caribou/with-caribou
     (caribou/init (config/draw))
     (migration)
-    (db/insert :migration {:name migration}))
+    (db/insert :migration {:name migration-name}))
     (log/info (str " <- migration " migration " ended.")))
 
 (defn run-migration
