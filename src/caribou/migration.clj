@@ -9,8 +9,6 @@
             [caribou.db :as db]
             [caribou.core :as caribou]))
 
-(println "DELETEME --- using temporary rewritten migrations")
-
 (defn get-migration
   [name]
   (db/query "select name from migration where name = ?" [name]))
