@@ -275,6 +275,7 @@
   [f]
   (sql/with-connection (config/draw :database) (f)))
 
+;; TODO - is this depricated? do we expect it to be used in future versions? (noisesmith)
 (defn wrap-db
   [handler db & [opts]]
   (if (config/draw :app :use-database)
@@ -288,6 +289,7 @@
   `(config/with-config ~config
      (if (config/draw :app :use-database)
        (sql/with-naming-strategy caribou.util/naming-strategy
-         (sql/with-connection (config/draw :database)
+         (sql/with-connection (or (config/draw :pooled-database)
+                                  (config/draw :database))
            ~@body))
        (do ~@body))))
