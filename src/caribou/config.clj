@@ -142,7 +142,6 @@
     (deep-merge-with
      (fn [& args]
        (last args))
-     (default-config)
      config
      {:database adapted})))
 
