@@ -52,12 +52,9 @@
     (log/info (str " <- migration " migration " ended."))))
 
 (defn run-migrations
-  [prj config-file exit? & migrations]
-
-  (let [cfg (config/read-config config-file)
-        cfg (config/process-config cfg)
-        app-migration-namespace (:migration-namespace prj)]
-    (db/with-db cfg
+  [prj config exit? & migrations]
+  (let [app-migration-namespace (:migration-namespace prj)]
+    (db/with-db config
       (log/info "Already used these: ")
       (pprint/pprint (used-migrations))
       (let [core-migrations (load-migration-order "caribou.migrations")
@@ -98,11 +95,9 @@
           true)))))
 
 (defn run-rollbacks
-  [prj config-file exit? & rollbacks]
-  (let [cfg (config/read-config config-file)
-        cfg (config/process-config cfg)
-        app-migration-namespace (:migration-namespace prj)]
-    (db/with-db cfg
+  [prj config exit? & rollbacks]
+  (let [app-migration-namespace (:migration-namespace prj)]
+    (db/with-db config
       (let [available-rollbacks (if (empty? (remove nil? rollbacks))
                                   (reverse (used-migrations))
                                   rollbacks)]
