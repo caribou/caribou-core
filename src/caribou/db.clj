@@ -289,7 +289,6 @@
   `(config/with-config ~config
      (if (config/draw :app :use-database)
        (sql/with-naming-strategy caribou.util/naming-strategy
-         (sql/with-connection (or (config/draw :pooled-database)
-                                  (config/draw :database))
+         (sql/with-connection (config/draw :database)
            ~@body))
        (do ~@body))))
