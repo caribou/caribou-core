@@ -1,7 +1,8 @@
 (ns caribou.util
   (:require [clojure.string :as string]
             [clojure.java.jdbc :as sql]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [clojure.data.codec.base64 :as b64]))
 
 (import java.util.regex.Matcher)
 (import java.sql.SQLException)
@@ -11,6 +12,12 @@
 (defn random-uuid
   []
   (String/valueOf (java.util.UUID/randomUUID)))
+
+(defn b64-decode
+  [code]
+  (let [bytes (byte-array (map byte code))
+        uncode (b64/decode bytes)]
+    (string/join (map char uncode))))
 
 (defn convert-int
   [something]
