@@ -1,0 +1,6 @@
+Provide a function that, given an arbitrary nested structure, generates a list of 
+models and fields that describes that structure.
+
+Create a PersistenceLayer protocol that abstracts caribou operations over
+sql and nosql, graph dbs, filesystem, key/value stores and any other persistence 
+mechanism yet to be created!
