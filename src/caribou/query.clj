@@ -284,14 +284,14 @@
 
 (defn cache-query
   [query-hash results]
-  (swap! (queries) assoc query-hash results))
+  (config/swap (queries) #(assoc % query-hash results)))
 
 (defn reverse-cache-add
   [id code]
   (let [cache (reverse-cache)]
     (if (contains? @cache id)
-      (swap! cache #(update-in % [id] (fn [v] (conj v code))))
-      (swap! cache #(assoc % id (list code))))))
+      (config/swap cache #(update-in % [id] (fn [v] (conj v code))))
+      (config/swap cache #(assoc % id (list code))))))
 
 (defn reverse-cache-get
   [id]
@@ -299,11 +299,11 @@
 
 (defn reverse-cache-delete
   [ids]
-  (swap! (reverse-cache) #(apply dissoc (cons % ids))))
+  (config/swap (reverse-cache) #(apply dissoc (cons % ids))))
 
 (defn clear-model-cache
   [ids]
-  (swap!
+  (config/swap
    (queries)
    #(apply
      (partial dissoc %)
@@ -312,8 +312,8 @@
 
 (defn clear-queries
   []
-  (reset! (queries) {})
-  (reset! (reverse-cache) {}))
+  (config/reset (queries) {})
+  (config/reset (reverse-cache) {}))
 
 (defn retrieve-query
   [query-hash]

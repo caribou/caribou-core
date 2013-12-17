@@ -19,7 +19,8 @@
             [caribou.query :as query]
             [caribou.validation :as validation]
             [caribou.index :as index]
-            [caribou.association :as association]))
+            [caribou.association :as association]
+            [caribou.db.adapter.protocol :as adapter]))
 
 (import caribou.association.ModelDisplay)
 
@@ -823,6 +824,14 @@
        display))
     model))
 
+(defn text-value
+  [text]
+  (adapter/text-value (config/draw :database :adapter) text))
+
+(defn cleanse
+  [row]
+  (update-in row [:description] text-value))
+
 (defn invoke-model
   "translates a row from the model table into a nested hash with
   references to its fields in a hash with keys being the field slugs
@@ -831,6 +840,7 @@
   (let [fields (db/query
                 "select * from field where model_id = ?"
                 [(get model :id)])
+        fields (map cleanse fields)
         field-map (util/seq-to-map
                    #(keyword (-> % :row :slug))
                    (map make-field fields))
@@ -854,7 +864,7 @@
 
 (defn bind-models
   [resurrected config]
-  (reset! (:models config) resurrected))
+  (config/reset (:models config) resurrected))
 
 (defn invoke-models
   "call to populate the application model cache in model/models.
@@ -865,7 +875,8 @@
   (invoke-fields)
   (try 
     (let [rows (db/query "select * from model")
-          invoked (doall (map invoke-model rows))
+          cleansed (map cleanse rows)
+          invoked (doall (map invoke-model cleansed))
           by-slug (util/seq-to-map #(-> % :slug keyword) invoked)
           by-id (util/seq-to-map :id invoked)]
       (add-model-hooks)
