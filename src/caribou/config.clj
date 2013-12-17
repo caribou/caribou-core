@@ -145,13 +145,17 @@
   (let [db-config (:database config)
         adapter (db-adapter/adapter-for db-config)
         subnamed (adapter/build-subname adapter db-config)
-        adapted (assoc subnamed :adapter adapter)]
-    (deep-merge-with
-     (fn [& args]
-       (last args))
-     (default-config)
-     config
-     {:database adapted})))
+        adapted (assoc subnamed :adapter adapter)
+        default (default-config)
+        merged (deep-merge-with
+                (fn [& args]
+                  (last args))
+                (dissoc default :database)
+                config
+                {:database adapted})]
+    (if (:database merged)
+      merged
+      (assoc merged :database (:database default-config)))))
 
 (defn read-config
   [config-file]
