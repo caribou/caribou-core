@@ -9,6 +9,10 @@
             [caribou.db :as db]
             [caribou.core :as caribou]))
 
+(defn get-migration
+  [name]
+  (db/query "select name from migration where name = ?" [name]))
+
 (defn used-migrations
   []
   (try 
@@ -37,26 +41,32 @@
     (merge config {:db-path "/./"})
     config))
 
+(defn migrate
+  [migration-name migration rollback]
+  (log/info (str " -> migration " migration-name " started."))
+  (when (nil? rollback)
+    (log/warn (str "No rollback available for migration " migration-name)))
+  (caribou/with-caribou
+    (caribou/init (config/draw))
+    (migration)
+    (db/insert :migration {:name migration-name}))
+    (log/info (str " <- migration " migration " ended.")))
+
 (defn run-migration
   [migration]
-  (log/info (str " -> migration " migration " started."))
   (let [migrate-symbol (symbol-in-namespace "migrate" migration)
         rollback-symbol (symbol-in-namespace "rollback" migration)]
     (when (nil? migrate-symbol)
       (throw (Exception. (str migration " has no 'migrate' function"))))
-    (when (nil? rollback-symbol)
-      (log/warn (str "No rollback available for migration " migration)))
-    (caribou/with-caribou (caribou/init (config/draw))
-      (migrate-symbol))
-    (db/insert :migration {:name migration})
-    (log/info (str " <- migration " migration " ended."))))
+    (migrate migration migrate-symbol rollback-symbol)))
 
 (defn run-migrations
   [prj config exit? & migrations]
-  (let [app-migration-namespace (:migration-namespace prj)]
+  (let [app-migration-namespace (:migration-namespace prj)
+        used (used-migrations)]
     (db/with-db config
       (log/info "Already used these: ")
-      (pprint/pprint (used-migrations))
+      (pprint/pprint used)
       (let [core-migrations (load-migration-order "caribou.migrations")
             app-migrations  (if app-migration-namespace
                               (load-migration-order app-migration-namespace)
@@ -64,7 +74,7 @@
             all-migrations  (if (empty? (remove nil? migrations))
                               (concat core-migrations app-migrations)
                               migrations)
-            unused-migrations (set/difference (set all-migrations) (set (used-migrations)))]
+            unused-migrations (set/difference (set all-migrations) (set used))]
         (doseq [m all-migrations]
           (when (unused-migrations m)
             (run-migration m)))

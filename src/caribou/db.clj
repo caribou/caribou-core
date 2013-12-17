@@ -275,6 +275,7 @@
   [f]
   (sql/with-connection (config/draw :database) (f)))
 
+;; TODO - is this depricated? do we expect it to be used in future versions? (noisesmith)
 (defn wrap-db
   [handler db & [opts]]
   (if (config/draw :app :use-database)
