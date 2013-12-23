@@ -1,4 +1,4 @@
-(defproject caribou/caribou-core "0.13.3"
+(defproject caribou/caribou-core "0.13.3-NO-INDEXING-PREVIEW"
   :description "Caribou is a dynamic web application generator with antlers"
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/data.codec "0.1.0"]
@@ -26,7 +26,6 @@
                  [clj-aws-s3 "0.3.6"]
                  [clojure-complete "0.2.3"]
                  [org.clojure/tools.nrepl "0.2.3"]
-                 [clucy "0.3.1"]
                  [me.raynes/fs "1.4.5"]
                  [org.mindrot/jbcrypt "0.3m"]]
   :plugins [[lein-marginalia "0.7.1"]

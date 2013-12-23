@@ -18,7 +18,6 @@
             [caribou.field.link :as link]
             [caribou.query :as query]
             [caribou.validation :as validation]
-            [caribou.index :as index]
             [caribou.association :as association]
             [caribou.db.adapter.protocol :as adapter]))
 
@@ -932,8 +931,6 @@
                        (if (contains? opts :locale) 
                          {:locale (:locale opts)} {})))
 
-             indexed (index/add model content {:locale (:locale opts)})
-
              merged (merge (:spec _create) content)
 
              _after (hooks/run-hook
@@ -975,7 +972,6 @@
                       :updated-at (current-timestamp)))
            content (pick slug (merge {:where {:id id}}
                                      (if (contains? opts :locale) {:locale (:locale opts)} {})))
-           indexed (index/update model content {:locale (:locale opts)})
            merged (merge (_update :spec) content)
            _after (hooks/run-hook slug :after-update
                                   (merge _update {:content merged}))
@@ -995,7 +991,6 @@
         pre (reduce #(field/pre-destroy %2 %1)
                     (_before :content) (-> model :fields vals))
         deleted (db/delete slug "id = ?" (field/integer-conversion id))
-        _ (index/delete model content)
         _after (hooks/run-hook slug :after-destroy (merge _before {:content pre}))]
     (query/clear-model-cache (list (:id model)))
     (_after :content)))
