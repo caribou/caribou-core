@@ -187,8 +187,8 @@
     (sql/do-commands
      (log/out :db (util/clause
                      (if value
-                       "alter table %1 add constraint %2_unique unique (%2)"
-                       "alter table %1 drop constraint %2_unique")
+                       "alter table %1 add constraint %1_%2_unique unique (%2)"
+                       "alter table %1 drop constraint %1_%2_unique")
                      [(util/dbize table) (util/dbize column)])))))
 
 (defn add-primary-key
