@@ -13,9 +13,8 @@
                  [clj-yaml "0.3.1"]
                  [slingshot "0.10.3"
                   :exclusions [org.clojure/clojure]]
-                 [geocoder-clj "0.0.8"
-                  :exclusions [org.apache.httpcomponents/httpclient
-                               org.apache.httpcomponents/httpcore
+                 [geocoder-clj "0.2.3"
+                  :exclusions [
                                org.clojure/clojure slingshot]]
                  [org.clojure/tools.logging "0.2.3"
                   :exclusions [org.clojure/clojure]]
