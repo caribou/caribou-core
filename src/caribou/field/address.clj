@@ -1,6 +1,6 @@
 (ns caribou.field.address
   (:require [clojure.string :as string]
-            [geocoder.core :as geo]
+            [geocoder.google :as geo]
             [caribou.field :as field]
             [caribou.util :as util]
             [caribou.db :as db]
@@ -23,8 +23,8 @@
  (let [code (geo/geocode-address (full-address address))]
    (if (empty? code)
      {}
-     {:lat (-> (first code) :location :latitude)
-      :lng (-> (first code) :location :longitude)})))
+     {:lat (-> (first code) :geometry :location :lat)
+      :lng (-> (first code) :geometry :location :lng)})))
 
 (defrecord AddressField [row env]
   field/Field
