@@ -116,8 +116,8 @@
     spec))
 
 (defn merge-db-creds
-  [db-config user pass]
-  (if (and user pass)
+  [db-config user password]
+  (if (and user password)
     (assoc db-config :user user :password password)
     db-config))
 
@@ -146,9 +146,9 @@
   (if-let [connection (System/getProperty (:connection properties))]
     (let [user (:username properties)
           user (if user (System/getProperty user))
-          pass (:password properties)
-          pass (if pass (System/getProperty pass))]
-      (configure-db {:connection connection :username user :password pass}))))
+          password (:password properties)
+          password (if password (System/getProperty password))]
+      (configure-db {:connection connection :username user :password password}))))
 
 (defn process-config
   [config]
