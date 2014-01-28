@@ -115,30 +115,40 @@
     (.substring spec 5)
     spec))
 
-(defn merge-db-creds-from-env
-  [db-config user-prop pass-prop]
-  (if (and user-prop pass-prop)
-    (let [user (System/getProperty user-prop)
-          password (System/getProperty pass-prop)]
-      (if (and user password)
-        (assoc db-config :user user :password password)
-        db-config))
+(defn merge-db-creds
+  [db-config user pass]
+  (if (and user pass)
+    (assoc db-config :user user :password password)
     db-config))
 
+(defn configure-db
+  "Pass in the current config and a map of connection variables
+   that specify the db connection information. The keys to this map
+   are:
+    :connection --> the jdbc connection string
+    :username   --> optional username parameter
+    :password   --> optional password parameter"
+  [config properties]
+  (let [connection (strip-jdbc (:connection properties))
+        uri (URI. connection)
+        parsed (parse-properties-uri uri)
+        db-config (merge-db-creds parsed (:username properties) (:password properties))]
+    (assoc-in config [:database] db-config)))
+
 (defn configure-db-from-environment
-  "Pass in the current config and a map of environment variables that specify where the db connection
-  information is stored.  The keys to this map are:
+  "Pass in the current config and a map of connection variables
+   that specify where the db connection informationis store.
+   The keys to this map are:
     :connection --> the jdbc connection string
     :username   --> optional username parameter
     :password   --> optional password parameter"
   [config properties]
   (if-let [connection (System/getProperty (:connection properties))]
-    (let [connection (strip-jdbc connection)
-          uri (URI. connection)
-          parsed (parse-properties-uri uri)
-          db-config (merge-db-creds-from-env parsed (:username properties) (:password properties))]
-      (update-in config [:database] #(merge % db-config)))
-    config))
+    (let [user (:username properties)
+          user (if user (System/getProperty user))
+          pass (:password properties)
+          pass (if pass (System/getProperty pass))]
+      (configure-db {:connection connection :username user :password pass}))))
 
 (defn process-config
   [config]
