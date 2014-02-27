@@ -66,7 +66,8 @@
                             [#"^-+|-+$" ""]]}
    :hooks {:namespace "skel.hooks"
            :lifecycle (atom {})}
-   :index {:path "caribou-index"
+   :index {:enabled true
+           :path "caribou-index"
            :default-limit 1000
            :store (atom nil)}
    :logging {:loggers [{:type :stdout :level :debug}]}
