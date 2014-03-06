@@ -1,4 +1,4 @@
-(defproject caribou/caribou-core "0.13.17"
+(defproject caribou/caribou-core "0.14.0"
   :description "Caribou is a dynamic web application generator with antlers"
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/data.codec "0.1.0"]
@@ -26,8 +26,7 @@
                  [clucy "0.3.1"]
                  [me.raynes/fs "1.4.5"]
                  [org.mindrot/jbcrypt "0.3m"]]
-  :plugins [[lein-marginalia "0.7.1"]
-            [caribou/lein-caribou "2.13.0"]]
+  :plugins [[lein-marginalia "0.7.1"]]
   :repositories [["releases" {:url "https://clojars.org/repo" :creds :gpg}]]
   :jvm-opts ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n" "-Xmx2g"]
   :test-selectors {:default (constantly true)
