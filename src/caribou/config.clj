@@ -37,10 +37,15 @@
   [key]
   (.get (System/getProperties) (name key)))
 
+(defn environment-variable
+  [key]
+  (System/getenv (name key)))
+
 (defn environment
   []
   (keyword
    (or (system-property :environment)
+       (environment-variable :CARIBOU_ENVIRONMENT)
        "development")))
 
 (defn default-config
@@ -51,14 +56,7 @@
             :root ""}
    :aws {:bucket nil
          :credentials nil}
-   :database {:classname    "org.h2.Driver"
-              :subprotocol  "h2"
-              :host         "localhost"
-              :protocol     "file"
-              :path         "/tmp/"
-              :database     "caribou_development"
-              :user         "h2"
-              :password     ""}
+   :database {}
    :field {:constructors (atom {})
            :namespace "skel.fields"
            :slug-transform [[#"['\"]+" ""]
@@ -66,7 +64,8 @@
                             [#"^-+|-+$" ""]]}
    :hooks {:namespace "skel.hooks"
            :lifecycle (atom {})}
-   :index {:path "caribou-index"
+   :index {:enabled true
+           :path "caribou-index"
            :default-limit 1000
            :store (atom nil)}
    :logging {:loggers [{:type :stdout :level :debug}]}
@@ -104,6 +103,9 @@
      {:subname (if port
                  (str "//" host ":" port path)
                  (str "//" host path))
+      :host host
+      :port port
+      :database (string/replace path #"^/?" "")
       :subprotocol (subprotocols scheme scheme)}
      (if-let [user-info (.getUserInfo uri)]
        {:user (first (string/split user-info #":"))
@@ -115,29 +117,41 @@
     (.substring spec 5)
     spec))
 
-(defn merge-db-creds-from-env
-  [db-config user-prop pass-prop]
-  (if (and user-prop pass-prop)
-    (let [user (System/getProperty user-prop)
-          password (System/getProperty pass-prop)]
-      (if (and user password)
-        (assoc db-config :user user :password password)
-        db-config))
+(defn merge-db-creds
+  [db-config user password]
+  (if (and user password)
+    (assoc db-config :user user :password password)
     db-config))
 
-(defn configure-db-from-environment
-  "Pass in the current config and a map of environment variables that specify where the db connection
-  information is stored.  The keys to this map are:
+(defn configure-db
+  "Pass in the current config and a map of connection variables
+   that specify the db connection information. The keys to this map
+   are:
     :connection --> the jdbc connection string
     :username   --> optional username parameter
     :password   --> optional password parameter"
   [config properties]
-  (if-let [connection (System/getProperty (:connection properties))]
-    (let [connection (strip-jdbc connection)
-          uri (URI. connection)
-          parsed (parse-properties-uri uri)
-          db-config (merge-db-creds-from-env parsed (:username properties) (:password properties))]
-      (update-in config [:database] #(merge % db-config)))
+  (let [connection (strip-jdbc (:connection properties))
+        uri (URI. connection)
+        parsed (parse-properties-uri uri)
+        db-config (merge-db-creds parsed (:username properties) (:password properties))]
+    ;; (assoc-in config [:database] db-config)
+    (update-in config [:database] merge db-config)))
+
+(defn merge-db-connection
+  "Pass in the current config and a map of connection variables
+   that specify where the db connection informationis store.
+   The keys to this map are:
+    :connection --> the jdbc connection string
+    :username   --> optional username parameter
+    :password   --> optional password parameter"
+  [config properties]
+  (if-let [connection (System/getenv (:connection properties))]
+    (let [username (:username properties)
+          username (if username (System/getenv username))
+          password (:password properties)
+          password (if password (System/getenv password))]
+      (configure-db config {:connection connection :username username :password password}))
     config))
 
 (defn process-config
@@ -155,7 +169,7 @@
                 {:database adapted})]
     (if (:database merged)
       merged
-      (assoc merged :database (:database default-config)))))
+      (assoc merged :database (:database default)))))
 
 (defn read-config
   [config-file]
@@ -181,9 +195,7 @@
 
 (defn config-from-environment
   [default]
-  (-> default
-      (config-from-resource (environment-config-resource))
-      (process-config)))
+  (config-from-resource default (environment-config-resource)))
 
 (defmacro with-config
   [new-config & body]

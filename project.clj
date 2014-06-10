@@ -1,4 +1,4 @@
-(defproject caribou/caribou-core "0.13.3"
+(defproject caribou/caribou-core "0.13.17"
   :description "Caribou is a dynamic web application generator with antlers"
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/data.codec "0.1.0"]
@@ -10,17 +10,15 @@
                  [caribou/antlers "0.6.1"]
                  [clj-time "0.4.4"
                   :exclusions [org.clojure/clojure]]
-                 [clj-yaml "0.3.1"]
                  [slingshot "0.10.3"
                   :exclusions [org.clojure/clojure]]
                  [geocoder-clj "0.2.3"
-                  :exclusions [
-                               org.clojure/clojure slingshot]]
+                  :exclusions [org.clojure/clojure slingshot]]
                  [org.clojure/tools.logging "0.2.3"
                   :exclusions [org.clojure/clojure]]
                  [com.novemberain/pantomime "2.0.0"
                   :exclusions [org.clojure/clojure]]
-                 [leiningen-core "2.0.0-preview3"
+                 [leiningen-core "2.3.4"
                   :exclusions [org.clojure/clojure]]
                  [clj-aws-s3 "0.3.6"]
                  [clojure-complete "0.2.3"]
