@@ -304,7 +304,6 @@
               positions (reverse (range 5 (-> nightpurples count (+ 5))))
               orderings (map
                          (fn [nightpurple pos]
-                           (println "NIGHTPURPLE" nightpurple)
                            {:id (:id nightpurple) :position pos})
                          nightpurples positions)]
           (order :chartreuse (:id ccoc) :nightpurple orderings)

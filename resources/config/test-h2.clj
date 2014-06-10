@@ -1,4 +1,4 @@
-{:logging {:loggers [{:type :stdout :level :debug}
+{:logging {:loggers [{:type :stdout :level :warn}
                      ;; {:type :remote :host "beast.local" :level :debug}
                      ;; {:type :file :file "caribou-logging.out" :level :debug}
                      ]}
