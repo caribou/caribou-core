@@ -2,6 +2,7 @@
   (:use [caribou.db.adapter.protocol :only (DatabaseAdapter)])
   (:require [caribou.logger :as log]
             [caribou.util :as util]
+            [clojure.java.jdbc.deprecated :as old-sql]
             [clojure.java.jdbc :as sql]))
 
 (import java.util.regex.Matcher)
@@ -20,7 +21,7 @@
 (defn mysql-set-required
   [table column value]
   (let [field-type (find-column-type table column)]
-    (sql/do-commands
+    (old-sql/do-commands
      (log/out :db (util/clause
                      (if value
                        "alter table %1 modify %2 %3 not null"
@@ -33,12 +34,12 @@
     (let [field-type (find-column-type table column)
           alter-statement "alter table %1 change %2 %3 %4"
           rename (log/out :db (util/clause alter-statement (map util/dbize [table column new-name field-type])))]
-      (sql/do-commands rename))
+      (old-sql/do-commands rename))
     (catch Exception e (log/render-exception e))))
 
 (defn mysql-insert-result
   [this table result]
-  (sql/with-query-results res
+  (old-sql/with-query-results res
     [(str "select * from " (util/dbize table)
           " where id = " (result (first (keys result))))]
     (first (doall res))))
@@ -46,14 +47,14 @@
 (defn mysql-drop-index
   [table column]
   (try
-    (sql/do-commands
+    (old-sql/do-commands
      (log/out :db (util/clause "alter table %1 drop index %1_%2_index" (map util/dbize [table column]))))
     (catch Exception e (log/render-exception e))))
 
 (defn mysql-drop-model-index
   [old-table new-table column]
   (try
-    (sql/do-commands
+    (old-sql/do-commands
      (log/out :db (util/clause "alter table %2 drop index %1_%3_index" (map util/dbize [old-table new-table column]))))
     (catch Exception e (log/render-exception e))))
 

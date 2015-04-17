@@ -4,6 +4,7 @@
             [clojure.set :as set]
             [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
+            [clojure.java.jdbc.deprecated :as old-sql]
             [pantomime.mime :as mime]
             [antlers.parser :as parser]
             [caribou.util :as util]
@@ -1100,7 +1101,7 @@
 ;;   [[] slug])
 
 ;; (defn model-create [this spec]
-;;   (sql/with-connection (config/draw :database)
+;;   (old-sql/with-connection (config/draw :database)
 ;;     (create (.state this) spec)))
 
 ;; (defn model-slug [this]
@@ -1114,7 +1115,7 @@
   (if (empty? (config/draw :database))
     (throw (Exception. "Please configure caribou prior to initializing model")))
 
-  (sql/with-connection (config/draw :database)
+  (old-sql/with-connection (config/draw :database)
     (invoke-models)))
 
 ;; MODEL GENERATION -------------------

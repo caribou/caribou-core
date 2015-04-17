@@ -1,6 +1,6 @@
 (ns caribou.util
   (:require [clojure.string :as string]
-            [clojure.java.jdbc :as sql]
+            [clojure.java.jdbc.deprecated :as old-sql]
             [clojure.java.io :as io]
             [clojure.data.codec.base64 :as b64]))
 
@@ -219,7 +219,7 @@
 (defn dbize
   [s]
   (if (or (keyword? s) (string? s))
-    (sql/as-named-identifier naming-strategy (keyword (zap s)))
+    (old-sql/as-named-identifier naming-strategy (keyword (zap s)))
     s))
 
 (defn clause
@@ -242,7 +242,7 @@
 (defn query
   "make an arbitrary query, substituting in extra args as % parameters"
   [q & args]
-  (sql/with-query-results res
+  (old-sql/with-query-results res
     [(clause q args)]
     (doall res)))
 

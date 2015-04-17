@@ -1,5 +1,6 @@
 (ns caribou.db.adapter.h2
-  (:require [clojure.java.jdbc :as sql]
+  (:require [clojure.java.jdbc.deprecated :as old-sql]
+            [clojure.java.jdbc :as sql]
             [clojure.string :as string]
             [caribou.util :as util]
             [caribou.logger :as log])
@@ -19,7 +20,7 @@
 (defn h2-tables
   "Retrieve a list of all tables in an h2 database."
   []
-  (let [connection (sql/connection)
+  (let [connection (old-sql/connection)
         res (-> connection .getMetaData
                 (.getTables (-> connection .getCatalog) nil nil nil))]
     (loop [acc []]
@@ -37,7 +38,7 @@
 
 (defn h2-set-required
   [table column value]
-  (sql/do-commands
+  (old-sql/do-commands
    (log/out :db (util/clause
                    (if value
                      "alter table %1 alter column %2 set not null"
@@ -51,13 +52,13 @@
           rename (log/out
                   :db
                   (util/clause alter-statement (map util/dbize [table column new-name])))]
-      (sql/do-commands rename))
+      (old-sql/do-commands rename))
     (catch Exception e (log/render-exception e))))
 
 (defn h2-drop-index
   [table column]
   (try
-    (sql/do-commands
+    (old-sql/do-commands
      (log/out :db (util/clause "drop index %1_%2_index"
                             (map util/dbize [table column]))))
     (catch Exception e (log/render-exception e))))
@@ -82,7 +83,7 @@
   (unicode-supported? [this] true)
   (supports-constraints? [this] false)
   (insert-result [this table result]
-    (sql/with-query-results res
+    (old-sql/with-query-results res
       [(str "select * from " (util/dbize table)
             " where id = " (result (first (keys result))))]
       (first (doall res))))

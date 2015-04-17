@@ -1,6 +1,7 @@
 (ns caribou.db
   (:use [clojure.string :only (join split)])
   (:require [clojure.string :as string]
+            [clojure.java.jdbc.deprecated :as old-sql]
             [clojure.java.jdbc :as sql]
             [caribou.logger :as log]
             [caribou.config :as config]
@@ -14,7 +15,7 @@
   ([template] (query template []))
   ([template args]
      (let [q (vec (cons template args))]
-       (sql/with-query-results res
+       (old-sql/with-query-results res
          q
          (doall res)))))
 
@@ -48,7 +49,7 @@
   "insert a row into the given table with the given values"
   [table values]
   (log/out :db (util/clause "insert into %1 values %2" [(util/dbize table) (value-map values)]))
-  (let [result (sql/insert-record (util/dbize table) values)]
+  (let [result (old-sql/insert-record (util/dbize table) values)]
     (adapter/insert-result (config/draw :database :adapter) (util/dbize table) result)))
 
 (defn update
@@ -57,7 +58,7 @@
   (log/out :db (str "update " table " " where " set " values))
   (if (not (empty? values))
     (try
-      (sql/update-values (util/dbize table) where values)
+      (old-sql/update-values (util/dbize table) where values)
       (catch Exception e
         (log/render-exception e)))))
 
@@ -65,7 +66,7 @@
   "delete out of the given table according to the supplied where clause"
   [table & where]
   (log/out :db (util/clause "delete from %1 values %2" [(util/dbize table) (util/clause (first where) (rest where))]))
-  (sql/delete-rows
+  (old-sql/delete-rows
    (util/dbize table)
    where))
 
@@ -94,7 +95,7 @@
 
 (defn commit
   []
-  (sql/do-commands "commit"))
+  (old-sql/do-commands "commit"))
 
 ;; table operations -------------------------------------------
 
@@ -109,7 +110,7 @@
   [table & fields]
   (log/out :db (util/clause "create table %1 %2" [(util/dbize table) fields]))
   (try
-    (apply sql/create-table (cons table fields))
+    (apply old-sql/create-table (cons table fields))
     (catch Exception e (log/render-exception e))))
 
 (defn rename-table
@@ -117,7 +118,7 @@
   [table new-name]
   (let [rename (log/out :db (util/clause "alter table %1 rename to %2" [(util/dbize table) (util/dbize new-name)]))]
     (try
-      (sql/do-commands rename)
+      (old-sql/do-commands rename)
       (catch Exception e (log/render-exception e)))))
 
 (defn drop-table
@@ -125,7 +126,7 @@
   [table]
   (let [drop (log/out :db (util/clause "drop table %1 cascade" [(util/dbize table)]))]
     (try
-      (sql/do-commands drop)
+      (old-sql/do-commands drop)
       (catch Exception e (log/render-exception e)))))
 
 (defn add-column
@@ -133,7 +134,7 @@
   [table column opts]
   (let [type (join " " (map util/dbize opts))]
     (try
-      (sql/do-commands
+      (old-sql/do-commands
        (log/out :db (util/clause "alter table %1 add column %2 %3" (map util/dbize [table column type]))))
       (catch Exception e (log/render-exception e)))))
 
@@ -145,14 +146,14 @@
 (defn drop-column
   "remove the given column from the table."
   [table column]
-  (sql/do-commands
+  (old-sql/do-commands
    (log/out :db (util/clause "alter table %1 drop column %2" (map util/dbize [table column])))))
 
 (defn create-index
   [table column]
   (if (adapter/supports-constraints? (config/draw :database :adapter))
     (try
-      (sql/do-commands
+      (old-sql/do-commands
        (log/out :db (util/clause "create index %1_%2_index on %1 (%2)" (map util/dbize [table column]))))
       (catch Exception e (log/render-exception e)))))
 
@@ -172,7 +173,7 @@
   (try
     (if (adapter/supports-constraints? (config/draw :database :adapter))
       (let [value (sqlize default)]
-        (sql/do-commands
+        (old-sql/do-commands
          (log/out :db (util/clause "alter table %1 alter column %2 set default %3" [(util/dbize table) (util/dbize column) value])))))
     (catch Exception e (log/render-exception e))))
 
@@ -184,7 +185,7 @@
 (defn set-unique
   [table column value]
   (if (adapter/supports-constraints? (config/draw :database :adapter))
-    (sql/do-commands
+    (old-sql/do-commands
      (log/out :db (util/clause
                      (if value
                        "alter table %1 add constraint %1_%2_unique unique (%2)"
@@ -195,7 +196,7 @@
   [table column]
   (if (adapter/supports-constraints? (config/draw :database :adapter))
     (try
-      (sql/do-commands
+      (old-sql/do-commands
        (log/out
         :db
         (util/clause "alter table %1 add primary key (%2)" [(util/dbize table) (util/dbize column)])))
@@ -205,7 +206,7 @@
   [table column reference deletion]
   (if (adapter/supports-constraints? (config/draw :database :adapter))
     (try
-      (sql/do-commands
+      (old-sql/do-commands
        (log/out :db (util/clause
                        (condp = deletion
                          :destroy "alter table %1 add constraint %1_%2_%3_fk foreign key(%2) references %3 on delete cascade"
@@ -219,7 +220,7 @@
   [table column reference]
   (if (adapter/supports-constraints? (config/draw :database :adapter))
     (try
-      (sql/do-commands
+      (old-sql/do-commands
        (log/out 
         :db 
         (util/clause
@@ -229,10 +230,10 @@
         (log/error (str "UNABLE TO DROP REFERENCE FOR" table column reference e))))))
 
 (defn do-sql
-  "execute arbitrary sql.  direct proxy to sql/do-commands."
+  "execute arbitrary sql.  direct proxy to old-sql/do-commands."
   [commands]
   (try
-    (sql/do-commands commands)
+    (old-sql/do-commands commands)
     (catch Exception e (.getNextException e))))
 
 (defn change-db-keep-host
@@ -247,8 +248,8 @@
   (let [db-name (config :database)]
     (log/debug (str "dropping database: " db-name))
     (try
-      (sql/with-connection (change-db-keep-host config "template1")
-        (with-open [s (.createStatement (sql/connection))]
+      (old-sql/with-connection (change-db-keep-host config "template1")
+        (with-open [s (.createStatement (old-sql/connection))]
           (.addBatch s (str "drop database " (util/dbize db-name)))
           (seq (.executeBatch s))))
       (catch Exception e (log/render-exception e)))))
@@ -259,8 +260,8 @@
   (let [db-name (config :database)]
     (log/debug (str "creating database: " db-name))
     (try
-      (sql/with-connection (change-db-keep-host config "template1") 
-        (with-open [s (.createStatement (sql/connection))]
+      (old-sql/with-connection (change-db-keep-host config "template1") 
+        (with-open [s (.createStatement (old-sql/connection))]
           (.addBatch s (str "create database " (util/dbize db-name)))
           (seq (.executeBatch s))))
       (catch Exception e (log/render-exception e)))))
@@ -273,14 +274,14 @@
 
 (defn call
   [f]
-  (sql/with-connection (config/draw :database) (f)))
+  (old-sql/with-connection (config/draw :database) (f)))
 
 ;; TODO - is this depricated? do we expect it to be used in future versions? (noisesmith)
 (defn wrap-db
   [handler db & [opts]]
   (if (config/draw :app :use-database)
     (fn [request]
-      (sql/with-connection db (handler request)))
+      (old-sql/with-connection db (handler request)))
     (fn [request]
       (handler request))))
 
@@ -288,7 +289,7 @@
   [config & body]
   `(config/with-config ~config
      (if (config/draw :app :use-database)
-       (sql/with-naming-strategy caribou.util/naming-strategy
-         (sql/with-connection (config/draw :database)
+       (old-sql/with-naming-strategy caribou.util/naming-strategy
+         (old-sql/with-connection (config/draw :database)
            ~@body))
        (do ~@body))))

@@ -1,5 +1,5 @@
 (ns caribou.migrations.field-unique-constraint
-  (:require [clojure.java.jdbc :as sql]
+  (:require [clojure.java.jdbc.deprecated :as old-sql]
             [caribou.model :as model]))
 
 (defn migrate
@@ -11,7 +11,7 @@
                                          :slug "status"
                                          :type "collection"}})]
     (model/update :field (:id status-self-collection) {:name "Status Status"}))
-  (sql/do-commands "alter table field add constraint model_id_slug_unique unique (model_id, slug)"))
+  (old-sql/do-commands "alter table field add constraint model_id_slug_unique unique (model_id, slug)"))
 
 (defn rollback
   [])
