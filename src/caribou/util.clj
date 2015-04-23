@@ -310,3 +310,9 @@
       (if-let [action (ns-resolve running (symbol action-symbol))]
         (action)))))
 
+(defn dechunk
+  [coll]
+  (lazy-seq
+   (when-let [[x] (seq coll)]
+     (cons x
+           (dechunk (rest coll))))))
