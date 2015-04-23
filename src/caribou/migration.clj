@@ -62,9 +62,9 @@
 
 (defn run-migrations
   [prj config exit? & migrations]
-  (let [app-migration-namespace (:migration-namespace prj)
-        used (used-migrations)]
-    (db/with-db config
+  (db/with-db config
+    (let [app-migration-namespace (:migration-namespace prj)
+          used (used-migrations)]
       (log/info "Already used these: ")
       (pprint/pprint used)
       (let [core-migrations (load-migration-order "caribou.migrations")
@@ -78,11 +78,11 @@
         (doseq [m all-migrations]
           (when (unused-migrations m)
             (run-migration m)))
-        (log/info " <- run-migrations ended.")))
-    ;; This is because the presence of an active h2 thread prevents
-    ;; this function from returning to lein-caribou, which invoked
-    ;; it using 'eval-in-project'
-    (if exit? (lein/exit))))
+        (log/info " <- run-migrations ended."))
+      ;; This is because the presence of an active h2 thread prevents
+      ;; this function from returning to lein-caribou, which invoked
+      ;; it using 'eval-in-project'
+      (if exit? (lein/exit)))))
 
 (defn run-rollback
   [rollback]
