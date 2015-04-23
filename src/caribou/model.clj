@@ -872,7 +872,7 @@
   (otherwise we hit the db all the time with model and field selects)
   this also means if a model or field is changed in any way that model
   will have to be reinvoked to reflect the current state."
-  []
+  [& [migrating]]
   (invoke-fields)
   (try 
     (let [rows (db/query "select * from model")
@@ -885,8 +885,10 @@
       (bind-models (merge by-slug by-id) config/config)
       (add-app-model-hooks))
     (catch Exception e
-      (log/out :INVOKE_MODELS "No models table yet!")
-      (log/print-exception e))))
+      (if migrating
+        (log/out :INVOKE_MODELS "No models table yet.")
+        (do (log/out :INVOKE_MODELS "No models table yet!")
+            (log/print-exception e))))))
 
 (defn update-values-reduction
   [spec original]

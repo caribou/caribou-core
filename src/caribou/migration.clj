@@ -18,7 +18,7 @@
   (try 
     (map #(% :name) (db/query "select * from migration"))
     (catch Exception e
-      (log/error (.getMessage e)))))
+      (log/error (str "while finding used migrations: " (.getMessage e))))))
 
 (defn symbol-in-namespace
   [sym n]
@@ -47,10 +47,10 @@
   (when (nil? rollback)
     (log/warn (str "No rollback available for migration " migration-name)))
   (caribou/with-caribou
-    (caribou/init (config/draw))
+    (caribou/init (config/draw) :migrating)
     (migration)
     (db/insert :migration {:name migration-name}))
-    (log/info (str " <- migration " migration " ended.")))
+  (log/info (str " <- migration " migration " ended.")))
 
 (defn run-migration
   [migration]

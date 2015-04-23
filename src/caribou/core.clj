@@ -11,11 +11,11 @@
 (def destroy model/destroy)
 
 (defn init
-  [init-config]
+  [init-config & [migrating]]
   (let [full-config (config/process-config init-config)]
     (db/with-db full-config
       (if (config/draw :app :use-database)
-        (model/invoke-models))
+        (model/invoke-models migrating))
       (log/init (config/draw :logging :loggers))
       (config/draw))))
 
