@@ -1,4 +1,5 @@
 (ns caribou.core
+  (:refer-clojure :exclude [update])
   (:require [caribou.config :as config]
             [caribou.db :as db]
             [caribou.model :as model]

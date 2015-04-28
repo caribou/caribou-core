@@ -1,4 +1,5 @@
 (ns caribou.index
+  (:refer-clojure :exclude [update])
   (:require [clucy.core :as clucy]
             [caribou.logger :as log]
             [me.raynes.fs :as fs]

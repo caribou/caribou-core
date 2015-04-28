@@ -1,4 +1,5 @@
 (ns caribou.model
+  (:refer-clojure :exclude [update])
   (:require [clojure.string :as string]
             [clojure.walk :as walk]
             [clojure.set :as set]
