@@ -1,4 +1,5 @@
 (ns caribou.db
+  (:refer-clojure :exclude [update])
   (:use [clojure.string :only (join split)])
   (:require [clojure.string :as string]
             [clojure.java.jdbc.deprecated :as old-sql]
